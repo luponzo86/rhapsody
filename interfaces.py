@@ -48,7 +48,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
     # if available, compute additional predictions from a subset of features
     if aux_classifier is not None:
         try:
-            r.calcAuxPredictions()
+            r.calcAuxPredictions(aux_classifier)
         except Exception as e:
             LOGGER.warn('Unable to compute auxiliary predictions: {}'.format(e))
 
