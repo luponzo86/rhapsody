@@ -4,13 +4,13 @@ from . import PolyPhen2
 from .PolyPhen2 import *
 __all__.extend(PolyPhen2.__all__)
 
-from . import UniprotMapping
-from .UniprotMapping import *
-__all__.extend(UniprotMapping.__all__)
+from . import Uniprot
+from .Uniprot import *
+__all__.extend(Uniprot.__all__)
 
-from . import PDBfeatures
-from .PDBfeatures import *
-__all__.extend(PDBfeatures.__all__)
+from . import PDB
+from .PDB import *
+__all__.extend(PDB.__all__)
 
 from . import EVmutation
 from .EVmutation import *

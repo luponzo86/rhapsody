@@ -2,8 +2,8 @@ import numpy as np
 from prody import LOGGER
 from Bio.SubsMat.MatrixInfo import blosum62
 from .PolyPhen2 import *
-from .PDBfeatures import *
-from .UniprotMapping import *
+from .PDB import *
+from .Uniprot import *
 from .EVmutation import *
 
 __all__ = ['calcPP2features', 'calcPDBfeatures', 'calcPfamFeatures',

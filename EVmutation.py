@@ -9,7 +9,7 @@ from prody import LOGGER
 # DeltaE_epist == 0     --> neutral effect (wild-type)
 # positive DeltaE_epist --> neutral/benign effect 
 
-__all__ = ['recoverEVmutFeatures']
+__all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
 
 EVMUT_FOLDER = '/home/lponzoni/Data/025-EVmutation/mutation_effects/'

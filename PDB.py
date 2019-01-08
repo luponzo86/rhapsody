@@ -8,7 +8,7 @@ import pickle
 import datetime
 import os
 
-__all__ = ['PDBfeatures']
+__all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS', 'PDBfeatures']
 
 STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
 DYN_FEATS = ['GNM_MSF', 'ANM_MSF',
