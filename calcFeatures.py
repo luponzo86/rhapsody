@@ -1,10 +1,13 @@
 import numpy as np
 from prody import LOGGER
-from PolyPhen2 import *
-from PDBfeatures import *
-from UniprotMapping import *
-from EVmutation import *
 from Bio.SubsMat.MatrixInfo import blosum62
+from .PolyPhen2 import *
+from .PDBfeatures import *
+from .UniprotMapping import *
+from .EVmutation import *
+
+__all__ = ['calcPP2features', 'calcPDBfeatures', 'calcPfamFeatures',
+           'calcBLOSUMfeatures', 'buildFeatMatrix']
 
 
 # list of all available features in RHAPSODY

@@ -1,5 +1,6 @@
-from rhapsody import *
+from .rhapsody import *
 
+__all__ = ['rhapsody']
 
 def rhapsody(input_obj, classifier, input_type='SAVs', 
              custom_PDB=None, aux_classifier=None):

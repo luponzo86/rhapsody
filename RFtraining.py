@@ -6,6 +6,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 
+__all__ = ['calcROC', 'calcPathogenicityProbs',
+           'RandomForestCV', 'trainRFclassifier']
+
 
 def calcROC(y_test, y_pred):
     # compute ROC and AUC-ROC

@@ -2,9 +2,12 @@ import numpy as np
 import pickle
 from os.path import abspath, isdir, isfile
 from prody import LOGGER, SETTINGS
-from UniprotMapping import *
-from PolyPhen2 import *
-from calcFeatures import *
+from .UniprotMapping import *
+from .PolyPhen2 import *
+from .calcFeatures import *
+
+__all__ = ['Rhapsody', 'pathRhapsodyFolder', 'seqScanning'.
+           'printSAVlist', 'mapSAVs2PDB', 'calcPredictions']
 
 
 class Rhapsody:

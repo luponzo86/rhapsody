@@ -5,6 +5,9 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
 
+__all__ = ['requests_retry_session', 'queryPolyPhen2',
+           'parsePP2output', 'getSAVcoords']
+
 pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2', 
                 'prediction', 'based_on', 'effect', 'pph2_class',

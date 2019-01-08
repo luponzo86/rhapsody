@@ -8,11 +8,7 @@ from Bio.SubsMat   import MatrixInfo as matlist
 import numpy as np
 import os, re, pickle, datetime
 
-# __all__ = ['getFullRecord', 'getPDBrecords', 'getPDBmappings',
-#            'refresh', 'savePickle', 'recoverPickle',
-#            'alignSinglePDB', 'alignAllPDBs', 'mapSingleResidue',
-#            'alignCustomPDB', 'mapSingleRes2CustomPDBs',
-#            'calcEvolProperties']  
+__all__ = ['UniprotMapping']  
 
 class UniprotMapping:
 
