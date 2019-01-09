@@ -6,8 +6,9 @@ from .PDB import *
 from .Uniprot import *
 from .EVmutation import *
 
-__all__ = ['calcPP2features', 'calcPDBfeatures', 'calcPfamFeatures',
-           'calcBLOSUMfeatures', 'buildFeatMatrix']
+__all__ = ['RHAPSODY_FEATS', 'calcPP2features', 'calcPDBfeatures', 
+           'calcPfamFeatures', 'calcBLOSUMfeatures', 
+           'buildFeatMatrix']
 
 
 # list of all available features in RHAPSODY
