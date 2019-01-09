@@ -1,3 +1,4 @@
+from prody import LOGGER
 from .rhapsody import *
 
 __all__ = ['rhapsody']
