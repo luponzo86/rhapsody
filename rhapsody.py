@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 from os.path import abspath, isdir, isfile
 from prody import LOGGER, SETTINGS
+from prody import queryUniprot
 from .Uniprot import *
 from .PolyPhen2 import *
 from .calcFeatures import *
