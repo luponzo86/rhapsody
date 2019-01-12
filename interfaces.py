@@ -14,6 +14,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
       simulated mutagenesis experiment (input_type='scanning'). Possible formats
       are: 'P17516 135' for a single site scanning, and 'P17516' for a complete
       sequence scanning.
+    'custom_PDB' can be a PDBID, a filename or an Atomic instance
     """
     assert input_type in ('SAVs', 'scanning', 'PP2')
 

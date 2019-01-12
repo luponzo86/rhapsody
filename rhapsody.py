@@ -1,7 +1,7 @@
 import numpy as np
 import pickle
 from os.path import abspath, isdir, isfile
-from prody import LOGGER, SETTINGS
+from prody import LOGGER, SETTINGS, Atomic
 from prody import queryUniprot
 from .Uniprot import *
 from .PolyPhen2 import *
@@ -66,7 +66,7 @@ class Rhapsody:
                 return
         assert self.customPDB is None, 'Custom PDB structure already set.'
         assert isinstance(custom_PDB, (str, Atomic)), \
-               'Please provide a PDBID or an Atomic instance.'
+               'Please provide a PDBID, a filename or an Atomic instance.'
         self.customPDB = custom_PDB
 
     def setFeatSet(self, featset):
