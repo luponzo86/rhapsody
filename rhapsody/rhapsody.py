@@ -12,13 +12,13 @@ __all__ = ['Rhapsody', 'pathRhapsodyFolder', 'seqScanning',
 
 
 class Rhapsody:
-    """A class for running calculations and handling results 
+    """A class for running calculations and handling results
     from RHAPSODY.
     """
     def __init__(self):
         # filename of the classifier pickle
         self.classifier     = None
-        # tuple of feature names 
+        # tuple of feature names
         self.featSet        = None
         # dictionary of properties of the trained classifier
         self.CVsummary      = None
@@ -36,7 +36,7 @@ class Rhapsody:
         # If an error occurs, unique Uniprot coords and/or PDB coords may
         # be replaced by a string describing the error.
         self.Uniprot2PDBmap = None
-        # numpy array (num_SAVS)x(num_features) 
+        # numpy array (num_SAVS)x(num_features)
         self.featMatrix     = None
         # structured array containing predictions
         self.predictions    = None
@@ -100,8 +100,8 @@ class Rhapsody:
         return self.PP2output
 
     def getUniprot2PDBmap(self, output='rhapsody-Uniprot2PDB.txt'):
-        """Maps each SAV to the corresponding resid in a PDB chain. 
-        The format is: (PDBID, chainID, resid, wild-type aa, length). 
+        """Maps each SAV to the corresponding resid in a PDB chain.
+        The format is: (PDBID, chainID, resid, wild-type aa, length).
         """
         assert self.SAVcoords is not None, "Uniprot coordinates not set."
         if self.Uniprot2PDBmap is None:
@@ -148,7 +148,7 @@ class Rhapsody:
             Uniprot2PDBmap = self.getUniprot2PDBmap()
             mapped_SAVs = tuple(t[2] for t in Uniprot2PDBmap)
             # compute structural and dynamical features from a PDB structure
-            f = calcPDBfeatures(mapped_SAVs, sel_feats=sel_PDBfeats, 
+            f = calcPDBfeatures(mapped_SAVs, sel_feats=sel_PDBfeats,
                                 custom_PDB=self.customPDB)
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
@@ -170,10 +170,10 @@ class Rhapsody:
         return buildFeatMatrix(self.featSet, all_feats)
 
     def calcPredictions(self, output='rhapsody-predictions.txt'):
-        assert self.predictions is None, 'Predictions already computed.' 
+        assert self.predictions is None, 'Predictions already computed.'
         assert self.classifier is not None, 'Classifier not set.'
         assert self.featMatrix is not None, 'Features not computed.'
-        p = calcPredictions(self.featMatrix, self.classifier, 
+        p = calcPredictions(self.featMatrix, self.classifier,
                             SAV_coords=self.SAVcoords['text'])
         if output is not None and p is not None:
             np.savetxt(output, p, fmt='%-5.3f  %-5.3f  %-12s  %-12s')
@@ -209,7 +209,7 @@ class Rhapsody:
         self.auxPreds   = p_a
         self.mixedPreds = p_m
         return self.auxPreds, self.mixedPreds
-        
+
     def savePickle(self, output='rhapsody-pickle.pkl'):
         f = pickle.dump(self, open(output, "wb"))
         return f
@@ -219,8 +219,8 @@ class Rhapsody:
 
 
 def pathRhapsodyFolder(folder=None):
-    """Returns or specify local folder for storing files and pickles necessary 
-    to run Rhapsody.  To release the current folder, pass an invalid path, e.g. 
+    """Returns or specify local folder for storing files and pickles necessary
+    to run Rhapsody.  To release the current folder, pass an invalid path, e.g.
     ``folder=''``.
     """
     if folder is None:
@@ -250,9 +250,9 @@ def pathRhapsodyFolder(folder=None):
 
 
 def seqScanning(Uniprot_coord):
-    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a Uniprot ID, 
-    the list will contain all possible amino acid substitutions at all positions 
-    in the sequence. If 'Uniprot_coord' also includes a specific position, the list 
+    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a Uniprot ID,
+    the list will contain all possible amino acid substitutions at all positions
+    in the sequence. If 'Uniprot_coord' also includes a specific position, the list
     will only contain all possible amino acid variants at that position.
     '''
     assert isinstance(Uniprot_coord, str), "Must be a string."
@@ -291,7 +291,7 @@ def printSAVlist(input_SAVs, filename):
 def mapSAVs2PDB(SAV_coords, custom_PDB=None):
     LOGGER.info('Mapping SAVs to PDB structures...')
     LOGGER.timeit('_map2PDB')
-    # sort SAVs, so to group together those 
+    # sort SAVs, so to group together those
     # with identical accession number
     sorting_map = np.argsort(SAV_coords['acc'])
     # map to PDB using Uniprot class
@@ -320,13 +320,13 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
                     LOGGER.info('Aligning Uniprot sequence to custom PDB...')
                     U2P_map.alignCustomPDB(custom_PDB, 'all')
             except Exception as e:
-                U2P_map = str(e) 
+                U2P_map = str(e)
             cache['obj'] = U2P_map
         # map specific SAV
         try:
             if isinstance(U2P_map, str):
                 raise RuntimeError(U2P_map)
-            # check wt aa 
+            # check wt aa
             if not 0 < pos <= len(U2P_map.sequence):
                 raise ValueError('Index out of range')
             wt_aa = U2P_map.sequence[pos-1]
@@ -340,7 +340,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
                 r = U2P_map.mapSingleRes2CustomPDBs(pos, check_aa=True)
             if len(r) == 0:
                 raise RuntimeError('Unable to map SAV to PDB')
-            else: 
+            else:
                 res_map = r[0]
         except Exception as e:
                 res_map = str(e)
@@ -366,7 +366,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     else:
         LOGGER.timeit('_import_clsf')
         clsf_dict = pickle.load(open(clsf, 'rb'))
-        LOGGER.report('Random Forest classifier imported in %.1fs.', 
+        LOGGER.report('Random Forest classifier imported in %.1fs.',
                       '_import_clsf')
     classifier = clsf_dict['trained RF']
     opt_cutoff = clsf_dict['CV summary']['optimal cutoff']
@@ -377,7 +377,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
 
     # define a structured array for storing predictions
     pred_dtype = np.dtype([('score', 'f'),
-                           ('path. probability' , 'f'), 
+                           ('path. probability' , 'f'),
                            ('path. class', 'U12'),
                            ('training info', 'U12')])
     predictions = np.zeros(len(feat_matrix), dtype=pred_dtype)
@@ -387,8 +387,11 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     n_pred = len(sel_rows)
     if n_pred == 0:
         LOGGER.warning('No predictions could be computed.')
-        return None 
-    sliced_feat_matrix = feat_matrix[sel_rows]
+        proba = None
+    else:
+        # compute predictions
+        sliced_feat_matrix = feat_matrix[sel_rows]
+        proba = classifier.predict_proba(sliced_feat_matrix)
 
     # check if SAVs are found in the training dataset
     known_SAVs = {}
@@ -396,9 +399,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
         f = lambda x: 'known_del' if x==1 else 'known_neu'
         known_SAVs = {l['SAV_coords']: f(l['true_label']) for l in train_data}
 
-    # compute predictions
-    proba = classifier.predict_proba(sliced_feat_matrix)
-    # output 
+    # output
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
     Jplus  = J + err_bar
@@ -417,7 +418,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
             score = proba[k, 1]
             # assign pathogenicity probability by interpolating
             # the pathogenicity profile computed during CV
-            path_prob = np.interp(score, path_curve[0], path_curve[1]) 
+            path_prob = np.interp(score, path_curve[0], path_curve[1])
             # assign class of pathogenicity based on Youden's cutoff
             if score > Jplus:
                 path_class = "deleterious"
@@ -430,9 +431,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
             # store values
             predictions[i] = (score, path_prob, path_class, SAV_status)
             k = k + 1
-    LOGGER.report('{} predictions computed in %.1fs.'.format(n_pred), 
+    LOGGER.report('{} predictions computed in %.1fs.'.format(n_pred),
                   '_preds')
 
     return predictions
-
-
