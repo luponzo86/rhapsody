@@ -6,8 +6,8 @@ from .PDB import *
 from .Uniprot import *
 from .EVmutation import *
 
-__all__ = ['RHAPSODY_FEATS', 'calcPP2features', 'calcPDBfeatures', 
-           'calcPfamFeatures', 'calcBLOSUMfeatures', 
+__all__ = ['RHAPSODY_FEATS', 'calcPP2features', 'calcPDBfeatures',
+           'calcPfamFeatures', 'calcBLOSUMfeatures',
            'buildFeatMatrix']
 
 
@@ -24,7 +24,7 @@ RHAPSODY_FEATS = {
 def calcPP2features(PP2output):
     # define a datatype for sequence-conservation features
     # extracted from the output of PolyPhen-2
-    feat_dtype = np.dtype([('wt_PSIC', 'f'), 
+    feat_dtype = np.dtype([('wt_PSIC', 'f'),
                            ('Delta_PSIC', 'f')])
     # import selected quantities from PolyPhen-2's output
     # into a structured array
@@ -39,7 +39,7 @@ def calcPP2features(PP2output):
 def calcPDBfeatures(PDB_SAVs, sel_feats=None, custom_PDB=None):
     LOGGER.info('Computing structural and dynamical features ' + \
                 'from PDB structures...')
-    LOGGER.timeit('_calcPDBFeats')    
+    LOGGER.timeit('_calcPDBFeats')
     if sel_feats is None:
         sel_feats = RHAPSODY_FEATS['PDB']
     # define a structured array for features computed from PDBs
@@ -48,7 +48,7 @@ def calcPDBfeatures(PDB_SAVs, sel_feats=None, custom_PDB=None):
     features = np.zeros(num_SAVs, dtype=feat_dtype)
     # compute PDB features using PDBfeatures class
     if custom_PDB is None:
-        # sort SAVs, so to group together those 
+        # sort SAVs, so to group together those
         # belonging to the same PDB
         PDBID_list = [t[0] if isinstance(t, tuple) else '' for t in PDB_SAVs]
         sorting_map = np.argsort(PDBID_list)
@@ -121,33 +121,38 @@ def _calcEvolFeatures(PF_dict, pos):
     entropy = 0.
     rankdMI = 0.
     rankdDI = 0.
+    n = 0
     for ID, Pfam in PF_dict.items():
-        indx     = Pfam['mapping'][pos - 1]
-        entropy += Pfam['entropy'][indx]
-        rankdMI += calcNormRank(np.sum(Pfam['MutInfo'], axis=0), indx)
-##      rankdDI += calcNormRank(np.sum(Pfam['DirInfo'], axis=0), indx)
-    n = len(PF_dict)
-    feats = (entropy/n, rankdMI/n)
-##  feats = (entropy/n, rankdMI/n, rankdDI/n)
-    return feats
+        if isinstance(Pfam['mapping'], dict):
+            n += 1
+            indx     = Pfam['mapping'][pos - 1]
+            entropy += Pfam['entropy'][indx]
+            rankdMI += calcNormRank(np.sum(Pfam['MutInfo'], axis=0), indx)
+##          rankdDI += calcNormRank(np.sum(Pfam['DirInfo'], axis=0), indx)
+    if n == 0:
+        raise ValueError("Position couldn't be mapped on any Pfam domain")
+    else:
+        feats = (entropy/n, rankdMI/n)
+##      feats = (entropy/n, rankdMI/n, rankdDI/n)
+        return feats
 
 
 def calcPfamFeatures(SAVs):
     LOGGER.info('Computing sequence properties from Pfam domains...')
     LOGGER.timeit('_calcPfamFeats')
-    # sort SAVs, so to group together those 
+    # sort SAVs, so to group together those
     # with identical accession number
     sorting_map = np.argsort(SAVs['acc'])
-    # define a structured array for features computed from Pfam 
+    # define a structured array for features computed from Pfam
     num_SAVs = len(SAVs)
-    feat_dtype = np.dtype([('entropy', 'f'), ('ranked_MI', 'f')]) 
+    feat_dtype = np.dtype([('entropy', 'f'), ('ranked_MI', 'f')])
     features = np.zeros(num_SAVs, dtype=feat_dtype)
     # map to Pfam domains using UniprotMapping class
     cache = {'acc': None, 'obj': None, 'warn': ''}
     count = 0
     for indx, SAV in [(i, SAVs[i]) for i in sorting_map]:
         count += 1
-        acc, pos, aa1, aa2, SAV_txt = SAV 
+        acc, pos, aa1, aa2, SAV_txt = SAV
         LOGGER.info("[{}/{}] Mapping SAV '{}' to Pfam..."
                     .format(count, num_SAVs, SAV_txt))
         # map to Pfam domains using 'UniprotMapping' class
@@ -174,7 +179,7 @@ def calcPfamFeatures(SAVs):
             wt_aa = obj.sequence[pos-1]
             if aa1 != wt_aa:
                 msg = 'Incorrect wt aa ({} instead of {})'.format(aa1, wt_aa)
-                raise Exception(msg) 
+                raise Exception(msg)
             # compute Evol features from Pfam domains
             PF_dict = obj.calcEvolProperties(resid=pos)
             if PF_dict is None:
@@ -188,7 +193,7 @@ def calcPfamFeatures(SAVs):
         except Exception as e:
             LOGGER.warn('Unable to compute Pfam features: {}'.format(e))
             _features = np.nan
-        # store computed features 
+        # store computed features
         features[indx] = _features
         # in the final iteration of the loop, save last pickle
         if count == num_SAVs and cache['obj'] is not None:
@@ -199,7 +204,7 @@ def calcPfamFeatures(SAVs):
 
 
 def calcBLOSUMfeatures(SAV_coords):
-    feat_dtype = np.dtype([('BLOSUM', 'f')]) 
+    feat_dtype = np.dtype([('BLOSUM', 'f')])
     features = np.zeros(len(SAV_coords), dtype=feat_dtype)
     for i, SAV in enumerate(SAV_coords):
         aa1 = SAV['aa_wt']
@@ -222,4 +227,3 @@ def buildFeatMatrix(featset, all_features):
         array = arrays[0]
         feat_matrix[:, j] = array[featname]
     return feat_matrix
-
