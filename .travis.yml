@@ -15,7 +15,7 @@ python:
 #     - PACKAGENAME="run_test"
 
 before_install:
-# install miniconda 
+# install miniconda
 - export MINICONDA=$HOME/miniconda
 - export PATH="$MINICONDA/bin:$PATH"
 - hash -r
@@ -27,7 +27,7 @@ before_install:
 - conda create -n testenv python=$TRAVIS_PYTHON_VERSION
 - source activate testenv
 # install dependencies
-- conda install numpy scipy pip 
+- conda install numpy scipy pip
 - conda install -c conda-forge biopython
 # or: conda install --yes pyparsing biopython
 - pip install -U prody
@@ -38,4 +38,4 @@ before_install:
 script:
 - cd test
 #################### TO DO:
-- pytest test.py
+- pytest test1.py
