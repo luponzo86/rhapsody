@@ -1,11 +1,11 @@
-language: python
-
 # sudo false implies containerized builds
 sudo: false
 
+language: python
+
 python:
   - 3.6
-  - 3.7
+#  - 3.7 # Travis does not have python 3.7 at the moment...
 
 # env:
 #   global:
@@ -27,10 +27,12 @@ before_install:
 - conda create -n testenv python=$TRAVIS_PYTHON_VERSION
 - source activate testenv
 # install dependencies
-- conda install numpy scipy pip
-- conda install -c conda-forge biopython
-# or: conda install --yes pyparsing biopython
+- conda install pip
 - pip install -U prody
+- conda install scipy scikit-learn
+#- conda install -c conda-forge biopython
+# or: conda install --yes pyparsing biopython
+
 
 # install:
 # - python setup.py install
