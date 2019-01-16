@@ -31,7 +31,7 @@ before_install:
   - conda create -n testenv python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # install prody
-  - conda install pip numpy
+  - conda install pip numpy pyparsing biopython
   # - conda install -c conda-forge biopython
   # - conda install pyparsing biopython
   - pip install -U prody
@@ -43,7 +43,7 @@ install:
   - echo "installed..."
 
 script:
-  - source activate testenv
-  - cd test
+  - source activate testenv;
+    cd test;
+    python test1.py
   # - pytest test1.py
-  - python test1.py
