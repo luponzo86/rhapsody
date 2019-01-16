@@ -30,17 +30,17 @@ before_install:
 - conda info -a
 - conda create -n testenv python=$TRAVIS_PYTHON_VERSION
 - source activate testenv
-# install prody
-- conda install pip numpy
-- pip install -U prody
+# install dependencies for prody
+- conda install pip numpy scipy scikit-learn
+# - conda install -c conda-forge biopython
+# - conda install --yes pyparsing biopython
 # install dependencies for rhapsody
 - conda install scipy scikit-learn
-#- conda install -c conda-forge biopython
-# or: conda install --yes pyparsing biopython
+- conda update conda
 
-
-# install:
+install:
 # - python setup.py install
+- pip install -U prody
 
 script:
 - cd test
