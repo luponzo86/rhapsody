@@ -1,6 +1,7 @@
 from prody import Atomic, parsePDB, writePDB, LOGGER, SETTINGS
 from prody import GNM, ANM, calcSqFlucts
-from prody import calcPerturbResponse, calcMBS, calcMechStiff
+from prody import calcPerturbResponse, calcMechStiff
+# from prody import calcMBS
 from prody import reduceModel, sliceModel
 from prody import execDSSP, parseDSSP
 import numpy as np
@@ -14,12 +15,12 @@ STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
 DYN_FEATS = ['GNM_MSF', 'ANM_MSF',
              'GNM_effectiveness', 'GNM_sensitivity',
              'ANM_effectiveness', 'ANM_sensitivity',
-             'MBS', 'stiffness'] 
+             'MBS', 'stiffness']
 PDB_FEATS = STR_FEATS + [f + e for f in DYN_FEATS
                          for e in ['-chain', '-reduced', '-sliced']]
 
 class PDBfeatures:
-    
+
     def __init__(self, PDB, n_modes='all',
                  recover_pickle=False, **kwargs):
         assert isinstance(PDB, (str, Atomic)), \
@@ -101,7 +102,7 @@ class PDBfeatures:
         Delta_t = datetime.timedelta(days=days)
         if t_old + Delta_t < t_now:
             raise RuntimeError('Pickle was too old and was ignored.')
-        # import recovered data 
+        # import recovered data
         self.chids  = recovered_self.chids
         self.resids = recovered_self.resids
         self.feats  = recovered_self.feats
@@ -147,8 +148,8 @@ class PDBfeatures:
         if n_modes != self.n_modes:
             self.n_modes = n_modes
             self.refresh()
-        return 
-        
+        return
+
     def calcGNM(self, chID, env='chain'):
         assert env in ['chain', 'reduced', 'sliced']
         gnm_e =  self._gnm[env]
@@ -205,7 +206,7 @@ class PDBfeatures:
                         sel = 'chain '+ c
                         anm, _ = sliceModel(anm_full, ca, sel)
                         anm_e[c] = anm
-        return self._anm[env][chID]    
+        return self._anm[env][chID]
 
     def calcGNMfeatures(self, chain='all', env='chain', GNM_PRS=True):
         assert env in ['chain', 'reduced', 'sliced']
@@ -223,7 +224,7 @@ class PDBfeatures:
             d = self.feats[chID]
             if all([f in d for f in features]):
                 continue
-            try: 
+            try:
                 gnm = self.calcGNM(chID, env=env)
             except Exception as e:
                 if (isinstance(e, MemoryError)):
@@ -256,7 +257,7 @@ class PDBfeatures:
                     LOGGER.warn(msg)
         return
 
-    def calcANMfeatures(self, chain='all', env='chain', 
+    def calcANMfeatures(self, chain='all', env='chain',
                         ANM_PRS=True, MBS=True, stiffness=True):
         assert env in ['chain', 'reduced', 'sliced']
         for k in ANM_PRS, MBS, stiffness:
@@ -266,7 +267,7 @@ class PDBfeatures:
         if ANM_PRS:
             features += ['ANM_effectiveness-'+env, 'ANM_sensitivity-'+env]
         if MBS:
-            features += ['MBS-'+env] 
+            features += ['MBS-'+env]
         if stiffness:
             features += ['stiffness-'+env]
         # compute features (if not precomputed)
@@ -278,7 +279,7 @@ class PDBfeatures:
             d = self.feats[chID]
             if all([f in d for f in features]):
                 continue
-            try: 
+            try:
                 anm = self.calcANM(chID, env=env)
             except Exception as e:
                 if (isinstance(e, MemoryError)):
@@ -346,20 +347,20 @@ class PDBfeatures:
             os.remove('_temp.dssp')
         LOGGER.report('DSSP finished in %.1fs.', '_DSSP')
         return ag
-    
+
     def calcDSSP(self, chain='whole'):
         if chain == 'whole':
             # compute DSSP on the whole complex
             ag = self.getPDB()
             if ag.getData('dssp_acc') is None:
-                ag = self._launchDSSP(ag)          
+                ag = self._launchDSSP(ag)
         else:
             # compute DSSP on single chain
             pdb = self.getPDB()
             ag = pdb[chain].copy()
             ag = self._launchDSSP(ag)
         return ag
-    
+
     def calcSASA(self, chain='all'):
         if chain == 'all':
             chain_list = self.chids
@@ -419,16 +420,16 @@ class PDBfeatures:
                     d['Delta_SASA'] = str(msg)
                     LOGGER.warn(msg)
         return
-    
+
     def _findIndex(self, chain, resid):
         indices = np.where(self.resids[chain] == resid)[0]
         if len(indices) > 1:
             LOGGER.warn('Multiple ({}) residues with resid {} found.'
                         .format(len(indices), resid))
         return indices
-    
-    def calcAllFeatures(self, chain='all', resid=None, env='chain', 
-                        SASA=True, Delta_SASA=True, GNM_PRS=True, 
+
+    def calcAllFeatures(self, chain='all', resid=None, env='chain',
+                        SASA=True, Delta_SASA=True, GNM_PRS=True,
                         ANM_PRS=True, MBS=True, stiffness=True):
         if resid is not None and chain == 'all':
             raise ValueError('Please select a single chain.')
@@ -437,7 +438,7 @@ class PDBfeatures:
             assert type(k) is bool
         # compute requested features
         self.calcGNMfeatures(chain, env=env, GNM_PRS=GNM_PRS)
-        self.calcANMfeatures(chain, env=env, ANM_PRS=ANM_PRS, 
+        self.calcANMfeatures(chain, env=env, ANM_PRS=ANM_PRS,
                              MBS=MBS, stiffness=stiffness)
         if Delta_SASA:
             self.calcDeltaSASA(chain)
@@ -475,7 +476,7 @@ class PDBfeatures:
         elif 'SASA' in sel_feats:
             self.calcSASA(chain)
         for env in ['chain', 'reduced', 'sliced']:
-            s = '-' + env 
+            s = '-' + env
             l = [f.replace(s,'') for f in sel_feats if f.endswith(s)]
             if l == []:
                 continue
@@ -489,7 +490,7 @@ class PDBfeatures:
             if 'stiffness' in l:
                 stiffness = True
             self.calcGNMfeatures(chain, env=env, GNM_PRS=GNM_PRS)
-            self.calcANMfeatures(chain, env=env, ANM_PRS=ANM_PRS, 
+            self.calcANMfeatures(chain, env=env, ANM_PRS=ANM_PRS,
                                  MBS=MBS, stiffness=stiffness)
         # return different outputs depending on options
         _feats = {}
@@ -510,5 +511,3 @@ class PDBfeatures:
                 else:
                     output[k] = np.array([d[k][i] for i in indices])
             return output
-
-
