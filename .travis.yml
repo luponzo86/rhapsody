@@ -45,4 +45,5 @@ install:
 script:
   - source activate testenv
   - cd test
-  - pytest test1.py
+  # - pytest test1.py
+  - python test1.py
