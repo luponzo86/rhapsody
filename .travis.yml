@@ -36,7 +36,9 @@ before_install:
   # - conda install pyparsing biopython
   - pip install -U prody
   # install dependencies for rhapsody
-  - conda install scipy scikit-learn
+  - conda install os, re, pickle, datetime, requests
+  - conda install math numpy scipy scikit-learn
+  # - conda install matplotlib
 
 install:
   # - python setup.py install
