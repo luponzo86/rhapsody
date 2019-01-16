@@ -37,7 +37,7 @@ before_install:
   - pip install -U prody
   # install dependencies for rhapsody
   - conda install requests numpy scipy scikit-learn
-  # - conda install matplotlib
+  - conda install matplotlib
 
 install:
   # - python setup.py install
