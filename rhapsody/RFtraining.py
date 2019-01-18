@@ -4,7 +4,7 @@ from prody import LOGGER
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_curve, auc
-import matplotlib.pyplot as plt
+from .figures import *
 
 __all__ = ['calcROC', 'calcPathogenicityProbs',
            'RandomForestCV', 'trainRFclassifier']
@@ -23,17 +23,17 @@ def calcROC(y_test, y_pred):
 
 def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
                            ppred_reliability_cutoff=200,
-                           distrib_figure='predictions_distribution.pdf',
-                           path_prob_figure='pathogenicity_prob.pdf',
+                           pred_distrib_fig='predictions_distribution.pdf',
+                           path_prob_fig='pathogenicity_prob.pdf',
                            **kwargs):
-    '''Compute pathogenicity probabilities, 
+    '''Compute pathogenicity probabilities,
     from predictions on CV test sets
     '''
 
     avg_J_opt = np.mean(CV_info['Youden_cutoff'])
     preds = [np.array(CV_info['predictions_0']),
              np.array(CV_info['predictions_1'])]
-    
+
     # compute (normalized) histograms
     dx = bin_width
     bins = np.arange(0, 1+dx, dx)
@@ -43,21 +43,12 @@ def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
     for i in [0, 1]:
         h, _ = np.histogram(preds[i], bins, range=(0,1))
         histo[i] = h
-        norm_histo[i] =  h/len(preds[i])
-    if distrib_figure is not None:
-        figure = plt.figure(figsize=(5, 4))
-        plt.bar(bins[:-1], norm_histo[0], width=dx, align='edge', 
-                color='blue', alpha=0.7, label='neutral'    )
-        plt.bar(bins[:-1], norm_histo[1], width=dx, align='edge', 
-                color='red',  alpha=0.7, label='deleterious')
-        plt.axvline(x=avg_J_opt, color='k', ls='--', lw=1)
-        plt.ylabel('distribution')
-        plt.xlabel('predicted score')
-        plt.legend()
-        figure.savefig(distrib_figure, bbox_inches='tight')
-        plt.close()
-        LOGGER.info('Predictions distribution saved to {}'
-                    .format(distrib_figure))
+        norm_histo[i] = h/len(preds[i])
+
+    # print predictions distribution figure
+    if pred_distrib_fig is not None:
+        print_pred_distrib_figure(pred_distrib_fig, bins, norm_histo,
+                                  dx, avg_J_opt)
 
     # compute pathogenicity probability
     s = np.sum(norm_histo, axis=0)
@@ -69,37 +60,26 @@ def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
         p = path_prob[i]
         sw = 0
         for k in range(1, smooth_window+1) :
-            if (i-k < 0) or (i+k >= n_bins) : 
+            if (i-k < 0) or (i+k >= n_bins) :
                 break
             else :
                 sw = k
                 p += path_prob[i-k] + path_prob[i+k]
         smooth_path_prob[i] = p / (1 + sw*2)
-    if path_prob_figure is not None:
-        figure = plt.figure(figsize=(5, 4))
-        s = np.sum(histo, axis=0)
-        c = ppred_reliability_cutoff
-        v1 = np.where(s>=c, path_prob, 0)
-        v2 = np.where(s< c, path_prob, 0)
-        v3 = np.where(s>=c, smooth_path_prob, 0.)
-        plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1  )
-        plt.bar(bins[:-1], v2, width=dx, align='edge', color='red', alpha=0.7)
-        plt.plot(bins[:-1]+dx/2, v3, color='orange')
-        plt.ylabel('pathogenicity prob.')
-        plt.xlabel('predicted score')
-        plt.ylim((0, 1))
-        figure.savefig(path_prob_figure, bbox_inches='tight')
-        plt.close()
-        LOGGER.info('Pathogenicity plot saved to {}'.format(path_prob_figure))
-    
+
+    # print pathogenicity probability figure
+    if path_prob_fig is not None:
+        print_path_prob_figure(path_prob_fig, bins, histo, dx, path_prob,
+                         smooth_path_prob, cutoff=ppred_reliability_cutoff)
+
     return np.array((bins[:-1], path_prob, smooth_path_prob))
 
 
-def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10, 
-                   print_ROC='ROC.pdf', feature_names=None, **kwargs):
+def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
+                   ROC_fig='ROC.pdf', feature_names=None, **kwargs):
 
     # set classifier
-    classifier = RandomForestClassifier(n_estimators=n_estimators, 
+    classifier = RandomForestClassifier(n_estimators=n_estimators,
                  max_features=max_features, oob_score=True,
                  class_weight='balanced', n_jobs=-1)
 
@@ -115,7 +95,7 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
                'predictions_1'  : []}
     mean_tpr = 0.0
     mean_fpr = np.linspace(0, 1, 100)
-    i = 0 
+    i = 0
     for train, test in cv.split(X, y):
         # create training and test datasets
         X_train = X[train]
@@ -140,9 +120,8 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
         CV_info['predictions_1'].extend(y_pred[np.where(y_test==1), 1][0])
         # print log
         i += 1
-        LOGGER.info('CV iteration #{:2d}:    '.format(i) + \
-                    'ROC-AUC = {:.3f}   OOB score = {:.3f}'
-                    .format(roc_auc, classifier.oob_score_) )
+        LOGGER.info(f'CV iteration #{i:2d}:    ROC-AUC = {roc_auc:.3f}' + \
+                    f'   OOB score = {classifier.oob_score:.3f}')
 
     # compute average ROC, optimal cutoff and other stats
     mean_tpr /= cv.get_n_splits(X, y)
@@ -155,16 +134,15 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     avg_feat_imp = np.mean(np.array(CV_info['feat_importance']), axis=0)
     LOGGER.info('-'*60)
     LOGGER.info('Cross-validation summary:')
-    LOGGER.info('mean ROC-AUC:        {:.3f}'.format(mean_auc))
-    LOGGER.info('mean OOB score:      {:.3f}'.format(mean_oob))
-    LOGGER.info("optimal cutoff*:    {:.3f} +/- {:.3f}"
-                .format(avg_J_opt, std_J_opt))
+    LOGGER.info(f'mean ROC-AUC:        {mean_auc:.3f}')
+    LOGGER.info(f'mean OOB score:      {mean_oob:.3f}')
+    LOGGER.info(f'optimal cutoff*:     {avg_J_opt:.3f} +/- {std_J_opt:.3f}')
     LOGGER.info("(* argmax of Youden's index)")
     LOGGER.info('feature importances:')
     if feature_names is None:
         feature_names = [' ']*len(avg_feat_imp)
     for feat_name, importance in zip(feature_names, avg_feat_imp):
-        LOGGER.info('{:>19s}: {:.3f}'.format(feat_name, importance))
+        LOGGER.info(f'{feat_name:>19s}: {importance:.3f}')
     LOGGER.info('-'*60)
     path_prob = calcPathogenicityProbs(CV_info, **kwargs)
     CV_summary = {'mean ROC-AUC'     : mean_auc,
@@ -175,27 +153,15 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
                   'path. probability': path_prob}
 
     # plot average ROC
-    if print_ROC is not None:
-        fig = plt.figure(figsize=(5, 5))
-        plt.plot([0, 1], [0, 1],     linestyle='--', lw=1, color='k')
-        plt.plot(mean_fpr, mean_tpr, linestyle='-',  lw=2, color='r',
-                 label='Mean ROC (AUC = {:.3f})'.format(mean_auc))
-        plt.xlim([-0.05, 1.05])
-        plt.ylim([-0.05, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver operating characteristic')
-        plt.legend(loc="lower right")
-        fig.savefig(print_ROC, format='pdf')
-        plt.close()
-        LOGGER.info('ROC plot saved to {}'.format(print_ROC))
-        
+    if ROC_fig is not None:
+        print_ROC_figure(ROC_fig, mean_fpr, mean_tpr)
+
     return CV_summary
 
 
 def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
-                      pickle_name='trained_classifier.pkl', 
-                      print_feat_import='feat_importances.pdf', **kwargs):
+                      pickle_name='trained_classifier.pkl',
+                      feat_imp_fig='feat_importances.pdf', **kwargs):
 
     assert feat_matrix.dtype.names is not None, \
            "'feat_matrix' must be a NumPy structured array."
@@ -207,7 +173,7 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
            "'feat_matrix' must have a 'Uniprot2PDB' field."
 
     # eliminate rows containing NaN values from feature matrix
-    featset = [f for f in feat_matrix.dtype.names if f not in 
+    featset = [f for f in feat_matrix.dtype.names if f not in
                ('true_label', 'SAV_coords', 'Uniprot2PDB')]
     sel = [~np.isnan(np.sum([x for x in r])) for r in feat_matrix[featset]]
     fm = feat_matrix[sel]
@@ -220,33 +186,28 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
     X = fm[featset].copy()
     X = X.view((np.float32, len(featset)))
     y = fm['true_label']
-    
+
     # calculate optimal Youden cutoff through CV
-    CV_summary = RandomForestCV(X, y, n_estimators=n_estimators, 
+    CV_summary = RandomForestCV(X, y, n_estimators=n_estimators,
                  max_features=max_features, feature_names=featset, **kwargs)
-    
+
     # train a classifier on the whole dataset
-    clsf = RandomForestClassifier(n_estimators=n_estimators, 
-           max_features=max_features, oob_score=True, class_weight='balanced', n_jobs=-1)
+    clsf = RandomForestClassifier(n_estimators=n_estimators,
+                                  max_features=max_features, oob_score=True,
+                                  class_weight='balanced', n_jobs=-1)
     clsf.fit(X, y)
+
+    fimp = clsf.feature_importances_
     LOGGER.info('-'*60)
     LOGGER.info('Classifier training summary:')
-    LOGGER.info('mean OOB score:      {:.3f}'.format(clsf.oob_score_))
+    LOGGER.info(f'mean OOB score:      {clsf.oob_score_:.3f}')
     LOGGER.info('feature importances:')
-    for feat_name, importance in zip(featset, clsf.feature_importances_):
-        LOGGER.info('{:>19s}: {:.3f}'.format(feat_name, importance))
+    for feat_name, importance in zip(featset, fimp):
+        LOGGER.info(f'{feat_name:>19s}: {importance:.3f}')
     LOGGER.info('-'*60)
 
-    if print_feat_import is not None:
-        # print feature importance figure 
-        f = clsf.feature_importances_
-        fig = plt.figure(figsize=(5, 5))
-        plt.bar(range(len(f)), f, align='center', tick_label=featset)
-        plt.xticks(rotation='vertical')
-        plt.ylabel('feat. importance')
-        fig.savefig(print_feat_import, format='pdf', bbox_inches = 'tight')
-        plt.close()
-        LOGGER.info(f'Feat. importance plot saved to {print_feat_import}')
+    if feat_imp_fig is not None:
+        print_feat_imp_figure(feat_imp_fig, fimp, featset)
 
     clsf_dict = {'trained RF': clsf,
                  'features'  : featset,
@@ -258,5 +219,3 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
         pickle.dump(clsf_dict, open(pickle_name, 'wb'))
 
     return clsf_dict
-
-
