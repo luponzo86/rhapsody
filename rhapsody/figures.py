@@ -106,8 +106,8 @@ def print_feat_imp_figure(filename, feat_imp, featset):
 
 
 def adjust_res_interval(res_interval, min_size=10):
-    res_i = res_interval[0]
-    res_f = res_interval[1]
+    res_i = max(1, res_interval[0])
+    res_f = max(1, res_interval[1])
     n = min_size - 1
     while (res_f - res_i) < n:
         if res_i > 1:
@@ -135,10 +135,6 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     if matplotlib is None:
         return
 
-    # adjust interval
-    if res_interval is not None:
-        res_interval = adjust_res_interval(res_interval, min_interval_size)
-
     # make sure that all variants belong to the same Uniprot sequence
     s = rhapsody_obj.SAVcoords['acc']
     if len(set(s)) == 1:
@@ -165,10 +161,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
         p_mix = rhapsody_obj.mixedPreds['path. probability']
 
     # select an appropriate interval, based on available predictions
-    res_max = np.max(rhapsody_obj.SAVcoords['pos']) + min_interval_size
+    res_min = np.min(rhapsody_obj.SAVcoords['pos'])
+    res_max = np.max(rhapsody_obj.SAVcoords['pos'])
+    upper_lim = res_max + min_interval_size
 
-    # create empty (20 x res_max) mutagenesis tables
-    table_full = np.zeros((20, res_max), dtype=float)
+    # create empty (20 x num_res) mutagenesis tables
+    table_full = np.zeros((20, upper_lim), dtype=float)
     table_full[:] = 'nan'
     table_mix = table_full.copy()
     if other_preds_found:
@@ -198,7 +196,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
         avg_p_other = np.nanmean(table_other, axis=0)
 
     # use upper strip for showing additional info, such as PDB lengths
-    upper_strip = np.zeros((1, res_max))
+    upper_strip = np.zeros((1, upper_lim))
     for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
         index = a['pos'] - 1
         PDB_length = int(b[2][4]) if isinstance(b[2], tuple) else np.nan
@@ -212,11 +210,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
 
     # portion of the sequence to display
     if res_interval is None:
-        res_i = 1
-        res_f = res_max
-    else:
-        res_i = int(max(1, res_interval[0]))
-        res_f = int(min(res_max, res_interval[1]))
+        res_interval = (res_min, res_max)
+    # adjust interval
+    res_i, res_f = adjust_res_interval(res_interval, min_interval_size)
     nres_shown = res_f - res_i + 1
 
     # figure proportions
@@ -259,9 +255,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     ax1.set_ylabel('pathog. probability', labelpad=10)
 
     # average pathogenicity profile
-    x_resids = np.arange(1, res_max+1)
+    x_resids = np.arange(1, upper_lim+1)
     # cutoff line
-    ax2.hlines(0.5, -.5, res_max+.5, colors='grey', lw=.8,
+    ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
                linestyle='dashed')
     # solid line for predictions obtained with full classifier
     ax2.plot(x_resids, avg_p_full, color='red')
