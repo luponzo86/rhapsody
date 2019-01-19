@@ -23,8 +23,8 @@ def calcROC(y_test, y_pred):
 
 def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
                            ppred_reliability_cutoff=200,
-                           pred_distrib_fig='predictions_distribution.pdf',
-                           path_prob_fig='pathogenicity_prob.pdf',
+                           pred_distrib_fig='predictions_distribution.png',
+                           path_prob_fig='pathogenicity_prob.png',
                            **kwargs):
     '''Compute pathogenicity probabilities,
     from predictions on CV test sets
@@ -76,7 +76,7 @@ def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
 
 
 def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
-                   ROC_fig='ROC.pdf', feature_names=None, **kwargs):
+                   ROC_fig='ROC.png', feature_names=None, **kwargs):
 
     # set classifier
     classifier = RandomForestClassifier(n_estimators=n_estimators,
@@ -161,7 +161,7 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
 
 def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
                       pickle_name='trained_classifier.pkl',
-                      feat_imp_fig='feat_importances.pdf', **kwargs):
+                      feat_imp_fig='feat_importances.png', **kwargs):
 
     assert feat_matrix.dtype.names is not None, \
            "'feat_matrix' must be a NumPy structured array."

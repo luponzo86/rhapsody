@@ -32,4 +32,8 @@ from . import interfaces
 from .interfaces import *
 __all__.extend(interfaces.__all__)
 
+from . import figures
+from .figures import *
+__all__.extend(figures.__all__)
+
 
