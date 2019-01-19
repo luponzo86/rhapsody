@@ -105,15 +105,27 @@ def print_feat_imp_figure(filename, feat_imp, featset):
     LOGGER.info(f'Feat. importance plot saved to {filename}')
 
 
-def print_sat_mutagen_figure(filename, rhapsody_obj,
-                             res_interval=None, other_preds=None):
+def adjust_res_interval(res_interval, min_size=10):
+    res_i = res_interval[0]
+    res_f = res_interval[1]
+    n = min_size - 1
+    while (res_f - res_i) < n:
+        if res_i > 1:
+            res_i -= 1
+        if (res_f - res_i) >= n:
+            break
+        res_f += 1
+    return (res_i, res_f)
+
+
+def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
+                             res_interval=None, min_interval_size=15):
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj.predictions is not None, 'predictions not found'
     if res_interval is not None:
-        assert isinstance(res_interval, tuple) and len(res_interval)==2 and \
-               all(isinstance(x, int) for x in res_interval), \
-               'res_interval must be a tuple of 2 integers'
+        assert isinstance(res_interval, tuple) and len(res_interval)==2, \
+               'res_interval must be a tuple of 2 values'
         assert res_interval[1] >= res_interval[0], 'invalid res_interval'
     if other_preds is not None:
         assert len(other_preds) == len(rhapsody_obj.predictions), \
@@ -122,6 +134,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
+
+    # adjust interval
+    if res_interval is not None:
+        res_interval = adjust_res_interval(res_interval, min_interval_size)
 
     # make sure that all variants belong to the same Uniprot sequence
     s = rhapsody_obj.SAVcoords['acc']
@@ -148,13 +164,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         p_aux = rhapsody_obj.auxPreds[  'path. probability']
         p_mix = rhapsody_obj.mixedPreds['path. probability']
 
-    # identify segment on sequence
-    res_min = np.min(rhapsody_obj.SAVcoords['pos'])
-    res_max = np.max(rhapsody_obj.SAVcoords['pos'])
-    num_res = res_max - res_min + 1
+    # select an appropriate interval, based on available predictions
+    res_max = np.max(rhapsody_obj.SAVcoords['pos']) + min_interval_size
 
-    # create empty (20 x num_res) mutagenesis tables
-    table_full = np.zeros((20, num_res), dtype=float)
+    # create empty (20 x res_max) mutagenesis tables
+    table_full = np.zeros((20, res_max), dtype=float)
     table_full[:] = 'nan'
     table_mix = table_full.copy()
     if other_preds_found:
@@ -184,9 +198,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         avg_p_other = np.nanmean(table_other, axis=0)
 
     # use upper strip for showing additional info, such as PDB lengths
-    upper_strip = np.zeros((1, num_res))
+    upper_strip = np.zeros((1, res_max))
     for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
-        index = a['pos'] - res_min
+        index = a['pos'] - 1
         PDB_length = int(b[2][4]) if isinstance(b[2], tuple) else np.nan
         upper_strip[0, index] = PDB_length
     upper_strip[0, :] /= np.nanmax(upper_strip[0, :])
@@ -198,11 +212,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     # portion of the sequence to display
     if res_interval is None:
-        res_i = res_min
+        res_i = 1
         res_f = res_max
     else:
-        res_i = max(res_min, res_interval[0])
-        res_f = min(res_max, res_interval[1])
+        res_i = int(max(1, res_interval[0]))
+        res_f = int(min(res_max, res_interval[1]))
     nres_shown = res_f - res_i + 1
 
     # figure proportions
@@ -245,9 +259,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     ax1.set_ylabel('pathog. probability', labelpad=10)
 
     # average pathogenicity profile
-    x_resids = np.arange(res_min, res_max+1)
+    x_resids = np.arange(1, res_max+1)
     # cutoff line
-    ax2.hlines(0.5, res_min-.5, res_max+.5, colors='grey', lw=.8,
+    ax2.hlines(0.5, -.5, res_max+.5, colors='grey', lw=.8,
                linestyle='dashed')
     # solid line for predictions obtained with full classifier
     ax2.plot(x_resids, avg_p_full, color='red')
