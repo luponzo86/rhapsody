@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 from prody import LOGGER
 from .rhapsody import Rhapsody
 
@@ -188,12 +189,15 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
             table_other[aa_map[aa_mut], index] = other_preds[i]
 
     # compute average pathogenicity profiles
-    avg_p_full = np.nanmean(table_full, axis=0)
-    avg_p_mix  = np.nanmean(table_mix,  axis=0)
-    min_p = np.nanmin(table_mix, axis=0)
-    max_p = np.nanmax(table_mix, axis=0)
-    if other_preds_found:
-        avg_p_other = np.nanmean(table_other, axis=0)
+    # NB: I expect to see RuntimeWarnings in this block
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        avg_p_full = np.nanmean(table_full, axis=0)
+        avg_p_mix  = np.nanmean(table_mix,  axis=0)
+        min_p = np.nanmin(table_mix, axis=0)
+        max_p = np.nanmax(table_mix, axis=0)
+        if other_preds_found:
+            avg_p_other = np.nanmean(table_other, axis=0)
 
     # use upper strip for showing additional info, such as PDB lengths
     upper_strip = np.zeros((1, upper_lim))
