@@ -235,11 +235,15 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     axcb = plt.subplot(gs[1, 1]) # colorbar
     ax2  = plt.subplot(gs[2, 0]) # average profile
 
-    # secondary structure strip
-    ax0.imshow(upper_strip[:, res_i-1:res_f], aspect='auto',
+    # padding for tick labels
+    pad = 0.2/fig_width
+
+    # top strip
+    ax0.imshow(upper_strip[0:1, res_i-1:res_f], aspect='auto',
                cmap='YlGn', vmin=0, vmax=1)
     ax0.set_ylim((-0.45, .45))
     ax0.set_yticks([])
+    ax0.set_ylabel('PDB size', ha='right', va='center', fontsize=14,  rotation=0)
     ax0.set_xticks([])
 
     # mutagenesis table (heatmap)
@@ -252,7 +256,6 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
-    pad = 0.2/fig_width
     ax1.set_yticklabels(aa_list, ha='center', position=(-pad,0), fontsize=14)
     ax1.set_xticks(np.arange(5-res_i%5, res_f-res_i+1, 5))
     ax1.set_xticklabels([])
@@ -264,12 +267,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
                linestyle='dashed')
     # solid line for predictions obtained with full classifier
-    ax2.plot(x_resids, avg_p_full, color='red')
+    ax2.plot(x_resids, avg_p_full, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
     _p = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
-    ax2.plot(x_resids, _p, color='red', ls='dotted')
+    ax2.plot(x_resids, _p, 'ro-', markerfacecolor='none', ls='dotted')
     # shading showing range of values
-    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='white',
+    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='salmon',
                      facecolor='salmon')
     # plot average profile for other predictions, if available
     if other_preds_found:
