@@ -3,12 +3,12 @@ from .rhapsody import *
 
 __all__ = ['rhapsody']
 
-def rhapsody(input_obj, classifier, input_type='SAVs', 
+def rhapsody(input_obj, classifier, input_type='SAVs',
              custom_PDB=None, aux_classifier=None):
     """'input_obj' can be:
-    * a filename, a list/tuple of strings or a single string, containing SAV 
+    * a filename, a list/tuple of strings or a single string, containing SAV
       coordinates, with the format "P17516 135 G E" (input_type='SAVs', default)
-    * a filename of the output from PolyPhen-2, usually named "pph2-full.txt" 
+    * a filename of the output from PolyPhen-2, usually named "pph2-full.txt"
       (input_type='PP2')
     * a string of Uniprot coordinates with unspecified variant, for performing
       simulated mutagenesis experiment (input_type='scanning'). Possible formats
@@ -31,12 +31,12 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
 
     # obtain or import PolyPhen-2 results
     if input_type == 'SAVs':
-        # 'input_obj' is a filename, list, tuple or string 
+        # 'input_obj' is a filename, list, tuple or string
         # providing SAV coordinates
         r.queryPolyPhen2(input_obj)
     elif input_type == 'scanning':
-        # 'input_obj' is a Uniprot accession number identifying a sequence, 
-        # with or without a specified position 
+        # 'input_obj' is a Uniprot accession number identifying a sequence,
+        # with or without a specified position
         r.queryPolyPhen2(input_obj, scanning=True)
     elif input_type == 'PP2':
         # 'input_obj' is a filename containing PolyPhen-2's output
@@ -47,13 +47,17 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
 
     # compute predictions
     r.calcPredictions()
-
-    # if available, compute additional predictions from a subset of features
     if aux_classifier is not None:
+        # compute additional predictions from a subset of features
         try:
             r.calcAuxPredictions(aux_classifier)
+            r.printPredictions(format="both",
+            filename='rhapsody-predictions-full.txt')
         except Exception as e:
-            LOGGER.warn('Unable to compute auxiliary predictions: {}'.format(e))
+            LOGGER.warn(f'Unable to compute auxiliary predictions: {e}')
+
+    # print final predictions
+    r.printPredictions(filename='rhapsody-predictions.txt')
 
     # save pickle
     r.savePickle()

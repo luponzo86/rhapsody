@@ -43,7 +43,7 @@ class Rhapsody:
         # structured arrays of auxiliary predictions from a subclassifier
         self.auxPreds       = None
         # original and auxiliary predictions combined
-        self.mixedPreds     = None
+        self.mixPreds       = None
 
     def importClassifier(self, classifier):
         assert self.classifier is None, 'Classifier already set.'
@@ -75,20 +75,20 @@ class Rhapsody:
                'Please provide a tuple or a list.'
         self.featSet = tuple(featset)
 
-    def queryPolyPhen2(self, x, scanning=False, output='rhapsody-SAVs.txt'):
+    def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
         assert self.PP2output is None, "PolyPhen-2's output already imported."
         assert isinstance(x, (str, list, tuple))
         SAV_file = ''
         if scanning:
             # 'x' is a string, e.g. 'P17516' or 'P17516 135'
             SAV_list = seqScanning(x)
-            SAV_file = printSAVlist(SAV_list, output)
+            SAV_file = printSAVlist(SAV_list, filename)
         elif isinstance(x, str) and isfile(x):
             # 'x' is a filename, with line format 'P17516 135 G E'
             SAV_file = x
         else:
             # 'x' is a list, tuple or single string of SAV coordinates
-            SAV_file = printSAVlist(x, output)
+            SAV_file = printSAVlist(x, filename)
         # submit query to PolyPhen-2
         PP2_output = queryPolyPhen2(SAV_file)
         self.importPolyPhen2output(PP2_output)
@@ -99,7 +99,7 @@ class Rhapsody:
         self.SAVcoords = getSAVcoords(self.PP2output)
         return self.PP2output
 
-    def getUniprot2PDBmap(self, output='rhapsody-Uniprot2PDB.txt'):
+    def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt'):
         """Maps each SAV to the corresponding resid in a PDB chain.
         The format is: (PDBID, chainID, resid, wild-type aa, length).
         """
@@ -108,8 +108,8 @@ class Rhapsody:
             m = mapSAVs2PDB(self.SAVcoords, custom_PDB=self.customPDB)
             self.Uniprot2PDBmap = m
         # print to file, if requested
-        if output is not None:
-            with open(output, 'w') as f:
+        if filename is not None:
+            with open(filename, 'w') as f:
                 for t in self.Uniprot2PDBmap:
                     orig_SAV = '{},'.format(t[0])
                     if isinstance(t[1], tuple):
@@ -124,12 +124,12 @@ class Rhapsody:
                     f.write('{:<22} {:<22} {:<} \n'.format(*o))
         return self.Uniprot2PDBmap
 
-    def calcFeatures(self, output='rhapsody-features.txt'):
+    def calcFeatures(self, filename='rhapsody-features.txt'):
         if self.featMatrix is None:
             self.featMatrix = self._calcFeatMatrix()
         # print to file, if requested
-        if output is not None:
-            np.savetxt(output, self.featMatrix, fmt='%10.3e')
+        if filename is not None:
+            np.savetxt(filename, self.featMatrix, fmt='%10.3e')
         return self.featMatrix
 
     def _calcFeatMatrix(self):
@@ -169,18 +169,16 @@ class Rhapsody:
         # build matrix of selected features
         return buildFeatMatrix(self.featSet, all_feats)
 
-    def calcPredictions(self, output='rhapsody-predictions.txt'):
+    def calcPredictions(self):
         assert self.predictions is None, 'Predictions already computed.'
         assert self.classifier is not None, 'Classifier not set.'
         assert self.featMatrix is not None, 'Features not computed.'
         p = calcPredictions(self.featMatrix, self.classifier,
                             SAV_coords=self.SAVcoords['text'])
-        if output is not None and p is not None:
-            np.savetxt(output, p, fmt='%-5.3f  %-5.3f  %-12s  %-12s')
         self.predictions = p
         return self.predictions
 
-    def calcAuxPredictions(self, aux_clsf, output='rhapsody-aux_predictions.txt'):
+    def calcAuxPredictions(self, aux_clsf):
         assert self.predictions is not None, 'Primary predictions not found.'
         assert self.featMatrix  is not None, 'Features not computed.'
         # import feature subset
@@ -195,23 +193,65 @@ class Rhapsody:
         if p_a is None:
             LOGGER.warn('No additional predictions.')
             return None
+        self.auxPreds = p_a
         p_o = self.predictions
-        p_m = np.where(np.isnan(p_o['score']), p_a, p_o)
-        if output is not None and p_a is not None:
-            with open(output, 'w') as f:
-                for t_o, t_a, t_m in zip(p_o, p_a, p_m):
+        self.mixPreds = np.where(np.isnan(p_o['score']), p_a, p_o)
+        return self.auxPreds, self.mixPreds
+
+    def printPredictions(self, format="auto", header=True,
+                         filename='rhapsody-predictions.txt'):
+        assert format in ["auto", "full", "aux", "mixed", "both"]
+        assert isinstance(filename, str)
+        assert isinstance(header, bool)
+        if format != "both":
+            # select what predictions to print
+            if format == "auto":
+                preds = self.mixPreds
+                if self.mixPreds is None:
+                    preds = self.predictions
+            elif format == "full":
+                preds = self.predictions
+            elif format == "aux":
+                preds = self.auxPreds
+            elif format == "mixed":
+                preds = self.mixPreds
+            # check if predictions are computed
+            if preds is None:
+                raise RuntimeError('Predictions not computed')
+            # print
+            with open(filename, 'w') as f:
+                h = '# SAV coords           score  prob   class         info\n'
+                if header:
+                    f.write(h)
+                for SAV, p in zip(self.SAVcoords['text'], preds):
+                    p_cols = '{:-5.3f}  {:-5.3f}  {:12s}  {:12s}'.format(*p)
+                    f.write(f'{SAV:22} {p_cols} \n')
+        else:
+            if self.mixPreds is None:
+                raise RuntimeError('Auxiliary predictions not computed')
+            # print both full and aux predictions in a more detailed format
+            with open(filename, 'w') as f:
+                h  = '# SAV coords           '
+                h += 'final predictions                auxiliary predictions\n'
+                if header:
+                    f.write(h)
+                SAVs = self.SAVcoords['text']
+                p_o  = self.predictions
+                p_a  = self.auxPreds
+                p_m  = self.mixPreds
+                for SAV, t_o, t_a, t_m in zip(SAVs, p_o, p_a, p_m):
+                    f.write(f'{SAV:22} ')
                     f.write(f'{t_m[0]:5.3f}  {t_m[1]:5.3f}  {t_m[2]:12s}')
                     if np.isnan(t_o['score']) and not np.isnan(t_a['score']):
                         f.write('  <--  ')
                     else:
                         f.write('  x--  ')
                     f.write(f'{t_a[0]:5.3f}  {t_a[1]:5.3f}  {t_a[2]:12s}\n')
-        self.auxPreds   = p_a
-        self.mixedPreds = p_m
-        return self.auxPreds, self.mixedPreds
 
-    def savePickle(self, output='rhapsody-pickle.pkl'):
-        f = pickle.dump(self, open(output, "wb"))
+
+
+    def savePickle(self, filename='rhapsody-pickle.pkl'):
+        f = pickle.dump(self, open(filename, "wb"))
         return f
 
 

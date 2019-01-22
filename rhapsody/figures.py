@@ -158,8 +158,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     p_aux  = None
     p_mix  = None
     if aux_preds_found:
-        p_aux = rhapsody_obj.auxPreds[  'path. probability']
-        p_mix = rhapsody_obj.mixedPreds['path. probability']
+        p_aux = rhapsody_obj.auxPreds['path. probability']
+        p_mix = rhapsody_obj.mixPreds['path. probability']
 
     # select an appropriate interval, based on available predictions
     res_min = np.min(rhapsody_obj.SAVcoords['pos'])
