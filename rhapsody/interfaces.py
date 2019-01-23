@@ -32,7 +32,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
     # obtain or import PolyPhen-2 results
     if input_type == 'SAVs':
         # 'input_obj' is a filename, list, tuple or string
-        # providing SAV coordinates
+        # containing SAV coordinates
         r.queryPolyPhen2(input_obj)
     elif input_type == 'scanning':
         # 'input_obj' is a Uniprot accession number identifying a sequence,
