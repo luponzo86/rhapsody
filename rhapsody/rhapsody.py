@@ -321,9 +321,10 @@ def printSAVlist(input_SAVs, filename):
     if isinstance(input_SAVs, str):
         input_SAVs = [input_SAVs,]
     with open(filename, 'w', 1) as f:
-        for line in input_SAVs:
-            assert isinstance(line, str), \
-                   "each SAV in 'input_SAVs' must be a string."
+        for i, line in enumerate(input_SAVs):
+            m = f'error in SAV {i}: '
+            assert isinstance(line, str), f'{m} not a string'
+            assert len(line) < 25, f'{m} too many characters'
             print(line, file=f)
     return filename
 
