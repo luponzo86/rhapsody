@@ -259,9 +259,9 @@ class Rhapsody:
 
 
 def pathRhapsodyFolder(folder=None):
-    """Returns or specify local folder for storing files and pickles necessary
-    to run Rhapsody.  To release the current folder, pass an invalid path, e.g.
-    ``folder=''``.
+    """Returns or sets path of local folder where files and pickles necessary
+    to run Rhapsody will be stored. To release the current folder, pass an
+    invalid path, e.g. ``folder=''``.
     """
     if folder is None:
         folder = SETTINGS.get('rhapsody_local_folder')
