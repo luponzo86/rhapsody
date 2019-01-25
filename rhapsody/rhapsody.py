@@ -191,6 +191,7 @@ class Rhapsody:
         assert self.featMatrix  is not None, 'Features not computed.'
         # import feature subset
         clsf_dict = pickle.load(open(aux_clsf, 'rb'))
+        LOGGER.info('Auxiliary Random Forest classifier imported.')
         feat_subset = tuple(clsf_dict['features'])
         assert all(f in self.featSet for f in feat_subset), \
                'The new set of features must be a subset of the original one.'
@@ -228,11 +229,11 @@ class Rhapsody:
                 raise RuntimeError('Predictions not computed')
             # print
             with open(filename, 'w') as f:
-                h = '# SAV coords           score  prob   class         info\n'
+                h = '# SAV coords           score   prob    class        info\n'
                 if header:
                     f.write(h)
                 for SAV, p in zip(self.SAVcoords['text'], preds):
-                    p_cols = '{:-5.3f}  {:-5.3f}  {:12s}  {:12s}'.format(*p)
+                    p_cols = '{:<5.3f}   {:<5.3f}   {:12s} {:12s}'.format(*p)
                     f.write(f'{SAV:22} {p_cols} \n')
         else:
             if self.mixPreds is None:
@@ -249,12 +250,12 @@ class Rhapsody:
                 p_m  = self.mixPreds
                 for SAV, t_o, t_a, t_m in zip(SAVs, p_o, p_a, p_m):
                     f.write(f'{SAV:22} ')
-                    f.write(f'{t_m[0]:5.3f}  {t_m[1]:5.3f}  {t_m[2]:12s}')
+                    f.write(f'{t_m[0]:<5.3f}  {t_m[1]:<5.3f}  {t_m[2]:12s}')
                     if np.isnan(t_o['score']) and not np.isnan(t_a['score']):
                         f.write('  <--  ')
                     else:
                         f.write('  x--  ')
-                    f.write(f'{t_a[0]:5.3f}  {t_a[1]:5.3f}  {t_a[2]:12s}\n')
+                    f.write(f'{t_a[0]:<5.3f}  {t_a[1]:<5.3f}  {t_a[2]:12s}\n')
 
 
 

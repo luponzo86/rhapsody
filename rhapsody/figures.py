@@ -119,8 +119,10 @@ def adjust_res_interval(res_interval, min_size=10):
     return (res_i, res_f)
 
 
-def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
-                             res_interval=None, min_interval_size=15):
+def print_sat_mutagen_figure(filename, rhapsody_obj,
+                             res_interval=None, min_interval_size=15,
+                             other_preds=None, PP2=True, EVmutation=True,
+                             EVmut_cutoff=-4.551):
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj.predictions is not None, 'predictions not found'
@@ -148,10 +150,6 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
         aux_preds_found = True
     else:
         aux_preds_found = False
-    if other_preds is not None:
-        other_preds_found = True
-    else:
-        other_preds_found = False
 
     # import pathogenicity probability from Rhapsody object
     p_full = rhapsody_obj.predictions['path. probability']
@@ -170,8 +168,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
     table_full = np.zeros((20, upper_lim), dtype=float)
     table_full[:] = 'nan'
     table_mix = table_full.copy()
-    if other_preds_found:
+    if other_preds:
         table_other = table_full.copy()
+    if PP2:
+        table_PP2   = table_full.copy()
+    if EVmutation:
+        table_EVmut = table_full.copy()
 
     # fill tables with predicted probability
     #  1:    deleterious
@@ -185,8 +187,14 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
         table_full[aa_map[aa_mut], index] = p_full[i]
         if aux_preds_found:
             table_mix[aa_map[aa_mut], index] = p_mix[i]
-        if other_preds_found:
+        if other_preds:
             table_other[aa_map[aa_mut], index] = other_preds[i]
+        if PP2:
+            s = float( rhapsody_obj.PP2output[i]['pph2_prob'] )
+            table_PP2[  aa_map[aa_mut], index] = s
+        if EVmutation:
+            s = rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
+            table_EVmut[aa_map[aa_mut], index] = s/EVmut_cutoff*0.5
 
     # compute average pathogenicity profiles
     # NB: I expect to see RuntimeWarnings in this block
@@ -196,8 +204,13 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
         avg_p_mix  = np.nanmean(table_mix,  axis=0)
         min_p = np.nanmin(table_mix, axis=0)
         max_p = np.nanmax(table_mix, axis=0)
-        if other_preds_found:
+        if other_preds:
             avg_p_other = np.nanmean(table_other, axis=0)
+        if PP2:
+            avg_p_PP2   = np.nanmean(table_PP2,   axis=0)
+        if EVmutation:
+            avg_p_EVmut = np.nanmean(table_EVmut, axis=0)
+
 
     # use upper strip for showing additional info, such as PDB lengths
     upper_strip = np.zeros((1, upper_lim))
@@ -263,20 +276,25 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, other_preds=None,
 
     # average pathogenicity profile
     x_resids = np.arange(1, upper_lim+1)
-    # cutoff line
-    ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
-               linestyle='dashed')
+    # shading showing range of values
+    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='salmon',
+                     facecolor='salmon')
+    # plot average profile for other predictions, if available
+    if other_preds:
+        ax2.plot(x_resids, avg_p_other, color='gray',  lw=.5)
+    if PP2:
+        ax2.plot(x_resids, avg_p_PP2,   color='blue',  lw=.5)
+    if EVmutation:
+        ax2.plot(x_resids, avg_p_EVmut, color='green', lw=.5)
     # solid line for predictions obtained with full classifier
     ax2.plot(x_resids, avg_p_full, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
     _p = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
     ax2.plot(x_resids, _p, 'ro-', markerfacecolor='none', ls='dotted')
-    # shading showing range of values
-    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='salmon',
-                     facecolor='salmon')
-    # plot average profile for other predictions, if available
-    if other_preds_found:
-        ax2.plot(x_resids, avg_p_other, color='blue', lw=.5)
+    # cutoff line
+    ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
+               linestyle='dashed')
+
     ax2.set_xlim((res_i-.5, res_f+.5))
     ax2.set_xlabel('residue number')
     ax2.set_ylim((0, 1))
