@@ -5,6 +5,7 @@ from prody import LOGGER, SETTINGS, Atomic
 from prody import queryUniprot
 from .Uniprot import *
 from .PolyPhen2 import *
+from .EVmutation import *
 from .calcFeatures import *
 
 __all__ = ['Rhapsody', 'pathRhapsodyFolder', 'seqScanning',
@@ -26,6 +27,8 @@ class Rhapsody:
         self.customPDB      = None
         # tuple of dicts containing parsed PolyPhen-2 output
         self.PP2output      = None
+        # structured array containing EVmutation data
+        self.EVmutFeats     = None
         # structured array containing original Uniprot SAV coords,
         # extracted from PolyPhen-2's output or imported directly
         self.SAVcoords      = None
@@ -98,6 +101,11 @@ class Rhapsody:
         self.PP2output = parsePP2output(PP2output)
         self.SAVcoords = getSAVcoords(self.PP2output)
         return self.PP2output
+
+    def calcEVmutationFeats(self):
+        if self.EVmutFeats is None:
+            self.EVmutFeats = recoverEVmutFeatures(self.SAVcoords)
+        return self.EVmutFeats
 
     def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt'):
         """Maps each SAV to the corresponding resid in a PDB chain.

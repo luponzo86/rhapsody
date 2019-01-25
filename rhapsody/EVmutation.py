@@ -1,7 +1,7 @@
 import numpy as np
 from glob import glob
-from os.path import splitext, join
-from prody import LOGGER
+from os.path import abspath, isdir, splitext, join, basename
+from prody import SETTINGS, LOGGER
 
 # extract precomputed EVmutation scores for given mutants
 # NB:
@@ -10,7 +10,7 @@ from prody import LOGGER
 # positive DeltaE_epist --> neutral/benign effect
 
 
-__all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
+__all__ = ['EVMUT_FEATS', 'pathEVmutationFolder', 'recoverEVmutFeatures']
 
 EVMUT_FEATS = ['EVmut-DeltaE_epist', 'EVmut-DeltaE_indep',
                'EVmut-mut_aa_freq', 'EVmut-wt_aa_cons',]
@@ -70,9 +70,9 @@ def recoverEVmutFeatures(SAVs):
     EVmut_dir = pathEVmutationFolder()
     if EVmut_dir is None:
         raise RuntimeError('EVmutation folder not set')
-    file_list = glob(join(EVmut_dir, '*.csv'))
+    file_list = [basename(f) for f in glob(join(EVmut_dir, '*.csv'))]
     if not file_list:
-        raise RuntimeError('EVmutation folder does not contain any csv files')
+        raise RuntimeError('EVmutation folder does not contain any .csv files')
     for i, SAV in enumerate(SAVs):
         acc, pos, wt_aa, mut_aa, SAV_txt = SAV
 #       LOGGER.info('Recovering EVmutation data for {}.'.format(SAV_txt))
