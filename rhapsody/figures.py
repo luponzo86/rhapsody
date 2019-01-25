@@ -218,7 +218,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         index = a['pos'] - 1
         PDB_length = int(b[2][4]) if isinstance(b[2], tuple) else np.nan
         upper_strip[0, index] = PDB_length
-    upper_strip[0, :] /= np.nanmax(upper_strip[0, :])
+    max_PDB_size = int(np.nanmax(upper_strip[0, :]))
+    upper_strip[0, :] /= max_PDB_size
 
     # PLOT FIGURE
 
@@ -256,7 +257,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                cmap='YlGn', vmin=0, vmax=1)
     ax0.set_ylim((-0.45, .45))
     ax0.set_yticks([])
-    ax0.set_ylabel('PDB size', ha='right', va='center', fontsize=14,  rotation=0)
+    ax0.set_ylabel(f'PDB size\n(max {max_PDB_size} res.)', fontsize=14,
+                   ha='right', va='center', rotation=0)
     ax0.set_xticks([])
 
     # mutagenesis table (heatmap)
@@ -297,10 +299,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     ax2.set_xlim((res_i-.5, res_f+.5))
     ax2.set_xlabel('residue number')
-    ax2.set_ylim((0, 1))
+    ax2.set_ylim((-0.05, 1.05))
     ax2.set_ylabel('average', rotation=90, labelpad=10)
     ax2.set_yticklabels([])
     ax2r = ax2.twinx()
+    ax2r.set_ylim((-0.05, 1.05))
     ax2r.set_yticks([0, .5, 1])
     ax2r.set_yticklabels(['0', '0.5', '1'])
     ax2r.tick_params(axis='both', which='major', pad=15)

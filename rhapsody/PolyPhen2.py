@@ -9,7 +9,7 @@ __all__ = ['requests_retry_session', 'queryPolyPhen2',
            'parsePP2output', 'getSAVcoords']
 
 pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
-                'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2', 
+                'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2',
                 'prediction', 'based_on', 'effect', 'pph2_class',
                 'pph2_prob', 'pph2_FPR', 'pph2_TPR', 'pph2_FDR',
                 'site', 'region', 'PHAT', 'dScore', 'Score1',
@@ -34,7 +34,7 @@ def requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
     return session
 
 def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
-    # original PolyPhen-2 curl command (see: 
+    # original PolyPhen-2 curl command (see:
     # http://genetics.bwh.harvard.edu/pph2/dokuwiki/faq ):
     #
     # curl  -F _ggi_project=PPHWeb2  -F _ggi_origin=query         \
@@ -42,16 +42,16 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     # -F UCSCDB=hg19  -F SNPFUNC=m  -F NOTIFYME=myemail@myisp.com \
     # -F _ggi_batch_file=@example_batch.txt                       \
     # -D - http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi
-    
+
     assert type(dump) is bool
     assert type(prefix) is str
 
     LOGGER.info('Submitting query to PolyPhen-2...')
     num_lines = sum(1 for line in open(filename, 'rb') if line[0]!='#')
     input_file = open(filename, 'rb')
-    # submit query 
+    # submit query
     address = 'http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi'
-    files = {'_ggi_project': (None, 'PPHWeb2'), 
+    files = {'_ggi_project': (None, 'PPHWeb2'),
              '_ggi_origin': (None, 'query'),
              '_ggi_target_pipeline': (None, '1'),
              '_ggi_batch_file': ('query.txt', input_file),
@@ -64,43 +64,43 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     # results and semaphore files
     results_dir = 'http://genetics.bwh.harvard.edu/ggi/pph2/' + \
                    jobID + '/1/'
-    files = {'started':   results_dir + 'started.txt', 
+    files = {'started':   results_dir + 'started.txt',
              'completed': results_dir + 'completed.txt',
              'short':     results_dir + 'pph2-short.txt',
              'full':      results_dir + 'pph2-full.txt',
              'log':       results_dir + 'pph2-log.txt',
              'snps':      results_dir + 'pph2-snps.txt'}
-    # keep checking if the job has started/completed and, 
+    # keep checking if the job has started/completed and,
     # when done, fetch output files
     output = {}
     for k in ['started', 'completed', 'short', 'full', 'log', 'snps']:
         # delay = timeout + backoff_factor*[2^(total_retries - 1)]
         if k == 'started':
             LOGGER.timeit('_started')
-            r = requests_retry_session(retries=15, timeout=0, 
+            r = requests_retry_session(retries=16, timeout=0,
                                        backoff_factor=0.1).get(files[k])
             LOGGER.report('Query to PolyPhen-2 started in %.1fs.', '_started')
             LOGGER.info('PolyPhen-2 is running...')
         elif k == 'completed':
             LOGGER.timeit('_queryPP2')
-            r = requests_retry_session(retries=12, timeout=log(num_lines)/2, 
+            r = requests_retry_session(retries=12, timeout=log(num_lines)/2,
                                        backoff_factor=0.2).get(files[k])
             LOGGER.report('Query to PolyPhen-2 completed in %.1fs.', '_queryPP2')
-        else: 
-            r = requests_retry_session(retries=10, timeout=0, 
+        else:
+            r = requests_retry_session(retries=12, timeout=0, 
                                        backoff_factor=0.01).get(files[k])
         output[k] = r
         # print to file, if requested
         if dump:
             with open(prefix + '-' + k + '.txt', 'w', 1) as f:
                 print(r.text, file=f)
-            
+
     return output
 
 def parsePP2output(pph2_output):
-    '''Import PolyPhen-2 results directly from the output of 
+    '''Import PolyPhen-2 results directly from the output of
     'queryPolyPhen2' or from a file (in 'full' format).
-    ''' 
+    '''
     assert type(pph2_output) in [dict, str]
     if type(pph2_output) is dict:
         data = pph2_output['full'].text
@@ -108,7 +108,7 @@ def parsePP2output(pph2_output):
         with open(pph2_output, 'r') as file:
             data = file.read()
     n_cols = len(pph2_columns)
-    parsed_lines = []    
+    parsed_lines = []
     for line in data.split('\n'):
         if line == '' or line[0] == '#':
             continue
@@ -138,7 +138,7 @@ def getSAVcoords(parsed_lines):
     possible, the Uniprot coordinates computed by PolyPhen-2 will be returned.
     A string containing the original submitted SAV is returned as well.
     """
-    SAV_dtype = np.dtype([('acc', 'U15'), ('pos' , 'i'), 
+    SAV_dtype = np.dtype([('acc', 'U15'), ('pos' , 'i'),
                           ('aa_wt', 'U1'), ('aa_mut', 'U1'),
                           ('text', 'U25')])
     SAV_coords = np.empty(len(parsed_lines), dtype=SAV_dtype)

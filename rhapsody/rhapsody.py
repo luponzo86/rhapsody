@@ -241,7 +241,7 @@ class Rhapsody:
             # print both full and aux predictions in a more detailed format
             with open(filename, 'w') as f:
                 h  = '# SAV coords           '
-                h += 'final predictions                auxiliary predictions\n'
+                h += 'full-classifier predictions        reduced-classifier predictions\n'
                 if header:
                     f.write(h)
                 SAVs = self.SAVcoords['text']
@@ -252,9 +252,9 @@ class Rhapsody:
                     f.write(f'{SAV:22} ')
                     f.write(f'{t_m[0]:<5.3f}  {t_m[1]:<5.3f}  {t_m[2]:12s}')
                     if np.isnan(t_o['score']) and not np.isnan(t_a['score']):
-                        f.write('  <--  ')
+                        f.write('   <--   ')
                     else:
-                        f.write('  x--  ')
+                        f.write('   x--   ')
                     f.write(f'{t_a[0]:<5.3f}  {t_a[1]:<5.3f}  {t_a[2]:12s}\n')
 
 
