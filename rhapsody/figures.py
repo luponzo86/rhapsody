@@ -1,5 +1,6 @@
 import numpy as np
 import warnings
+from string import Template
 from prody import LOGGER
 from .rhapsody import Rhapsody
 
@@ -120,20 +121,21 @@ def adjust_res_interval(res_interval, min_size=10):
 
 
 def print_sat_mutagen_figure(filename, rhapsody_obj,
-                             res_interval=None, min_interval_size=15,
-                             other_preds=None, PP2=True, EVmutation=True,
-                             EVmut_cutoff=-4.551, html_map=None,
-                             fig_height=8, dpi=300):
+    res_interval=None, min_interval_size=15,
+    other_preds=None, PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
+    html_map=None, fig_height=8, dpi=300):
+
+    # check inputs
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj.predictions is not None, 'predictions not found'
     if res_interval is not None:
         assert isinstance(res_interval, tuple) and len(res_interval)==2, \
-               'res_interval must be a tuple of 2 values'
+        'res_interval must be a tuple of 2 values'
         assert res_interval[1] >= res_interval[0], 'invalid res_interval'
     if other_preds is not None:
         assert len(other_preds) == len(rhapsody_obj.predictions), \
-               'length of additional predictions array is incorrect'
+        'length of additional predictions array is incorrect'
     if html_map is not None:
         assert isinstance(html_map, str), 'html_map should be a filename'
     assert isinstance(fig_height, (int, float))
@@ -318,45 +320,94 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     plt.close()
     LOGGER.info(f'Saturation mutagenesis figure saved to {filename}')
 
-    # write a map in html format, to make figure responsive
+    # write a map in html format, to make figure clickable
     if html_map is not None:
 
-        # get figure size *before* tight (in inches)
-        fig_size = fig.get_size_inches()
-        # get tight bbox as used by fig.savefig()
-        tbbox = fig.get_tightbbox(fig.canvas.get_renderer())
-        # compute new origin, based on tight box and padding (in inches)
-        new_orig = tbbox.min - tight_padding
-        new_height = tbbox.height + 2*tight_padding
+        # precompute some useful quantities (in inches)
+        data = {}
+        # dpi of printed figure
+        data["dpi"] = dpi
+        # number of residues displayed
+        data["num_res"] = nres_shown
+        # first residue displayed
+        data["first_res"] = res_i
+        # list of amino acids
+        data["aa_list"] = aa_list
+        # figure size *before* tight
+        data["fig_size"] = fig.get_size_inches()
+        # tight bbox as used by fig.savefig()
+        data["tight_bbox"] = fig.get_tightbbox(fig.canvas.get_renderer())
+        # compute new origin and height, based on tight box and padding
+        data["new_orig"]   = data["tight_bbox"].min - tight_padding
+        data["new_height"] = data["tight_bbox"].height + 2*tight_padding
 
-        def html_coords(bbox, new_orig, new_height, fig_size, dpi):
+        def get_html_fields(ax, d, ax_type):
+            assert ax_type in ("strip", "table", "bplot")
+            # get bbox coordinates (x0, y0, x1, y1)
+            bbox = ax.get_position().get_points()
             # get bbox coordinates in inches
-            b_inch = bbox * fig_size
+            b_inch = bbox * d["fig_size"]
             # adjust bbox coordinates based on tight bbox
-            b_adj  = b_inch - new_orig
+            b_adj = b_inch - d["new_orig"]
             # use html reference system (y = 1 - y)
-            b_html = b_adj*np.array([1, -1]) + np.array([0, new_height])
-            # round to pixels
-            b_px   = (b_html*dpi).astype(int).flatten()
-            # format in html syntax
-            return '{},{},{},{}'.format(*b_px)
+            b_html = b_adj*np.array([1,-1]) + np.array([0, d["new_height"]])
+            # convert to pixels
+            b_px = (d["dpi"]*b_html).astype(int)
+            # put in html format
+            coords = '{},{},{},{}'.format(*b_px.flatten())
+            # output dictionary
+            if ax_type == "table":
+                n_rows = 20
+            else:
+                n_rows = 1
+            o = {'coords': coords,
+                 'href':   '#',
+                 'alt':    '#',
+                 'title':  ax_type,
+                 'nx':     d["num_res"],
+                 'ny':     n_rows }
+            # dx = d["dpi"] * abs(b_html[1,0] - b_html[0,0]) / d["num_res"]
+            # dy = d["dpi"] * abs(b_html[1,1] - b_html[0,1]) / n_rows
+            # for j in range(d["num_res"]):
+            #     for i in range(20):
+            #         b = [dx*j, dy*i, dx*(j+1), dy*(i+1)]
+            #         # round to int
+            #         b = tuple(int(x) for x in b)
+            #         # format in html syntax
+            #         coords = '{},{},{},{}'.format(*b)
+            #         # create dict of area attributes
+            #         r = {'coords': coords, 'href': '#', 'alt': '#'}
+            #         res = d["first_res"] + j
+            #         if grid == "table":
+            #             mut_aa = d["aa_list"][i]
+            #             r['title'] = f"X{res}{mut_aa}"
+            #         else:
+            #             r['title'] = f"{res}"
+            #         # append to list
+            #         rects.append(r)
+            return o
 
-        # get bbox coordinates (x0, y0, x1, y1) for strip, table and bottom plot
-        strip_bbox = ax0.get_position().get_points()
-        table_bbox = ax1.get_position().get_points()
-        bplot_bbox = ax2.get_position().get_points()
+        all_axis = {'strip': ax0, 'table': ax1, 'bplot': ax2}
+
+        # html template
+        area_html = Template(
+        '<area shape="rect" coords="$coords" href="$href" alt="$alt" ' + \
+        'title="$title" id="{{map_id}}_$areaid" data-toggle="tooltip" ' + \
+        'data-trigger="hover" data-placement="top" {{area_attrs}}> \n' + \
+        '<script> \n' + \
+        '  var {{map_id}}_$areaid = ' + '{nx: $nx, ny: $ny}; \n' + \
+        '</script> \n'
+        )
 
         # write html
-        html = '<map name="map"> \n'
-        for i, ax in enumerate([ax0, ax1, ax2]):
-            bbox = ax.get_position().get_points()
-            xyxy = html_coords(bbox, new_orig, new_height, fig_size, dpi)
-            html += f'<area shape="rect" coords="{xyxy}" href="#" '
-            html += f'alt="{i}" title="{i}" data-toggle="tooltip" \n'
-            html += 'data-trigger="hover" data-placement="top"> \n'
-        html += '</map> \n'
-
         with open(html_map, 'w') as f:
-            f.write(html)
+            f.write('<div>\n')
+            f.write('<map name="{{map_id}}" id="{{map_id}}" {{map_attrs}}>\n')
+            for ax_type, ax in all_axis.items():
+                fields = get_html_fields(ax, data, ax_type)
+                fields['areaid'] = ax_type
+                f.write(area_html.substitute(fields))
+            f.write('</map>\n')
+            f.write('</div>\n')
 
     return
