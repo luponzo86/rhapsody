@@ -122,7 +122,8 @@ def adjust_res_interval(res_interval, min_size=10):
 def print_sat_mutagen_figure(filename, rhapsody_obj,
                              res_interval=None, min_interval_size=15,
                              other_preds=None, PP2=True, EVmutation=True,
-                             EVmut_cutoff=-4.551):
+                             EVmut_cutoff=-4.551, html_map=None,
+                             fig_height=8, dpi=300):
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj.predictions is not None, 'predictions not found'
@@ -133,6 +134,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     if other_preds is not None:
         assert len(other_preds) == len(rhapsody_obj.predictions), \
                'length of additional predictions array is incorrect'
+    if html_map is not None:
+        assert isinstance(html_map, str), 'html_map should be a filename'
+    assert isinstance(fig_height, (int, float))
+    assert isinstance(dpi, int)
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
@@ -234,8 +239,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     nres_shown = res_f - res_i + 1
 
     # figure proportions
-    fig_height = 8 # inches
-    fig_width  = fig_height/2
+    fig_width  = fig_height/2 # inches
     fig_width *= nres_shown/20
     fig, ax = plt.subplots(3, 2, figsize=(fig_width, fig_height))
     wspace = 0.5 # inches
@@ -308,6 +312,51 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     ax2r.set_yticklabels(['0', '0.5', '1'])
     ax2r.tick_params(axis='both', which='major', pad=15)
 
-    fig.savefig(filename, format='png', bbox_inches='tight', dpi=300)
+    tight_padding = 0.1
+    fig.savefig(filename, format='png', bbox_inches='tight',
+                pad_inches=tight_padding, dpi=dpi)
     plt.close()
     LOGGER.info(f'Saturation mutagenesis figure saved to {filename}')
+
+    # write a map in html format, to make figure responsive
+    if html_map is not None:
+
+        # get figure size *before* tight (in inches)
+        fig_size = fig.get_size_inches()
+        # get tight bbox as used by fig.savefig()
+        tbbox = fig.get_tightbbox(fig.canvas.get_renderer())
+        # compute new origin, based on tight box and padding (in inches)
+        new_orig = tbbox.min - tight_padding
+        new_height = tbbox.height + 2*tight_padding
+
+        def html_coords(bbox, new_orig, new_height, fig_size, dpi):
+            # get bbox coordinates in inches
+            b_inch = bbox * fig_size
+            # adjust bbox coordinates based on tight bbox
+            b_adj  = b_inch - new_orig
+            # use html reference system (y = 1 - y)
+            b_html = b_adj*np.array([1, -1]) + np.array([0, new_height])
+            # round to pixels
+            b_px   = (b_html*dpi).astype(int).flatten()
+            # format in html syntax
+            return '{},{},{},{}'.format(*b_px)
+
+        # get bbox coordinates (x0, y0, x1, y1) for strip, table and bottom plot
+        strip_bbox = ax0.get_position().get_points()
+        table_bbox = ax1.get_position().get_points()
+        bplot_bbox = ax2.get_position().get_points()
+
+        # write html
+        html = '<map name="map"> \n'
+        for i, ax in enumerate([ax0, ax1, ax2]):
+            bbox = ax.get_position().get_points()
+            xyxy = html_coords(bbox, new_orig, new_height, fig_size, dpi)
+            html += f'<area shape="rect" coords="{xyxy}" href="#" '
+            html += f'alt="{i}" title="{i}" data-toggle="tooltip" \n'
+            html += 'data-trigger="hover" data-placement="top"> \n'
+        html += '</map> \n'
+
+        with open(html_map, 'w') as f:
+            f.write(html)
+
+    return
