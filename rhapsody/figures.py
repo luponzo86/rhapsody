@@ -338,7 +338,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         html_data["new_orig"]   = html_data["tight_bbox"].min - tight_padding
         html_data["new_height"] = html_data["tight_bbox"].height + 2*tight_padding
 
-        def get_html_fields(ax, d, ax_type):
+        def get_area_coords(ax, d):
             assert ax_type in ("strip", "table", "bplot")
             # get bbox coordinates (x0, y0, x1, y1)
             bbox = ax.get_position().get_points()
@@ -352,19 +352,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             b_px = (d["dpi"]*b_html).astype(int)
             # put in html format
             coords = '{},{},{},{}'.format(*b_px.flatten())
-            # output dictionary
-            o = {'coords': coords,
-                 'href':   '#',
-                 'alt':    '#',
-                 'title':  ax_type}
-            return o
-
-        # html template
-        area_html = Template(
-        '<area shape="rect" coords="$coords" href="$href" alt="$alt" ' + \
-        'title="$title" id="{{map_id}}_$areaid" data-toggle="tooltip" ' + \
-        'data-trigger="hover" data-placement="top" {{area_attrs}}> \n'
-        )
+            # output
+            return coords
 
         # precompute some useful quantities for javascript code
         js_data = {}
@@ -385,7 +374,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                  'info'    : 1}
             return o
 
-        # javascript template
+        # html templates
+        area_html = Template(
+        '<area shape="rect" coords="$coords" ' + \
+        'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
+        )
         area_js = Template(
         '{{map_data}}["{{map_id}}_$areaid"] = { \n' + \
         '  "num_rows": $num_rows, \n' + \
@@ -397,9 +390,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         # write html
         with open(filename + '.html', 'w') as f:
             f.write('<div>\n')
-            f.write('<map name="{{map_id}}" id="{{map_id}}">\n')
+            f.write('<map name="{{map_id}}" id="{{map_id}}" {{map_attrs}}>\n')
             for ax_type, ax in all_axis.items():
-                fields = get_html_fields(ax, html_data, ax_type)
+                fields = {}
+                fields['coords'] = get_area_coords(ax, html_data)
                 fields['areaid'] = ax_type
                 f.write(area_html.substitute(fields))
             f.write('</map>\n')
