@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import warnings
 from string import Template
 from prody import LOGGER
@@ -123,7 +124,7 @@ def adjust_res_interval(res_interval, min_size=10):
 def print_sat_mutagen_figure(filename, rhapsody_obj,
     res_interval=None, min_interval_size=15,
     other_preds=None, PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
-    html_map=None, fig_height=8, dpi=300):
+    html=False, fig_height=8, dpi=300):
 
     # check inputs
     assert isinstance(filename, str), 'filename must be a string'
@@ -136,14 +137,15 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     if other_preds is not None:
         assert len(other_preds) == len(rhapsody_obj.predictions), \
         'length of additional predictions array is incorrect'
-    if html_map is not None:
-        assert isinstance(html_map, str), 'html_map should be a filename'
     assert isinstance(fig_height, (int, float))
     assert isinstance(dpi, int)
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
+
+    # delete extension from filename
+    filename = os.path.splitext(filename)[0]
 
     # make sure that all variants belong to the same Uniprot sequence
     s = rhapsody_obj.SAVcoords['acc']
@@ -315,31 +317,26 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     ax2r.tick_params(axis='both', which='major', pad=15)
 
     tight_padding = 0.1
-    fig.savefig(filename, format='png', bbox_inches='tight',
+    fig.savefig(filename+'.png', format='png', bbox_inches='tight',
                 pad_inches=tight_padding, dpi=dpi)
     plt.close()
     LOGGER.info(f'Saturation mutagenesis figure saved to {filename}')
 
     # write a map in html format, to make figure clickable
-    if html_map is not None:
+    if html:
+        all_axis = {'strip': ax0, 'table': ax1, 'bplot': ax2}
 
-        # precompute some useful quantities (in inches)
-        data = {}
+        # precompute some useful quantities for html code
+        html_data = {}
         # dpi of printed figure
-        data["dpi"] = dpi
-        # number of residues displayed
-        data["num_res"] = nres_shown
-        # first residue displayed
-        data["first_res"] = res_i
-        # list of amino acids
-        data["aa_list"] = aa_list
+        html_data["dpi"] = dpi
         # figure size *before* tight
-        data["fig_size"] = fig.get_size_inches()
+        html_data["fig_size"] = fig.get_size_inches()
         # tight bbox as used by fig.savefig()
-        data["tight_bbox"] = fig.get_tightbbox(fig.canvas.get_renderer())
+        html_data["tight_bbox"] = fig.get_tightbbox(fig.canvas.get_renderer())
         # compute new origin and height, based on tight box and padding
-        data["new_orig"]   = data["tight_bbox"].min - tight_padding
-        data["new_height"] = data["tight_bbox"].height + 2*tight_padding
+        html_data["new_orig"]   = html_data["tight_bbox"].min - tight_padding
+        html_data["new_height"] = html_data["tight_bbox"].height + 2*tight_padding
 
         def get_html_fields(ax, d, ax_type):
             assert ax_type in ("strip", "table", "bplot")
@@ -356,58 +353,64 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             # put in html format
             coords = '{},{},{},{}'.format(*b_px.flatten())
             # output dictionary
-            if ax_type == "table":
-                n_rows = 20
-            else:
-                n_rows = 1
             o = {'coords': coords,
                  'href':   '#',
                  'alt':    '#',
-                 'title':  ax_type,
-                 'nx':     d["num_res"],
-                 'ny':     n_rows }
-            # dx = d["dpi"] * abs(b_html[1,0] - b_html[0,0]) / d["num_res"]
-            # dy = d["dpi"] * abs(b_html[1,1] - b_html[0,1]) / n_rows
-            # for j in range(d["num_res"]):
-            #     for i in range(20):
-            #         b = [dx*j, dy*i, dx*(j+1), dy*(i+1)]
-            #         # round to int
-            #         b = tuple(int(x) for x in b)
-            #         # format in html syntax
-            #         coords = '{},{},{},{}'.format(*b)
-            #         # create dict of area attributes
-            #         r = {'coords': coords, 'href': '#', 'alt': '#'}
-            #         res = d["first_res"] + j
-            #         if grid == "table":
-            #             mut_aa = d["aa_list"][i]
-            #             r['title'] = f"X{res}{mut_aa}"
-            #         else:
-            #             r['title'] = f"{res}"
-            #         # append to list
-            #         rects.append(r)
+                 'title':  ax_type}
             return o
-
-        all_axis = {'strip': ax0, 'table': ax1, 'bplot': ax2}
 
         # html template
         area_html = Template(
         '<area shape="rect" coords="$coords" href="$href" alt="$alt" ' + \
         'title="$title" id="{{map_id}}_$areaid" data-toggle="tooltip" ' + \
-        'data-trigger="hover" data-placement="top" {{area_attrs}}> \n' + \
-        '<script> \n' + \
-        '  var {{map_id}}_$areaid = ' + '{nx: $nx, ny: $ny}; \n' + \
-        '</script> \n'
+        'data-trigger="hover" data-placement="top" {{area_attrs}}> \n'
+        )
+
+        # precompute some useful quantities for javascript code
+        js_data = {}
+        # number of residues displayed
+        js_data["num_res"] = nres_shown
+        # first residue displayed
+        js_data["first_res"] = res_i
+        # list of amino acids
+        js_data["aa_list"] = aa_list
+
+        def get_js_vars(ax, d, ax_type):
+            if ax_type == "table":
+                n_rows = 20
+            else:
+                n_rows = 1
+            o = {'num_rows': n_rows,
+                 'num_cols': d["num_res"],
+                 'info'    : 1}
+            return o
+
+        # javascript template
+        area_js = Template(
+        '{{map_data}}["{{map_id}}_$areaid"] = { \n' + \
+        '  "num_rows": $num_rows, \n' + \
+        '  "num_cols": $num_cols, \n' + \
+        '  "info":     $info      \n' + \
+        '}; \n'
         )
 
         # write html
-        with open(html_map, 'w') as f:
+        with open(filename + '.html', 'w') as f:
             f.write('<div>\n')
-            f.write('<map name="{{map_id}}" id="{{map_id}}" {{map_attrs}}>\n')
+            f.write('<map name="{{map_id}}" id="{{map_id}}">\n')
             for ax_type, ax in all_axis.items():
-                fields = get_html_fields(ax, data, ax_type)
+                fields = get_html_fields(ax, html_data, ax_type)
                 fields['areaid'] = ax_type
                 f.write(area_html.substitute(fields))
             f.write('</map>\n')
             f.write('</div>\n')
+            # pass variables to javascript
+            f.write('<script>\n')
+            f.write('var {{map_data}} = {{map_data}} || {}; \n')
+            for ax_type, ax in all_axis.items():
+                vars = get_js_vars(ax, js_data, ax_type)
+                vars['areaid'] = ax_type
+                f.write(area_js.substitute(vars))
+            f.write('</script>\n')
 
     return
