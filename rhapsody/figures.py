@@ -368,8 +368,27 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             # output
             return coords
 
-        # info table that will be passed as a javascript variable
-        info = {k:{} for k in ['strip', 'table', 'bplot']}
+        # html templates
+        area_html = Template(
+        '<area shape="rect" coords="$coords" ' + \
+        'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
+        )
+
+        # write html
+        with open(filename + '.html', 'w') as f:
+            f.write('<div>\n')
+            f.write('<map name="{{map_id}}" id="{{map_id}}" {{map_attrs}}>\n')
+            for ax_type, ax in all_axis.items():
+                fields = {'areaid': ax_type}
+                fields['coords'] = get_area_coords(ax, html_data)
+                f.write(area_html.substitute(fields))
+            f.write('</map>\n')
+            f.write('</div>\n')
+
+        # populate info table that will be passed as a javascript variable
+        info = {}
+        for k in ['strip', 'table', 'bplot']:
+            info[k] = [['']*nres_shown for i in range(20)]
         for i, SAV in enumerate(rhapsody_obj.SAVcoords):
             resid = SAV['pos']
             aa_wt = SAV['aa_wt']
@@ -398,72 +417,47 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             if EVmutation:
                 others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for upper strip
-            d = info['strip'].setdefault(ts_i, {ts_j: None})
-            d[ts_j] = f'{PDB_code}'
+            m = f'{PDB_code}'
             if PDB_code != '':
-                d[ts_j] += f' (size: {PDB_sizes[ts_i]} res.)'
+                m += f' (size: {PDB_sizes[ts_i]} res.)'
+            info['strip'][ts_i][ts_j] = m
             # compose message for table
-            d = info['table'].setdefault(ts_i, {ts_j: None})
-            d[ts_j] = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
+            m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
             for k,t in others.items():
-                d[ts_j] += f', {k}={t[0]:<4.2f}'
+                m += f', {k}={t[0]:<4.2f}'
+            info['table'][ts_i][ts_j] = m
             # compose message for bottom plot
-            d = info['bplot'].setdefault(ts_i, {ts_j: None})
-            d[ts_j] = f'res.{resid}: {av_rh_pred:4.2f}'
+            m = f'res.{resid}: {av_rh_pred:4.2f}'
             for k,t in others.items():
-                d[ts_j] += f', {k}={t[1]:<4.2f}'
+                m += f', {k}={t[1]:<4.2f}'
+            info['bplot'][ts_i][ts_j] = m
 
-        js_data = {}
-        # residues displayed in figure
-        js_data["res_i"] = res_i
-        js_data["res_f"] = res_f
-        js_data["num_res"] = nres_shown
-        # map [amino acid --> row in mutag. table]
-        js_data["aa_list"] = aa_list
-        js_data["aa_map"] = aa_map
+        def create_info_msg(ax_type, d):
+            text = '[ \n'
+            for row in d:
+                text += '  ['
+                for m in row:
+                    text += f'"{m}",'
+                text += '], \n'
+            text += ']'
+            return text
 
-        def get_js_vars(ax, d, ax_type):
-            if ax_type == "table":
-                n_rows = 20
-            else:
-                n_rows = 1
-            # output
-            o = {'num_rows': n_rows,
-                 'num_cols': d["num_res"],
-                 'info'    : 1}
-            return o
-
-        # html templates
-        area_html = Template(
-        '<area shape="rect" coords="$coords" ' + \
-        'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
-        )
         area_js = Template(
         '{{map_data}}["{{map_id}}_$areaid"] = { \n' + \
         '  "num_rows": $num_rows, \n' + \
         '  "num_cols": $num_cols, \n' + \
-        '  "info":     $info      \n' + \
+        '  "info_msg": $info_msg, \n' + \
         '}; \n'
         )
 
-        # write html
-        with open(filename + '.html', 'w') as f:
-            f.write('<div>\n')
-            f.write('<map name="{{map_id}}" id="{{map_id}}" {{map_attrs}}>\n')
-            for ax_type, ax in all_axis.items():
-                fields = {}
-                fields['coords'] = get_area_coords(ax, html_data)
-                fields['areaid'] = ax_type
-                f.write(area_html.substitute(fields))
-            f.write('</map>\n')
-            f.write('</div>\n')
-            # pass variables to javascript
-            f.write('<script>\n')
+        # dump info in javascript format
+        with open(filename + '.js', 'w') as f:
             f.write('var {{map_data}} = {{map_data}} || {}; \n')
-            for ax_type, ax in all_axis.items():
-                vars = get_js_vars(ax, js_data, ax_type)
-                vars['areaid'] = ax_type
+            for ax_type, d in info.items():
+                vars = {'areaid': ax_type}
+                vars['num_rows'] = 20 if ax_type=='table' else 1
+                vars['num_cols'] = nres_shown
+                vars['info_msg'] = create_info_msg(ax_type, d)
                 f.write(area_js.substitute(vars))
-            f.write('</script>\n')
 
     return info
