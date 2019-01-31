@@ -388,7 +388,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         # populate info table that will be passed as a javascript variable
         info = {}
         for k in ['strip', 'table', 'bplot']:
-            info[k] = [['']*nres_shown for i in range(20)]
+            n_cols = 20 if k=='table' else 1
+            info[k] = [['']*nres_shown for i in range(n_cols)]
         for i, SAV in enumerate(rhapsody_obj.SAVcoords):
             resid = SAV['pos']
             aa_wt = SAV['aa_wt']
@@ -416,21 +417,22 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                 others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
             if EVmutation:
                 others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
-            # compose message for upper strip
-            m = f'{PDB_code}'
-            if PDB_code != '':
-                m += f' (size: {PDB_sizes[ts_i]} res.)'
-            info['strip'][ts_i][ts_j] = m
             # compose message for table
             m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
             for k,t in others.items():
                 m += f', {k}={t[0]:<4.2f}'
             info['table'][ts_i][ts_j] = m
+            info['table'][aa_map[aa_wt]][ts_j] = f'{aa_wt}{resid}: wild-type'
+            # compose message for upper strip
+            m = f'{PDB_code}'
+            if PDB_code != '':
+                m += f' (size: {PDB_sizes[ts_i]} res.)'
+            info['strip'][0][ts_j] = m
             # compose message for bottom plot
             m = f'res.{resid}: {av_rh_pred:4.2f}'
             for k,t in others.items():
                 m += f', {k}={t[1]:<4.2f}'
-            info['bplot'][ts_i][ts_j] = m
+            info['bplot'][0][ts_j] = m
 
         def create_info_msg(ax_type, d):
             text = '[ \n'
