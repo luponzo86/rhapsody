@@ -223,12 +223,30 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     # use upper strip for showing additional info, such as PDB lengths
     upper_strip = np.zeros((1, upper_lim))
+    upper_strip[:] = 'nan'
+    PDB_sizes = np.zeros(upper_lim, dtype=int)
+    PDB_coords = ['']*upper_lim
     for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
         index = a['pos'] - 1
-        PDB_length = int(b[2][4]) if isinstance(b[2], tuple) else np.nan
+        if isinstance(b[2], tuple):
+            PDB_length = int(b[2][4])
+            PDBID_chain = f'{b[2][0]}:{b[2][1]}'
         upper_strip[0, index] = PDB_length
+        PDB_sizes[index] = PDB_length
+        PDB_coords[index] = PDBID_chain
     max_PDB_size = int(np.nanmax(upper_strip[0, :]))
     upper_strip[0, :] /= max_PDB_size
+
+    # final data to show on figure
+    if aux_preds_found:
+        table_final = table_mix
+        avg_p_final = avg_p_mix
+        pclass_final = rhapsody_obj.mixPreds['path. class']
+    else:
+        table_final = table_full
+        avg_p_final = avg_p_full
+        pclass_final = rhapsody_obj.predictions['path. class']
+    # avg_p_final = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
 
     # PLOT FIGURE
 
@@ -271,11 +289,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     # mutagenesis table (heatmap)
     matplotlib.cm.coolwarm.set_bad(color='white')
-    if aux_preds_found:
-        table = table_mix
-    else:
-        table = table_full
-    im = ax1.imshow(table[:, res_i-1:res_f], aspect='auto',
+    im = ax1.imshow(table_final[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
@@ -299,8 +313,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     # solid line for predictions obtained with full classifier
     ax2.plot(x_resids, avg_p_full, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
-    _p = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
-    ax2.plot(x_resids, _p, 'ro-', markerfacecolor='none', ls='dotted')
+    ax2.plot(x_resids, avg_p_final, 'ro-', markerfacecolor='none', ls='dotted')
     # cutoff line
     ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
                linestyle='dashed')
@@ -320,7 +333,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     fig.savefig(filename+'.png', format='png', bbox_inches='tight',
                 pad_inches=tight_padding, dpi=dpi)
     plt.close()
-    LOGGER.info(f'Saturation mutagenesis figure saved to {filename}')
+    LOGGER.info(f'Saturation mutagenesis figure saved to {filename}.png')
 
     # write a map in html format, to make figure clickable
     if html:
@@ -355,20 +368,66 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             # output
             return coords
 
-        # precompute some useful quantities for javascript code
+        # info table that will be passed as a javascript variable
+        info = {k:{} for k in ['strip', 'table', 'bplot']}
+        for i, SAV in enumerate(rhapsody_obj.SAVcoords):
+            resid = SAV['pos']
+            aa_wt = SAV['aa_wt']
+            aa_mut = SAV['aa_mut']
+            # consider only residues shown in figure
+            if not (res_i <= resid <= res_f):
+                continue
+            # SAV & PDB coordinates
+            SAV_code = f'{aa_wt}{resid}{aa_mut}'
+            PDB_code = PDB_coords[resid - 1]
+            # coordinates on table
+            t_i = aa_map[aa_mut]
+            t_j = resid - 1
+            # coordinates on *shown* table
+            ts_i = t_i
+            ts_j = resid - res_i
+            # predictions and other info
+            rh_pred = table_final[t_i, t_j]
+            av_rh_pred = avg_p_final[t_j]
+            pclass = pclass_final[i]
+            others = {}
+            if other_preds:
+                others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
+            if PP2:
+                others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
+            if EVmutation:
+                others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
+            # compose message for upper strip
+            d = info['strip'].setdefault(ts_i, {ts_j: None})
+            d[ts_j] = f'{PDB_code}'
+            if PDB_code != '':
+                d[ts_j] += f' (size: {PDB_sizes[ts_i]} res.)'
+            # compose message for table
+            d = info['table'].setdefault(ts_i, {ts_j: None})
+            d[ts_j] = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
+            for k,t in others.items():
+                d[ts_j] += f', {k}={t[0]:<4.2f}'
+            # compose message for bottom plot
+            d = info['bplot'].setdefault(ts_i, {ts_j: None})
+            d[ts_j] = f'res.{resid}: {av_rh_pred:4.2f}'
+            for k,t in others.items():
+                d[ts_j] += f', {k}={t[1]:<4.2f}'
+
         js_data = {}
-        # number of residues displayed
+        # residues displayed in figure
+        js_data["res_i"] = res_i
+        js_data["res_f"] = res_f
         js_data["num_res"] = nres_shown
-        # first residue displayed
-        js_data["first_res"] = res_i
-        # list of amino acids
+        # map [amino acid --> row in mutag. table]
         js_data["aa_list"] = aa_list
+        js_data["aa_map"] = aa_map
 
         def get_js_vars(ax, d, ax_type):
             if ax_type == "table":
                 n_rows = 20
             else:
                 n_rows = 1
+            # output
             o = {'num_rows': n_rows,
                  'num_cols': d["num_res"],
                  'info'    : 1}
@@ -407,4 +466,4 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                 f.write(area_js.substitute(vars))
             f.write('</script>\n')
 
-    return
+    return info
