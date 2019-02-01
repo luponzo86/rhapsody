@@ -283,7 +283,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                cmap='YlGn', vmin=0, vmax=1)
     ax0.set_ylim((-0.45, .45))
     ax0.set_yticks([])
-    ax0.set_ylabel(f'PDB size\n(max {max_PDB_size} res.)', fontsize=14,
+    ax0.set_ylabel(f'PDB size \n[0-{max_PDB_size} res] ', fontsize=14,
                    ha='right', va='center', rotation=0)
     ax0.set_xticks([])
 
@@ -422,14 +422,14 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             for k,t in others.items():
                 m += f', {k}={t[0]:<4.2f}'
             info['table'][ts_i][ts_j] = m
-            info['table'][aa_map[aa_wt]][ts_j] = f'{aa_wt}{resid}: wild-type'
+            info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
             # compose message for upper strip
             m = f'{PDB_code}'
             if PDB_code != '':
-                m += f' (size: {PDB_sizes[ts_i]} res.)'
+                m += f' (size: {PDB_sizes[ts_i]} res)'
             info['strip'][0][ts_j] = m
             # compose message for bottom plot
-            m = f'res.{resid}: {av_rh_pred:4.2f}'
+            m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
             for k,t in others.items():
                 m += f', {k}={t[1]:<4.2f}'
             info['bplot'][0][ts_j] = m

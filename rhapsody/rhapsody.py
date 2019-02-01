@@ -107,7 +107,7 @@ class Rhapsody:
             self.EVmutFeats = recoverEVmutFeatures(self.SAVcoords)
         return self.EVmutFeats
 
-    def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt'):
+    def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt', header=True):
         """Maps each SAV to the corresponding resid in a PDB chain.
         The format is: (PDBID, chainID, resid, wild-type aa, length).
         """
@@ -118,6 +118,11 @@ class Rhapsody:
         # print to file, if requested
         if filename is not None:
             with open(filename, 'w') as f:
+                h  = '# SAV coords           '
+                h += 'Uniprot coords         '
+                h += 'PDB/ch/res/aa/size \n'
+                if header:
+                    f.write(h)
                 for t in self.Uniprot2PDBmap:
                     orig_SAV = '{},'.format(t[0])
                     if isinstance(t[1], tuple):
@@ -137,7 +142,15 @@ class Rhapsody:
             self.featMatrix = self._calcFeatMatrix()
         # print to file, if requested
         if filename is not None:
-            np.savetxt(filename, self.featMatrix, fmt='%10.3e')
+            h = ''
+            for i, feat in enumerate(self.featSet):
+                if len(feat)>13:
+                    feat = feat[:10] + '...'
+                if i == 0:
+                    h += f'{feat:>13}'
+                else:
+                    h += f' {feat:>15}'
+            np.savetxt(filename, self.featMatrix, fmt='%15.3e', header=h)
         return self.featMatrix
 
     def _calcFeatMatrix(self):
@@ -241,7 +254,8 @@ class Rhapsody:
             # print both full and aux predictions in a more detailed format
             with open(filename, 'w') as f:
                 h  = '# SAV coords           '
-                h += 'full-classifier predictions        reduced-classifier predictions\n'
+                h += 'full-classifier predictions        '
+                h += 'reduced-classifier predictions \n'
                 if header:
                     f.write(h)
                 SAVs = self.SAVcoords['text']
@@ -256,8 +270,6 @@ class Rhapsody:
                     else:
                         f.write('   x--   ')
                     f.write(f'{t_a[0]:<5.3f}  {t_a[1]:<5.3f}  {t_a[2]:12s}\n')
-
-
 
     def savePickle(self, filename='rhapsody-pickle.pkl'):
         f = pickle.dump(self, open(filename, "wb"))
