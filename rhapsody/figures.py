@@ -462,4 +462,5 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                 vars['info_msg'] = create_info_msg(ax_type, d)
                 f.write(area_js.substitute(vars))
 
-    return info
+        return info
+    return
