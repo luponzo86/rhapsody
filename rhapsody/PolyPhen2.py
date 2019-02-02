@@ -87,7 +87,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
                                        backoff_factor=0.2).get(files[k])
             LOGGER.report('Query to PolyPhen-2 completed in %.1fs.', '_queryPP2')
         else:
-            r = requests_retry_session(retries=12, timeout=0, 
+            r = requests_retry_session(retries=12, timeout=0,
                                        backoff_factor=0.01).get(files[k])
         output[k] = r
         # print to file, if requested
@@ -128,7 +128,10 @@ def parsePP2output(pph2_output):
             d[pph2_columns[i]] = words[i]
         parsed_lines.append(d)
     if not parsed_lines:
-        raise RuntimeError("PolyPhen-2's output is empty.")
+        msg = "PolyPhen-2's output is empty. Please make sure that: \n" +\
+        '1) variants\' format is correct (\"UniprotID pos wt_aa mut_aa\") \n' +\
+        "2) query contains *human* variants \n"
+        raise RuntimeError(msg)
     else:
         LOGGER.info("PolyPhen-2's output parsed.")
     return tuple(parsed_lines)
