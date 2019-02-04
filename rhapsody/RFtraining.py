@@ -121,7 +121,7 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
         # print log
         i += 1
         LOGGER.info(f'CV iteration #{i:2d}:    ROC-AUC = {roc_auc:.3f}' + \
-                    f'   OOB score = {classifier.oob_score:.3f}')
+                    f'   OOB score = {classifier.oob_score_:.3f}')
 
     # compute average ROC, optimal cutoff and other stats
     mean_tpr /= cv.get_n_splits(X, y)
@@ -154,7 +154,7 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
 
     # plot average ROC
     if ROC_fig is not None:
-        print_ROC_figure(ROC_fig, mean_fpr, mean_tpr)
+        print_ROC_figure(ROC_fig, mean_fpr, mean_tpr, mean_auc)
 
     return CV_summary
 
@@ -167,19 +167,14 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
            "'feat_matrix' must be a NumPy structured array."
     assert 'true_label' in feat_matrix.dtype.names,  \
            "'feat_matrix' must have a 'true_label' field."
-    assert 'SAV_coords' in feat_matrix.dtype.names,  \
-           "'feat_matrix' must have a 'SAV_coords' field."
-    assert 'Uniprot2PDB' in feat_matrix.dtype.names,  \
-           "'feat_matrix' must have a 'Uniprot2PDB' field."
 
     # eliminate rows containing NaN values from feature matrix
-    featset = [f for f in feat_matrix.dtype.names if f not in
-               ('true_label', 'SAV_coords', 'Uniprot2PDB')]
+    featset = [f for f in feat_matrix.dtype.names if f != 'true_label']
     sel = [~np.isnan(np.sum([x for x in r])) for r in feat_matrix[featset]]
     fm = feat_matrix[sel]
     n_i = len(feat_matrix)
     n_f = len(fm)
-    n = n_i-n_f
+    n   = n_i - n_f
     if n: LOGGER.info(f'{n} out of {n_i} cases ignored with missing features.')
 
     # split into feature array and true label array

@@ -22,13 +22,15 @@ def try_import_matplotlib():
 
 def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
     assert isinstance(filename, str), 'filename must be a string'
+    filename = os.path.splitext(filename)[0] + '.png'
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
-    plt = matplotlib.pyplot
+    else:
+        from matplotlib import pyplot as plt
 
-    figure = plt.figure(figsize=(5, 4))
+    figure = plt.figure(figsize=(7, 7))
     plt.bar(bins[:-1], histo[0], width=dx, align='edge',
             color='blue', alpha=0.7, label='neutral'    )
     plt.bar(bins[:-1], histo[1], width=dx, align='edge',
@@ -45,13 +47,15 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
 def print_path_prob_figure(filename, bins, histo, dx, path_prob,
                      smooth_path_prob, cutoff=200):
     assert isinstance(filename, str), 'filename must be a string'
+    filename = os.path.splitext(filename)[0] + '.png'
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
-    plt = matplotlib.pyplot
+    else:
+        from matplotlib import pyplot as plt
 
-    figure = plt.figure(figsize=(5, 4))
+    figure = plt.figure(figsize=(7, 7))
     s = np.sum(histo, axis=0)
     v1 = np.where(s>=cutoff, path_prob, 0)
     v2 = np.where(s< cutoff, path_prob, 0)
@@ -67,18 +71,20 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     LOGGER.info(f'Pathogenicity plot saved to {filename}')
 
 
-def print_ROC_figure(filename, fpr, tpr):
+def print_ROC_figure(filename, fpr, tpr, mean_auc):
     assert isinstance(filename, str), 'filename must be a string'
+    filename = os.path.splitext(filename)[0] + '.png'
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
-    plt = matplotlib.pyplot
+    else:
+        from matplotlib import pyplot as plt
 
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(7, 7))
     plt.plot([0, 1], [0, 1], linestyle='--', lw=1, color='k')
     plt.plot(fpr, tpr,       linestyle='-',  lw=2, color='r',
-             label = f'Mean ROC (AUC = {mean_auc:.3f})')
+             label = f'Mean AUROC = {mean_auc:.3f}')
     plt.xlim([-0.05, 1.05])
     plt.ylim([-0.05, 1.05])
     plt.xlabel('False Positive Rate')
@@ -87,18 +93,20 @@ def print_ROC_figure(filename, fpr, tpr):
     plt.legend(loc="lower right")
     fig.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
-    LOGGER.info(f'ROC plot saved to {print_ROC}')
+    LOGGER.info(f'ROC plot saved to {filename}')
 
 
 def print_feat_imp_figure(filename, feat_imp, featset):
     assert isinstance(filename, str), 'filename must be a string'
+    filename = os.path.splitext(filename)[0] + '.png'
 
     matplotlib = try_import_matplotlib()
     if matplotlib is None:
         return
-    plt = matplotlib.pyplot
+    else:
+        from matplotlib import pyplot as plt
 
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(7, 7))
     n = len(feat_imp)
     plt.bar(range(n), feat_imp, align='center', tick_label=featset)
     plt.xticks(rotation='vertical')
