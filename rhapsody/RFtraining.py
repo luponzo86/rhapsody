@@ -134,18 +134,22 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     avg_feat_imp = np.mean(np.array(CV_info['feat_importance']), axis=0)
     LOGGER.info('-'*60)
     LOGGER.info('Cross-validation summary:')
-    LOGGER.info(f'mean ROC-AUC:        {mean_auc:.3f}')
-    LOGGER.info(f'mean OOB score:      {mean_oob:.3f}')
-    LOGGER.info(f'optimal cutoff*:     {avg_J_opt:.3f} +/- {std_J_opt:.3f}')
+    LOGGER.info(f'training dataset size:   {len(y):<d}')
+    LOGGER.info(f'fraction of positives:   {sum(y)/len(y):.3f}')
+    LOGGER.info(f'mean ROC-AUC:            {mean_auc:.3f}')
+    LOGGER.info(f'mean OOB score:          {mean_oob:.3f}')
+    LOGGER.info(f'optimal cutoff*:         {avg_J_opt:.3f} +/- {std_J_opt:.3f}')
     LOGGER.info("(* argmax of Youden's index)")
     LOGGER.info('feature importances:')
     if feature_names is None:
-        feature_names = [' ']*len(avg_feat_imp)
+        feature_names = [f'feature {i}' for i in range(len(avg_feat_imp))]
     for feat_name, importance in zip(feature_names, avg_feat_imp):
-        LOGGER.info(f'{feat_name:>19s}: {importance:.3f}')
+        LOGGER.info(f'{feat_name:>23s}: {importance:.3f}')
     LOGGER.info('-'*60)
     path_prob = calcPathogenicityProbs(CV_info, **kwargs)
-    CV_summary = {'mean ROC-AUC'     : mean_auc,
+    CV_summary = {'dataset size'     : len(y),
+                  'dataset bias'     : sum(y)/len(y),
+                  'mean ROC-AUC'     : mean_auc,
                   'mean OOB score'   : mean_oob,
                   'mean ROC'         : list(zip(mean_fpr, mean_tpr)),
                   'optimal cutoff'   : (avg_J_opt, std_J_opt),
@@ -195,10 +199,10 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
     fimp = clsf.feature_importances_
     LOGGER.info('-'*60)
     LOGGER.info('Classifier training summary:')
-    LOGGER.info(f'mean OOB score:      {clsf.oob_score_:.3f}')
+    LOGGER.info(f'mean OOB score:          {clsf.oob_score_:.3f}')
     LOGGER.info('feature importances:')
     for feat_name, importance in zip(featset, fimp):
-        LOGGER.info(f'{feat_name:>19s}: {importance:.3f}')
+        LOGGER.info(f'{feat_name:>23s}: {importance:.3f}')
     LOGGER.info('-'*60)
 
     if feat_imp_fig is not None:
