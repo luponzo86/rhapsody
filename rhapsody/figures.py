@@ -239,9 +239,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         if isinstance(b[2], tuple):
             PDB_length = int(b[2][4])
             PDBID_chain = f'{b[2][0]}:{b[2][1]}'
-        upper_strip[0, index] = PDB_length
-        PDB_sizes[index] = PDB_length
-        PDB_coords[index] = PDBID_chain
+            upper_strip[0, index] = PDB_length
+            PDB_sizes[index] = PDB_length
+            PDB_coords[index] = PDBID_chain
     max_PDB_size = int(np.nanmax(upper_strip[0, :]))
     upper_strip[0, :] /= max_PDB_size
 
