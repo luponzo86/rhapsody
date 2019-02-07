@@ -434,7 +434,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             # compose message for upper strip
             m = f'{PDB_code}'
             if PDB_code != '':
-                m += f' (size: {PDB_sizes[ts_i]} res)'
+                m += f' (size: {PDB_sizes[t_j]} res)'
             info['strip'][0][ts_j] = m
             # compose message for bottom plot
             m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
