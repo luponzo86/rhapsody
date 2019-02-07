@@ -171,9 +171,20 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
            "'feat_matrix' must be a NumPy structured array."
     assert 'true_label' in feat_matrix.dtype.names,  \
            "'feat_matrix' must have a 'true_label' field."
+    assert 'SAV_coords' in feat_matrix.dtype.names,  \
+           "'feat_matrix' must have a 'SAV_coords' field."
+
+    # check for ambiguous cases in training dataset
+    pos_cases = set([r['SAV_coords'] for r in feat_matrix if r['true_label']==1])
+    neg_cases = set([r['SAV_coords'] for r in feat_matrix if r['true_label']==0])
+    intersection = pos_cases.intersection(neg_cases)
+    if intersection:
+        raise RuntimeError('Ambiguous cases found in training dataset: {}'
+        .format(intersection))
 
     # eliminate rows containing NaN values from feature matrix
-    featset = [f for f in feat_matrix.dtype.names if f != 'true_label']
+    featset = [f for f in feat_matrix.dtype.names
+               if f not in ['true_label', 'SAV_coords']]
     sel = [~np.isnan(np.sum([x for x in r])) for r in feat_matrix[featset]]
     fm = feat_matrix[sel]
     n_i = len(feat_matrix)
@@ -208,10 +219,15 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
     if feat_imp_fig is not None:
         print_feat_imp_figure(feat_imp_fig, fimp, featset)
 
-    clsf_dict = {'trained RF': clsf,
-                 'features'  : featset,
-                 'CV summary': CV_summary,
-                 'training dataset': fm}
+    clsf_dict = {
+        'trained RF': clsf,
+        'features'  : featset,
+        'CV summary': CV_summary,
+        'training dataset': {
+            'positive cases': pos_cases,
+            'negative cases': neg_cases,
+        }
+    }
 
     # save pickle with trained classifier and other info
     if pickle_name is not None:

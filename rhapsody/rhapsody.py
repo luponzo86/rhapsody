@@ -455,12 +455,6 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
         sliced_feat_matrix = feat_matrix[sel_rows]
         proba = classifier.predict_proba(sliced_feat_matrix)
 
-    # check if SAVs are found in the training dataset
-    known_SAVs = {}
-    if SAV_coords is not None:
-        f = lambda x: 'known_del' if x==1 else 'known_neu'
-        known_SAVs = {l['SAV_coords']: f(l['true_label']) for l in train_data}
-
     # output
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
@@ -470,8 +464,12 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
         # determine SAV status
         if SAV_coords is None:
             SAV_status = '?'
+        elif SAV_coords in train_data['positive cases']:
+            SAV_status = 'known_del'
+        elif SAV_coords in train_data['negative cases']:
+            SAV_status = 'known_neu'
         else:
-            SAV_status = known_SAVs.get(SAV_coords[i], 'new')
+            SAV_status = 'new'
         # determine pathogenicity prob. and class
         if i not in sel_rows:
             predictions[i] = (np.nan, np.nan, '?', SAV_status)
