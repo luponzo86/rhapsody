@@ -32,12 +32,10 @@ class Rhapsody:
         # structured array containing original Uniprot SAV coords,
         # extracted from PolyPhen-2's output or imported directly
         self.SAVcoords      = None
-        # tuple of tuples containing:
-        # * original Uniprot SAV coords (str)
-        # * unique Uniprot SAV coords, with format: (acc, pos, wt_aa, mut_aa)
-        # * PDB coords, with format: (PDBID, chain, resid, wt_aa, PDB_length)
-        # If an error occurs, unique Uniprot coords and/or PDB coords may
-        # be replaced by a string describing the error.
+        # structured array containing original SAV coords,
+        # unique Uniprot coords, PDB coords and PDB size.
+        # If an error occurs, unique Uniprot coords and/or PDB coords will
+        # contain an error message and PDB size will be 0
         self.Uniprot2PDBmap = None
         # numpy array (num_SAVS)x(num_features)
         self.featMatrix     = None
@@ -123,18 +121,14 @@ class Rhapsody:
                 h += 'PDB/ch/res/aa/size \n'
                 if header:
                     f.write(h)
-                for t in self.Uniprot2PDBmap:
-                    orig_SAV = '{},'.format(t[0])
-                    if isinstance(t[1], tuple):
-                        U_coords = '{} {} {} {},'.format(*t[1])
+                for row in self.Uniprot2PDBmap:
+                    orig_SAV   = f'{row[0]},'
+                    U_coords   = f'{row[1]},'
+                    if row['PDB size'] == 0:
+                        PDB_coords = f'{row[2]}'
                     else:
-                        U_coords = '{},'.format(t[1])
-                    if isinstance(t[2], tuple):
-                        PDB_coords = '{} {} {} {} {}'.format(*t[2])
-                    else:
-                        PDB_coords = '{}'.format(t[2])
-                    o = (orig_SAV, U_coords, PDB_coords)
-                    f.write('{:<22} {:<22} {:<} \n'.format(*o))
+                        PDB_coords = f'{row[2]} {row[3]}'
+                    f.write(f'{orig_SAV:<22} {U_coords:<22} {PDB_coords:<}\n')
         return self.Uniprot2PDBmap
 
     def calcFeatures(self, filename='rhapsody-features.txt'):
@@ -167,9 +161,8 @@ class Rhapsody:
         if sel_PDBfeats:
             # map SAVs to PDB structures
             Uniprot2PDBmap = self.getUniprot2PDBmap()
-            mapped_SAVs = tuple(t[2] for t in Uniprot2PDBmap)
             # compute structural and dynamical features from a PDB structure
-            f = calcPDBfeatures(mapped_SAVs, sel_feats=sel_PDBfeats,
+            f = calcPDBfeatures(Uniprot2PDBmap, sel_feats=sel_PDBfeats,
                                 custom_PDB=self.customPDB)
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
@@ -356,9 +349,15 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
     # sort SAVs, so to group together those
     # with identical accession number
     sorting_map = np.argsort(SAV_coords['acc'])
-    # map to PDB using Uniprot class
+    # define a structured array
+    PDBmap_dtype = np.dtype([('orig. SAV coords', 'U25'),
+                             ('uniq. SAV coords', 'U25'),
+                             ('PDB SAV coords', 'U25'),
+                             ('PDB size', 'i')])
     num_SAVs = len(SAV_coords)
-    mapped_SAVs = [None]*num_SAVs
+    mapped_SAVs = np.zeros(num_SAVs, dtype=PDBmap_dtype)
+    # map to PDB using Uniprot class
+    # mapped_SAVs = [None]*num_SAVs
     cache = {'acc': None, 'obj': None}
     count = 0
     for indx, SAV in [(i, SAV_coords[i]) for i in sorting_map]:
@@ -403,20 +402,22 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
             if len(r) == 0:
                 raise RuntimeError('Unable to map SAV to PDB')
             else:
-                res_map = r[0]
+                res_map = '{} {} {} {}'.format(*r[0][:4])
+                PDB_size = r[0][4]
         except Exception as e:
                 res_map = str(e)
+                PDB_size = 0
         # store SAVs mapped on PDB chains and unique Uniprot coordinates
         if isinstance(U2P_map, str):
             uniq_coords = U2P_map
         else:
-            uniq_coords = (U2P_map.uniq_acc, pos, aa1, aa2)
-        mapped_SAVs[indx] = (SAV_str, uniq_coords, res_map)
+            uniq_coords = f'{U2P_map.uniq_acc} {pos} {aa1} {aa2}'
+        mapped_SAVs[indx] = (SAV_str, uniq_coords, res_map, PDB_size)
         # in the final iteration of the loop, save last pickle
         if count == num_SAVs and cache['obj'] is not None:
             cache['obj'].savePickle()
     LOGGER.report('SAVs have been mapped to PDB in %.1fs.', '_map2PDB')
-    return tuple(mapped_SAVs)
+    return mapped_SAVs
 
 
 def calcPredictions(feat_matrix, clsf, SAV_coords=None):

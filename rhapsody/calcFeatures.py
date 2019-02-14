@@ -36,36 +36,38 @@ def calcPP2features(PP2output):
     return features
 
 
-def calcPDBfeatures(PDB_SAVs, sel_feats=None, custom_PDB=None):
+def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
     LOGGER.info('Computing structural and dynamical features ' + \
                 'from PDB structures...')
     LOGGER.timeit('_calcPDBFeats')
     if sel_feats is None:
         sel_feats = RHAPSODY_FEATS['PDB']
     # define a structured array for features computed from PDBs
-    num_SAVs = len(PDB_SAVs)
+    num_SAVs = len(mapped_SAVs)
     feat_dtype = np.dtype([(f, 'f') for f in sel_feats])
     features = np.zeros(num_SAVs, dtype=feat_dtype)
     # compute PDB features using PDBfeatures class
     if custom_PDB is None:
         # sort SAVs, so to group together those
         # belonging to the same PDB
-        PDBID_list = [t[0] if isinstance(t, tuple) else '' for t in PDB_SAVs]
+        PDBID_list = [r[2][:4] if r[3]!=0 else '' for r in mapped_SAVs]
         sorting_map = np.argsort(PDBID_list)
     else:
         # no need to sort when using a custom PDB or PDBID
         sorting_map = range(num_SAVs)
     cache = {'PDBID': None, 'chain': None, 'obj': None}
     count = 0
-    for indx, SAV in [(i, PDB_SAVs[i]) for i in sorting_map]:
+    for indx, SAV in [(i, mapped_SAVs[i]) for i in sorting_map]:
         count += 1
-        if not isinstance(SAV, tuple):
+        if SAV['PDB size'] == 0:
             # SAV could not be mapped to PDB
             _features = np.nan
 #           LOGGER.info("[{}/{}] Skipping SAV with no PDB info..."
 #                       .format(count, num_SAVs))
         else:
-            PDBID, chID, resid = SAV[:3]
+            parsed_PDB_coords = SAV['PDB SAV coords'].split()
+            PDBID, chID = parsed_PDB_coords[:2]
+            resid = int(parsed_PDB_coords[2])
             LOGGER.info("[{}/{}] Analizing mutation site {}:{} {}..."
                         .format(count, num_SAVs, PDBID, chID, resid))
             if PDBID == cache['PDBID']:
