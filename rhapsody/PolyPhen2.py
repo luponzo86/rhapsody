@@ -103,17 +103,25 @@ def parsePP2output(pph2_output):
     '''
     assert type(pph2_output) in [dict, str]
     if type(pph2_output) is dict:
-        data = pph2_output['full'].text
+        lines = pph2_output['full'].text.split('\n')
     else:
         with open(pph2_output, 'r') as file:
-            data = file.read()
+            lines = file.readlines()
+    # discard invalid lines
+    lines = [l for l in lines if l.strip() and l[0]!='#']
+    if not lines:
+        msg = "PolyPhen-2's output is empty. Please make sure that: \n" +\
+        '1) variants\' format is correct (\"UniprotID pos wt_aa mut_aa\") \n' +\
+        "2) query contains *human* variants \n"
+        raise RuntimeError(msg)
+    # define a structured array
+    pl_dtype = np.dtype([(col, 'U25') for col in pph2_columns])
+    parsed_lines = np.zeros(len(lines), dtype=pl_dtype)
+    # fill structured array
     n_cols = len(pph2_columns)
-    parsed_lines = []
-    for line in data.split('\n'):
-        if line == '' or line[0] == '#':
-            continue
+    for i, line in enumerate(lines):
         # parse line
-        words = [str.strip(w) for w in line.split('\t')]
+        words = [w.strip() for w in line.split('\t')]
         # check format
         n_words = len(words)
         if n_words == n_cols - 1:
@@ -122,19 +130,10 @@ def parsePP2output(pph2_output):
         elif n_words != n_cols :
             msg = 'Incorrect number of columns: {}'.format(n_words)
             raise ValueError(msg)
-        # import fields in a dictionary
-        d = {}
-        for i in range(n_cols) :
-            d[pph2_columns[i]] = words[i]
-        parsed_lines.append(d)
-    if not parsed_lines:
-        msg = "PolyPhen-2's output is empty. Please make sure that: \n" +\
-        '1) variants\' format is correct (\"UniprotID pos wt_aa mut_aa\") \n' +\
-        "2) query contains *human* variants \n"
-        raise RuntimeError(msg)
-    else:
-        LOGGER.info("PolyPhen-2's output parsed.")
-    return tuple(parsed_lines)
+        # import to structured array
+        parsed_lines[i] = tuple(words)
+    LOGGER.info("PolyPhen-2's output parsed.")
+    return parsed_lines
 
 def getSAVcoords(parsed_lines):
     """Extracts SAV Uniprot coordinates as provided by the user. If not

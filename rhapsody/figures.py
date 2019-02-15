@@ -207,7 +207,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         if other_preds:
             table_other[aa_map[aa_mut], index] = other_preds[i]
         if PP2:
-            s = float( rhapsody_obj.PP2output[i]['pph2_prob'] )
+            s = float( rhapsody_obj.PP2output['pph2_prob'][i] )
             table_PP2[  aa_map[aa_mut], index] = s
         if EVmutation:
             s = rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]

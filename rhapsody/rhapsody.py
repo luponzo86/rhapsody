@@ -25,7 +25,7 @@ class Rhapsody:
         self.CVsummary      = None
         # custom PDB structure used for PDB features calculation
         self.customPDB      = None
-        # tuple of dicts containing parsed PolyPhen-2 output
+        # structured array containing parsed PolyPhen-2 output
         self.PP2output      = None
         # structured array containing EVmutation data
         self.EVmutFeats     = None

@@ -28,7 +28,7 @@ def calcPP2features(PP2output):
                            ('Delta_PSIC', 'f')])
     # import selected quantities from PolyPhen-2's output
     # into a structured array
-    f_l = [[line['Score1'], line['dScore']] for line in PP2output]
+    f_l = PP2output[['Score1', 'dScore']]
     f_t = [tuple(np.nan if x=='?' else x for x in l) for l in f_l]
     features = np.array(f_t, dtype=feat_dtype)
     LOGGER.info("Sequence-conservation features have been " + \
