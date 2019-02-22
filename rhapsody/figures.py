@@ -41,6 +41,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
     plt.legend()
     figure.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
+    plt.rcParams.update(plt.rcParamsDefault)
     LOGGER.info(f'Predictions distribution saved to {filename}')
 
 
@@ -68,6 +69,7 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     plt.ylim((0, 1))
     figure.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
+    plt.rcParams.update(plt.rcParamsDefault)
     LOGGER.info(f'Pathogenicity plot saved to {filename}')
 
 
@@ -93,6 +95,7 @@ def print_ROC_figure(filename, fpr, tpr, mean_auc):
     plt.legend(loc="lower right")
     fig.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
+    plt.rcParams.update(plt.rcParamsDefault)
     LOGGER.info(f'ROC plot saved to {filename}')
 
 
@@ -113,6 +116,7 @@ def print_feat_imp_figure(filename, feat_imp, featset):
     plt.ylabel('feat. importance')
     fig.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
+    plt.rcParams.update(plt.rcParamsDefault)
     LOGGER.info(f'Feat. importance plot saved to {filename}')
 
 
@@ -185,7 +189,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     table_full = np.zeros((20, upper_lim), dtype=float)
     table_full[:] = 'nan'
     table_mix = table_full.copy()
-    if other_preds:
+    if other_preds is not None:
         table_other = table_full.copy()
     if PP2:
         table_PP2   = table_full.copy()
@@ -204,7 +208,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         table_full[aa_map[aa_mut], index] = p_full[i]
         if aux_preds_found:
             table_mix[aa_map[aa_mut], index] = p_mix[i]
-        if other_preds:
+        if other_preds is not None:
             table_other[aa_map[aa_mut], index] = other_preds[i]
         if PP2:
             s = float( rhapsody_obj.PP2output['pph2_prob'][i] )
@@ -221,7 +225,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
         avg_p_mix  = np.nanmean(table_mix,  axis=0)
         min_p = np.nanmin(table_mix, axis=0)
         max_p = np.nanmax(table_mix, axis=0)
-        if other_preds:
+        if other_preds is not None:
             avg_p_other = np.nanmean(table_other, axis=0)
         if PP2:
             avg_p_PP2   = np.nanmean(table_PP2,   axis=0)
@@ -236,9 +240,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     PDB_coords = ['']*upper_lim
     for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
         index = a['pos'] - 1
-        if isinstance(b[2], tuple):
-            PDB_length = int(b[2][4])
-            PDBID_chain = f'{b[2][0]}:{b[2][1]}'
+        if b['PDB size'] != 0:
+            PDB_length = b['PDB size']
+            PDBID_chain = ':'.join(b['PDB SAV coords'][0].split()[:2])
             upper_strip[0, index] = PDB_length
             PDB_sizes[index] = PDB_length
             PDB_coords[index] = PDBID_chain
@@ -312,12 +316,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='salmon',
                      facecolor='salmon')
     # plot average profile for other predictions, if available
-    if other_preds:
-        ax2.plot(x_resids, avg_p_other, color='gray',  lw=.5)
+    if other_preds is not None:
+        ax2.plot(x_resids, avg_p_other, color='gray',  lw=1)
     if PP2:
-        ax2.plot(x_resids, avg_p_PP2,   color='blue',  lw=.5)
+        ax2.plot(x_resids, avg_p_PP2,   color='blue',  lw=1)
     if EVmutation:
-        ax2.plot(x_resids, avg_p_EVmut, color='green', lw=.5)
+        ax2.plot(x_resids, avg_p_EVmut, color='green', lw=1)
     # solid line for predictions obtained with full classifier
     ax2.plot(x_resids, avg_p_full, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
@@ -341,6 +345,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     fig.savefig(filename+'.png', format='png', bbox_inches='tight',
                 pad_inches=tight_padding, dpi=dpi)
     plt.close()
+    plt.rcParams.update(plt.rcParamsDefault)
     LOGGER.info(f'Saturation mutagenesis figure saved to {filename}.png')
 
     # write a map in html format, to make figure clickable
@@ -419,7 +424,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             av_rh_pred = avg_p_final[t_j]
             pclass = pclass_final[i]
             others = {}
-            if other_preds:
+            if other_preds is not None:
                 others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
             if PP2:
                 others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])

@@ -4,7 +4,7 @@ from .rhapsody import *
 __all__ = ['rhapsody']
 
 def rhapsody(input_obj, classifier, input_type='SAVs',
-             custom_PDB=None, aux_classifier=None):
+             custom_PDB=None, aux_classifier=None, log=True):
     """'input_obj' can be:
     * a filename, a list/tuple of strings or a single string, containing SAV
       coordinates, with the format "P17516 135 G E" (input_type='SAVs', default)
@@ -18,6 +18,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
     """
     assert input_type in ('SAVs', 'scanning', 'PP2')
 
+    if log: LOGGER.start('rhapsody-log.txt')
 
     # initialize object that will contain all results and predictions
     r = Rhapsody()
@@ -61,5 +62,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
 
     # save pickle
     r.savePickle()
+
+    if log: LOGGER.close('rhapsody-log.txt')
 
     return r
