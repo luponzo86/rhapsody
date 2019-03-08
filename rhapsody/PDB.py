@@ -15,7 +15,7 @@ STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
 DYN_FEATS = ['GNM_MSF', 'ANM_MSF',
              'GNM_effectiveness', 'GNM_sensitivity',
              'ANM_effectiveness', 'ANM_sensitivity',
-             'MBS', 'stiffness']
+             'stiffness'] # , 'MBS']
 PDB_FEATS = STR_FEATS + [f + e for f in DYN_FEATS
                          for e in ['-chain', '-reduced', '-sliced']]
 
@@ -258,9 +258,9 @@ class PDBfeatures:
         return
 
     def calcANMfeatures(self, chain='all', env='chain',
-                        ANM_PRS=True, MBS=True, stiffness=True):
+                        ANM_PRS=True, stiffness=True, MBS=False):
         assert env in ['chain', 'reduced', 'sliced']
-        for k in ANM_PRS, MBS, stiffness:
+        for k in ANM_PRS, stiffness, MBS:
             assert type(k) is bool
         # list of features to be computed
         features = ['ANM_MSF-'+env]
@@ -430,11 +430,11 @@ class PDBfeatures:
 
     def calcAllFeatures(self, chain='all', resid=None, env='chain',
                         SASA=True, Delta_SASA=True, GNM_PRS=True,
-                        ANM_PRS=True, MBS=True, stiffness=True):
+                        ANM_PRS=True, stiffness=True, MBS=False):
         if resid is not None and chain == 'all':
             raise ValueError('Please select a single chain.')
         assert env in ['chain', 'reduced', 'sliced']
-        for k in SASA, Delta_SASA, GNM_PRS, ANM_PRS, MBS, stiffness:
+        for k in SASA, Delta_SASA, GNM_PRS, ANM_PRS, stiffness, MBS:
             assert type(k) is bool
         # compute requested features
         self.calcGNMfeatures(chain, env=env, GNM_PRS=GNM_PRS)
@@ -480,7 +480,7 @@ class PDBfeatures:
             l = [f.replace(s,'') for f in sel_feats if f.endswith(s)]
             if l == []:
                 continue
-            GNM_PRS, ANM_PRS, MBS, stiffness = (False,)*4
+            GNM_PRS, ANM_PRS, stiffness, MBS = (False,)*4
             if 'GNM_effectiveness' in l or 'GNM_sensitivity' in l:
                 GNM_PRS = True
             if 'ANM_effectiveness' in l or 'ANM_sensitivity' in l:

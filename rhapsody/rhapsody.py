@@ -37,7 +37,7 @@ class Rhapsody:
         # If an error occurs, unique Uniprot coords and/or PDB coords will
         # contain an error message and PDB size will be 0
         self.Uniprot2PDBmap = None
-        # numpy array (num_SAVS)x(num_features)
+        # numpy array (num_SAVs)x(num_features)
         self.featMatrix     = None
         # structured array containing predictions
         self.predictions    = None
@@ -45,6 +45,8 @@ class Rhapsody:
         self.auxPreds       = None
         # original and auxiliary predictions combined
         self.mixPreds       = None
+        # tuple of true labels (needed only when exporting data for training)
+        self.trueLabels     = None
 
     def importClassifier(self, classifier):
         assert self.classifier is None, 'Classifier already set.'
@@ -72,9 +74,37 @@ class Rhapsody:
 
     def setFeatSet(self, featset):
         assert self.featSet is None, 'Feature set already set.'
-        assert isinstance(featset, (tuple, list)), \
-               'Please provide a tuple or a list.'
+        if isinstance(featset, str):
+            assert featset in ['all', 'v2', 'v2_aux', 'v1']
+            if featset == 'all':
+                featset = RHAPSODY_FEATS['all']
+            elif featset == 'v2':
+                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
+                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
+                'stiffness-chain', 'entropy', 'ranked_MI', 'BLOSUM']
+            elif featset == 'v2_aux':
+                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
+                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
+                'stiffness-chain', 'BLOSUM']
+            elif featset == 'v1':
+                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'GNM_MSF-chain',
+                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
+                'stiffness-chain']
+        assert all([f in RHAPSODY_FEATS['all'] for f in featset]), \
+               'Invalid list of features'
         self.featSet = tuple(featset)
+
+    def setTrueLabels(self, delSAVs, neuSAVs):
+        # NB: PolyPhen-2 may reshuffle or discard entries, that's why it is
+        # better to ask del/neu SAVs directly
+        assert self.SAVcoords is not None, 'SAVs not set.'
+        delSAVs = set(delSAVs)
+        neuSAVs = set(neuSAVs)
+        assert not delSAVs.intersection(neuSAVs), 'del/neu sets are not disjoint.'
+        assert set(self.SAVcoords['text']).issubset(delSAVs.union(neuSAVs)), \
+              'Some labels are missing.'
+        true_labels = [1 if s in delSAVs else 0 for s in self.SAVcoords['text']]
+        self.trueLabels = tuple(true_labels)
 
     def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
         assert self.PP2output is None, "PolyPhen-2's output already imported."
@@ -94,10 +124,10 @@ class Rhapsody:
         try:
             PP2_output = queryPolyPhen2(SAV_file)
         except:
-            err = 'Unable to contact PolyPhen-2 server. \n' + \
-                  'Please check "Grid Status" at this address: \n' + \
-                  '  http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi \n' + \
-                  'and try again when Grid Load is "Low" and Grid Health is 100%'
+            err = 'Unable to get a response from PolyPhen-2. Please click ' + \
+                  '"Check Status" on the server homepage \n' + \
+                  '( http://genetics.bwh.harvard.edu/pph2 ) \n' + \
+                  'and try again when "Load" is "Low" and "Health" is 100%'
             raise RuntimeError(err)
         self.importPolyPhen2output(PP2_output)
 
@@ -189,6 +219,24 @@ class Rhapsody:
             all_feats.append(f)
         # build matrix of selected features
         return buildFeatMatrix(self.featSet, all_feats)
+
+    def exportTrainingData(self):
+        assert self.trueLabels is not None, 'True labels not set.'
+        if self.featMatrix is None:
+            self.featMatrix = self._calcFeatMatrix()
+        dt = np.dtype([('SAV_coords', '<U50'), ('Uniprot2PDB', '<U50'),
+                       ('PDB_length', '<i2'), ('true_label', '<i2')] +
+                      [(f, '<f4') for f in self.featSet])
+        num_SAVs = len(self.SAVcoords)
+        trainData = np.empty(num_SAVs, dtype=dt)
+        trainData['SAV_coords'] = self.SAVcoords['text']
+        if self.Uniprot2PDBmap is not None:
+            trainData['Uniprot2PDB'] = self.Uniprot2PDBmap['PDB SAV coords']
+            trainData['PDB_length']  = self.Uniprot2PDBmap['PDB size']
+        trainData['true_label'] = self.trueLabels
+        for i,f in enumerate(self.featSet):
+            trainData[f] = self.featMatrix[:,i]
+        return trainData
 
     def calcPredictions(self):
         assert self.predictions is None, 'Predictions already computed.'

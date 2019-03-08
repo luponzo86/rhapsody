@@ -19,6 +19,7 @@ RHAPSODY_FEATS = {
     'BLOSUM': {'BLOSUM'},
     'EVmut' : set(EVMUT_FEATS),
 }
+RHAPSODY_FEATS['all'] = set().union(*RHAPSODY_FEATS.values())
 
 
 def calcPP2features(PP2output):
