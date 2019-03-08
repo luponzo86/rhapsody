@@ -91,7 +91,14 @@ class Rhapsody:
             # 'x' is a list, tuple or single string of SAV coordinates
             SAV_file = printSAVlist(x, filename)
         # submit query to PolyPhen-2
-        PP2_output = queryPolyPhen2(SAV_file)
+        try:
+            PP2_output = queryPolyPhen2(SAV_file)
+        except:
+            err = 'Unable to contact PolyPhen-2 server. \n' + \
+                  'Please check "Grid Status" at this address: \n' + \
+                  '  http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi \n' + \
+                  'and try again when Grid Load is "Low" and Grid Health is 100%'
+            raise RuntimeError(err)
         self.importPolyPhen2output(PP2_output)
 
     def importPolyPhen2output(self, PP2output):
