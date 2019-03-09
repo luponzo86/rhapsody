@@ -71,6 +71,8 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
             resid = int(parsed_PDB_coords[2])
             LOGGER.info("[{}/{}] Analizing mutation site {}:{} {}..."
                         .format(count, num_SAVs, PDBID, chID, resid))
+            # chID == "?" stands for "empty space"
+            chID = " " if chID=="?" else chID
             if PDBID == cache['PDBID']:
                 # use PDBfeatures instance from previous iteration
                 obj = cache['obj']
