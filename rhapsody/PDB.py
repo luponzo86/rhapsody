@@ -395,6 +395,7 @@ class PDBfeatures:
             except Exception as e:
                 msg = str(e)
                 for chID in self.chids:
+                    d = self.feats[chID]
                     d['SASA_in_complex'] = msg
                     d['Delta_SASA'] = msg
                     LOGGER.warn(msg)
