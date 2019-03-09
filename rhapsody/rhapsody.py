@@ -92,23 +92,20 @@ class Rhapsody:
                 'stiffness-chain']
         assert all([f in RHAPSODY_FEATS['all'] for f in featset]), \
                'Invalid list of features'
-        self.featSet = tuple(featset)
+        self.featSet = tuple(sorted(featset))
 
-    def setTrueLabels(self, delSAVs, neuSAVs):
+    def setTrueLabels(self, true_label_dict):
         # NB: PolyPhen-2 may reshuffle or discard entries, that's why it is
-        # better to ask del/neu SAVs directly
+        # better to ask for a dictionary...
         assert self.SAVcoords is not None, 'SAVs not set.'
-        delSAVs = set(delSAVs)
-        neuSAVs = set(neuSAVs)
-        assert not delSAVs.intersection(neuSAVs), 'del/neu sets are not disjoint.'
-        assert set(self.SAVcoords['text']).issubset(delSAVs.union(neuSAVs)), \
-              'Some labels are missing.'
-        true_labels = [1 if s in delSAVs else 0 for s in self.SAVcoords['text']]
+        assert set(self.SAVcoords['text']).issubset(set(true_label_dict.keys())),\
+               'Some labels are missing.'
+        assert set(true_label_dict.values()).issubset({-1,0,1}), 'Invalid labels.'
+        true_labels = [true_label_dict[s] for s in self.SAVcoords['text']]
         self.trueLabels = tuple(true_labels)
 
     def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
         assert self.PP2output is None, "PolyPhen-2's output already imported."
-        assert isinstance(x, (str, list, tuple))
         SAV_file = ''
         if scanning:
             # 'x' is a string, e.g. 'P17516' or 'P17516 135'
@@ -224,7 +221,7 @@ class Rhapsody:
         assert self.trueLabels is not None, 'True labels not set.'
         if self.featMatrix is None:
             self.featMatrix = self._calcFeatMatrix()
-        dt = np.dtype([('SAV_coords', '<U50'), ('Uniprot2PDB', '<U50'),
+        dt = np.dtype([('SAV_coords', '<U50'), ('Uniprot2PDB', '<U100'),
                        ('PDB_length', '<i2'), ('true_label', '<i2')] +
                       [(f, '<f4') for f in self.featSet])
         num_SAVs = len(self.SAVcoords)
@@ -386,7 +383,6 @@ def seqScanning(Uniprot_coord):
 
 
 def printSAVlist(input_SAVs, filename):
-    assert isinstance(input_SAVs, (str, list, tuple))
     if isinstance(input_SAVs, str):
         input_SAVs = [input_SAVs,]
     with open(filename, 'w', 1) as f:
