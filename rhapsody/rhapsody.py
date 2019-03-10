@@ -454,8 +454,8 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
                 raise RuntimeError('Unable to map SAV to PDB')
             else:
                 # NB: check for blank "chain" field
-                if r[1].replace(' ','') == '':
-                    r[1] = '?'
+                if r[0][1].replace(' ','') == '':
+                    r[0][1] = '?'
                 res_map = '{} {} {} {}'.format(*r[0][:4])
                 PDB_size = r[0][4]
         except Exception as e:
