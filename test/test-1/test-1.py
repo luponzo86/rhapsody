@@ -9,6 +9,8 @@ from rhapsody import *
 # set folders
 pathRhapsodyFolder('./data')
 pathEVmutationFolder('./data')
+from prody import pathPDBFolder
+pathPDBFolder('./data')
 
 # test cases
 test_SAVs = [
