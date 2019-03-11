@@ -40,9 +40,9 @@ before_install:
 
 install:
   # - python setup.py install
-  - source activate testenv;
+  - source activate testenv
 
 script:
   # - pytest test1.py
-  - cd test/test-1;
-    python test.py && echo 'test-1 passed'
+  - cd test/test-1; python test-1.py
+
