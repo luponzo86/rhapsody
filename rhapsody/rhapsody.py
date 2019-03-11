@@ -77,7 +77,8 @@ class Rhapsody:
         if isinstance(featset, str):
             assert featset in ['all', 'v2', 'v2_aux', 'v1']
             if featset == 'all':
-                featset = RHAPSODY_FEATS['all']
+                featset = list(RHAPSODY_FEATS['all']).sort()
+
             elif featset == 'v2':
                 featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
                 'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
@@ -92,7 +93,7 @@ class Rhapsody:
                 'stiffness-chain']
         assert all([f in RHAPSODY_FEATS['all'] for f in featset]), \
                'Invalid list of features'
-        self.featSet = tuple(sorted(featset))
+        self.featSet = tuple(featset)
 
     def setTrueLabels(self, true_label_dict):
         # NB: PolyPhen-2 may reshuffle or discard entries, that's why it is
