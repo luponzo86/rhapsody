@@ -246,8 +246,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             upper_strip[0, index] = PDB_length
             PDB_sizes[index] = PDB_length
             PDB_coords[index] = PDBID_chain
-    max_PDB_size = np.nanmax(upper_strip[0, :])
-    upper_strip[0, :] /= max_PDB_size
+    max_PDB_size = max(PDB_sizes)
+    if max_PDB_size != 0:
+        upper_strip[0, :] /= max_PDB_size
 
     # final data to show on figure
     if aux_preds_found:
