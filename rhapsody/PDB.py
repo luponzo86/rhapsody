@@ -9,6 +9,8 @@ import pickle
 import datetime
 import os
 
+MAX_NUM_RESIDUES = 17000
+
 __all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS', 'PDBfeatures']
 
 STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
@@ -150,6 +152,12 @@ class PDBfeatures:
             self.refresh()
         return
 
+    def _checkNumCalphas(self, ag):
+        n_ca = ag.numResidues()
+        if n_ca > MAX_NUM_RESIDUES:
+            m = f'Too many C-alphas: {n_ca}. Max. allowed: {MAX_NUM_RESIDUES}'
+            raise RuntimeError(m)
+
     def calcGNM(self, chID, env='chain'):
         assert env in ['chain', 'reduced', 'sliced']
         gnm_e =  self._gnm[env]
@@ -158,12 +166,14 @@ class PDBfeatures:
             pdb = self.getPDB()
             if env == 'chain':
                 ca = pdb.ca[chID]
+                self._checkNumCalphas(ca)
                 gnm = GNM()
                 gnm.buildKirchhoff(ca)
                 gnm.calcModes(n_modes=n)
                 gnm_e[chID] = gnm
             else:
                 ca = pdb.ca
+                self._checkNumCalphas(ca)
                 gnm_full = GNM()
                 gnm_full.buildKirchhoff(ca)
                 if env == 'reduced':
@@ -187,12 +197,14 @@ class PDBfeatures:
             pdb = self.getPDB()
             if env == 'chain':
                 ca = pdb.ca[chID]
+                self._checkNumCalphas(ca)
                 anm = ANM()
                 anm.buildHessian(ca)
                 anm.calcModes(n_modes=n)
                 anm_e[chID] = anm
             else:
                 ca = pdb.ca
+                self._checkNumCalphas(ca)
                 anm_full = ANM()
                 anm_full.buildHessian(ca)
                 if env == 'reduced':
