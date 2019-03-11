@@ -1,0 +1,3 @@
+# SAV coords           Uniprot coords         PDB/ch/res/aa/size 
+O00294 496 A T,        O00294 496 A T,        2FIM A 443 A 224
+O00238 31 R H,         O00238 31 R H,         Unable to map SAV to PDB

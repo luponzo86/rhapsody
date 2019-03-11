@@ -1,0 +1,9 @@
+#o_acc               	 o_pos	o_aa1	o_aa2	rsid      	acc       	   pos	aa1	aa2	nt1	nt2	        prediction	            based_on	    effect	        pph2_class	 pph2_prob	  pph2_FPR	  pph2_TPR	  pph2_FDR	    site	  region	    PHAT	dScore	Score1	Score2	MSAv	  Nobs	 Nstruct	 Nfilt	PDB_id	PDB_pos	PDB_ch	 ident	length	NormASA	SecStr	MapReg	  dVol	 dProp	B-fact	 H-bonds	 AveNHet	 MinDHet	 AveNInt	 MinDInt	 AveNSit	 MinDSit	Transv	CodPos	CpG	 MinDJxn	     PfamHit	  IdPmax	  IdPSNP	  IdQmin
+O00294              	   496	    A	    T	         ?	O00294    	   496	  A	  T	  G	  A	            benign	           alignment	         ?	           neutral	     0.351	     0.109	     0.899	     0.141	      NO	      NO	       ?	+0.754	-2.376	-3.130	   2	   299	       7	     2	  2fim	    443	     B	  0.94	   246	  0.680	     T	     A	    28	  0.22	 -0.48	       ?	       ?	       ?	       ?	       ?	       ?	       ?	     0	     0	  1	     +10	  PF01167.13	   5.172	   5.172	   66.42
+O00238              	    31	    R	    H	         ?	O00238    	    31	  R	  H	  G	  A	            benign	           alignment	         ?	           neutral	     0.219	     0.122	     0.914	     0.153	      NO	      NO	       ?	+1.634	-2.769	-4.403	   2	    85	      20	     ?	     ?	      ?	     ?	     ?	     ?	      ?	     ?	     ?	     ?	     ?	     ?	       ?	       ?	       ?	       ?	       ?	       ?	       ?	     0	     1	  1	     +52	  PF01064.18	   2.976	       ?	   92.03
+## Sources:
+##   Predictions: PolyPhen-2 v2.2.2r398
+##   Sequences:   UniProtKB/UniRef100 Release 2011_12 (14-Dec-2011)
+##   Structures:  PDB/DSSP Snapshot 03-Jan-2012 (78304 Structures)
+##   Genes:       UCSC MultiZ46Way GRCh37/hg19 (08-Oct-2009)
+
