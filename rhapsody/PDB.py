@@ -153,7 +153,7 @@ class PDBfeatures:
         return
 
     def _checkNumCalphas(self, ag):
-        n_ca = ag.numResidues()
+        n_ca = ag.ca.numAtoms()
         if n_ca > MAX_NUM_RESIDUES:
             m = f'Too many C-alphas: {n_ca}. Max. allowed: {MAX_NUM_RESIDUES}'
             raise RuntimeError(m)
