@@ -241,12 +241,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
         index = a['pos'] - 1
         if b['PDB size'] != 0:
-            PDB_length = b['PDB size']
+            PDB_length = int(b['PDB size'])
             PDBID_chain = ':'.join(b['PDB SAV coords'][0].split()[:2])
             upper_strip[0, index] = PDB_length
             PDB_sizes[index] = PDB_length
             PDB_coords[index] = PDBID_chain
-    max_PDB_size = int(np.nanmax(upper_strip[0, :]))
+    max_PDB_size = np.nanmax(upper_strip[0, :])
     upper_strip[0, :] /= max_PDB_size
 
     # final data to show on figure
