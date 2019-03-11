@@ -77,8 +77,7 @@ class Rhapsody:
         if isinstance(featset, str):
             assert featset in ['all', 'v2', 'v2_aux', 'v1']
             if featset == 'all':
-                featset = list(RHAPSODY_FEATS['all']).sort()
-
+                featset = sorted(list(RHAPSODY_FEATS['all']))
             elif featset == 'v2':
                 featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
                 'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
