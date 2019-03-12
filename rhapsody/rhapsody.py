@@ -403,7 +403,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
     # define a structured array
     PDBmap_dtype = np.dtype([('orig. SAV coords', 'U25'),
                              ('uniq. SAV coords', 'U25'),
-                             ('PDB SAV coords', 'U25'),
+                             ('PDB SAV coords', 'U100'),
                              ('PDB size', 'i')])
     num_SAVs = len(SAV_coords)
     mapped_SAVs = np.zeros(num_SAVs, dtype=PDBmap_dtype)
