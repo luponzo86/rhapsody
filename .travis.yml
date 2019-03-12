@@ -15,6 +15,7 @@ python:
 #     - PACKAGENAME="run_test"
 
 before_install:
+  - sudo apt-get install dssp
   # install miniconda
   - export MINICONDA=$HOME/miniconda
   - export PATH="$MINICONDA/bin:$PATH"
