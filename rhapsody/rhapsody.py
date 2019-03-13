@@ -453,11 +453,11 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
             if len(r) == 0:
                 raise RuntimeError('Unable to map SAV to PDB')
             else:
+                PDBID, chID, resid, aa, PDB_size = r[0]
                 # NB: check for blank "chain" field
-                if r[0][1].replace(' ','') == '':
-                    r[0][1] = '?'
-                res_map = '{} {} {} {}'.format(*r[0][:4])
-                PDB_size = r[0][4]
+                if chID.strip() == '':
+                    chID = '?'
+                res_map = f'{PDBID} {chID} {resid} {aa}'
         except Exception as e:
                 res_map = str(e)
                 PDB_size = 0
