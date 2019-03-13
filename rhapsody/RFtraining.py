@@ -75,8 +75,8 @@ def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
     return np.array((bins[:-1], path_prob, smooth_path_prob))
 
 
-def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
-                   ROC_fig='ROC.png', feature_names=None, **kwargs):
+def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
+               ROC_fig='ROC.png', feature_names=None, **kwargs):
 
     # set classifier
     classifier = RandomForestClassifier(n_estimators=n_estimators,
@@ -163,42 +163,56 @@ def RandomForestCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     return CV_summary
 
 
+def _importFeatMatrix(fm):
+    assert fm.dtype.names is not None, \
+           "feat. matrix must be a NumPy structured array."
+    assert 'true_label' in fm.dtype.names,  \
+           "feat. matrix must have a 'true_label' field."
+    assert 'SAV_coords' in fm.dtype.names,  \
+           "feat. matrix must have a 'SAV_coords' field."
+    assert set(fm['true_label'])=={0, 1}, 'Invalid true labels in feat. matrix.'
+
+    # check for ambiguous cases in training dataset
+    del_SAVs = set(fm[fm['true_label']==1]['SAV_coords'])
+    neu_SAVs = set(fm[fm['true_label']==0]['SAV_coords'])
+    amb_SAVs = del_SAVs.intersection(neu_SAVs)
+    if amb_SAVs:
+        raise RuntimeError('Ambiguous cases found in training dataset: {}'
+        .format(amb_SAVs))
+
+    # eliminate rows containing NaN values from feature matrix
+    featset = [f for f in fm.dtype.names if f not in ['true_label', 'SAV_coords']]
+    sel = [~np.isnan(np.sum([x for x in r])) for r in fm[featset]]
+    fms = fm[sel]
+    n_i = len(fm)
+    n_f = len(fms)
+    dn  = n_i - n_f
+    if dn: LOGGER.info(f'{dn} out of {n_i} cases ignored with missing features.')
+
+    # split into feature array and true label array
+    X = fms[featset].copy()
+    X = X.view((np.float32, len(featset)))
+    y = fms['true_label']
+
+    return X, y, featset
+
+
+def RandomForestCV(feat_matrix, n_estimators=1500, max_features=2, **kwargs):
+
+    X, y, featset = _importFeatMatrix(feat_matrix)
+    CV_summary = _performCV(X, y, n_estimators=n_estimators,
+                 max_features=max_features, feature_names=featset, **kwargs)
+    return CV_summary
+
+
 def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
                       pickle_name='trained_classifier.pkl',
                       feat_imp_fig='feat_importances.png', **kwargs):
 
-    assert feat_matrix.dtype.names is not None, \
-           "'feat_matrix' must be a NumPy structured array."
-    assert 'true_label' in feat_matrix.dtype.names,  \
-           "'feat_matrix' must have a 'true_label' field."
-    assert 'SAV_coords' in feat_matrix.dtype.names,  \
-           "'feat_matrix' must have a 'SAV_coords' field."
-
-    # check for ambiguous cases in training dataset
-    pos_cases = set([r['SAV_coords'] for r in feat_matrix if r['true_label']==1])
-    neg_cases = set([r['SAV_coords'] for r in feat_matrix if r['true_label']==0])
-    intersection = pos_cases.intersection(neg_cases)
-    if intersection:
-        raise RuntimeError('Ambiguous cases found in training dataset: {}'
-        .format(intersection))
-
-    # eliminate rows containing NaN values from feature matrix
-    featset = [f for f in feat_matrix.dtype.names
-               if f not in ['true_label', 'SAV_coords']]
-    sel = [~np.isnan(np.sum([x for x in r])) for r in feat_matrix[featset]]
-    fm = feat_matrix[sel]
-    n_i = len(feat_matrix)
-    n_f = len(fm)
-    n   = n_i - n_f
-    if n: LOGGER.info(f'{n} out of {n_i} cases ignored with missing features.')
-
-    # split into feature array and true label array
-    X = fm[featset].copy()
-    X = X.view((np.float32, len(featset)))
-    y = fm['true_label']
+    X, y, featset = _importFeatMatrix(feat_matrix)
 
     # calculate optimal Youden cutoff through CV
-    CV_summary = RandomForestCV(X, y, n_estimators=n_estimators,
+    CV_summary = _performCV(X, y, n_estimators=n_estimators,
                  max_features=max_features, feature_names=featset, **kwargs)
 
     # train a classifier on the whole dataset
@@ -220,13 +234,13 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
         print_feat_imp_figure(feat_imp_fig, fimp, featset)
 
     clsf_dict = {
-        'trained RF': clsf,
-        'features'  : featset,
-        'CV summary': CV_summary,
-        'training dataset': {
-            'positive cases': pos_cases,
-            'negative cases': neg_cases,
-        }
+      'trained RF': clsf,
+      'features'  : featset,
+      'CV summary': CV_summary,
+      'training dataset': {
+        'del. SAVs': feat_matrix[feat_matrix['true_label']==1]['SAV_coords'],
+        'neu. SAVs': feat_matrix[feat_matrix['true_label']==0]['SAV_coords'],
+      }
     }
 
     # save pickle with trained classifier and other info

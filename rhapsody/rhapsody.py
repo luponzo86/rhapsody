@@ -519,9 +519,9 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
         # determine SAV status
         if SAV_coords is None:
             SAV_status = '?'
-        elif SAV_coords[i] in train_data['positive cases']:
+        elif SAV_coords[i] in train_data['del. SAVs']:
             SAV_status = 'known_del'
-        elif SAV_coords[i] in train_data['negative cases']:
+        elif SAV_coords[i] in train_data['neu. SAVs']:
             SAV_status = 'known_neu'
         else:
             SAV_status = 'new'
