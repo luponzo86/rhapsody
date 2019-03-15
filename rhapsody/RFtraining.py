@@ -3,29 +3,33 @@ import pickle
 from prody import LOGGER
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, roc_auc_score, auc
+from sklearn.metrics import precision_recall_curve, average_precision_score
 from .figures import *
 
-__all__ = ['calcROC', 'calcPathogenicityProbs',
+__all__ = ['calcMetrics', 'calcPathogenicityProbs',
            'RandomForestCV', 'trainRFclassifier']
 
 
-def calcROC(y_test, y_pred):
-    # compute ROC and AUC-ROC
-    fpr, tpr, thr = roc_curve(y_test, y_pred)
-    roc_auc = auc(fpr, tpr)
+def calcMetrics(y_test, y_pred):
+    # compute ROC and AUROC
+    fpr, tpr, roc_thr = roc_curve(y_test, y_pred)
+    auroc = roc_auc_score(y_test, y_pred)
     # compute optimal cutoff J (argmax of Youden's index)
     diff = np.array([y-x for x,y in zip(fpr, tpr)])
-    J_opt = thr[(-diff).argsort()][0]
-    return {'FPR': fpr, 'TPR': tpr, 'thresholds': thr,
-            'AUROC': roc_auc, 'optimal cutoff': J_opt}
+    J_opt = roc_thr[(-diff).argsort()][0]
+    # compute Precision-Recall curve and AUPRC
+    pre, rec, prc_thr = precision_recall_curve(y_test, y_pred)
+    auprc = average_precision_score(y_test, y_pred)
+    return {'FPR': fpr, 'TPR': tpr, 'ROC_thresholds': roc_thr,
+            'AUROC': auroc, 'optimal cutoff': J_opt,
+            'precision': pre, 'recall': rec, 'PRC_thresholds': prc_thr,
+            'AUPRC': auprc }
 
 
 def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
-                           ppred_reliability_cutoff=200,
-                           pred_distrib_fig='predictions_distribution.png',
-                           path_prob_fig='pathogenicity_prob.png',
-                           **kwargs):
+    ppred_reliability_cutoff=200, pred_distrib_fig='predictions_distribution.png',
+    path_prob_fig='pathogenicity_prob.png', **kwargs):
     '''Compute pathogenicity probabilities,
     from predictions on CV test sets
     '''
@@ -87,7 +91,8 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=666)
 
     # cross-validation loop
-    CV_info = {'ROC-AUC'        : [],
+    CV_info = {'AUROC'          : [],
+               'AUPRC'          : [],
                'feat_importance': [],
                'OOB_score'      : [],
                'Youden_cutoff'  : [],
@@ -106,13 +111,15 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
         classifier.fit(X_train, y_train)
         # calculate probabilities over decision trees
         y_pred = classifier.predict_proba(X_test)
-        # compute ROC, AUROC and optimal cutoff (argmax of Youden's index)
-        d = calcROC(y_test, y_pred[:, 1])
-        roc_auc = d['AUROC']
+        # compute ROC, AUROC, optimal cutoff (argmax of Youden's index), etc...
+        d = calcMetrics(y_test, y_pred[:, 1])
+        auroc = d['AUROC']
+        auprc = d['AUPRC']
         J_opt   = d['optimal cutoff']
         # store other info and metrics for each iteration
         mean_tpr += np.interp(mean_fpr, d['FPR'], d['TPR'])
-        CV_info['ROC-AUC'].append(roc_auc)
+        CV_info['AUROC'].append(auroc)
+        CV_info['AUPRC'].append(auprc)
         CV_info['feat_importance'].append(classifier.feature_importances_)
         CV_info['OOB_score'].append(classifier.oob_score_)
         CV_info['Youden_cutoff'].append(J_opt)
@@ -120,14 +127,15 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
         CV_info['predictions_1'].extend(y_pred[np.where(y_test==1), 1][0])
         # print log
         i += 1
-        LOGGER.info(f'CV iteration #{i:2d}:    ROC-AUC = {roc_auc:.3f}' + \
-                    f'   OOB score = {classifier.oob_score_:.3f}')
+        LOGGER.info(f'CV iteration #{i:2d}:   AUROC = {auroc:.3f}   ' + \
+        f'AUPRC = {auprc:.3f}   OOB score = {classifier.oob_score_:.3f}')
 
     # compute average ROC, optimal cutoff and other stats
     mean_tpr /= cv.get_n_splits(X, y)
     mean_tpr[ 0] = 0.0
     mean_tpr[-1] = 1.0
-    mean_auc  = auc(mean_fpr, mean_tpr)
+    mean_auroc = auc(mean_fpr, mean_tpr)
+    mean_auprc = np.mean(CV_info['AUPRC'])
     mean_oob  = np.mean(CV_info['OOB_score'])
     avg_J_opt = np.mean(CV_info['Youden_cutoff'])
     std_J_opt = np.std( CV_info['Youden_cutoff'])
@@ -136,7 +144,8 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     LOGGER.info('Cross-validation summary:')
     LOGGER.info(f'training dataset size:   {len(y):<d}')
     LOGGER.info(f'fraction of positives:   {sum(y)/len(y):.3f}')
-    LOGGER.info(f'mean ROC-AUC:            {mean_auc:.3f}')
+    LOGGER.info(f'mean AUROC:              {mean_auroc:.3f}')
+    LOGGER.info(f'mean AUPRC:              {mean_auprc:.3f}')
     LOGGER.info(f'mean OOB score:          {mean_oob:.3f}')
     LOGGER.info(f'optimal cutoff*:         {avg_J_opt:.3f} +/- {std_J_opt:.3f}')
     LOGGER.info("(* argmax of Youden's index)")
@@ -149,7 +158,8 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     path_prob = calcPathogenicityProbs(CV_info, **kwargs)
     CV_summary = {'dataset size'     : len(y),
                   'dataset bias'     : sum(y)/len(y),
-                  'mean ROC-AUC'     : mean_auc,
+                  'mean AUROC'       : mean_auroc,
+                  'mean AUPRC'       : mean_auprc,
                   'mean OOB score'   : mean_oob,
                   'mean ROC'         : list(zip(mean_fpr, mean_tpr)),
                   'optimal cutoff'   : (avg_J_opt, std_J_opt),
@@ -158,7 +168,7 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
 
     # plot average ROC
     if ROC_fig is not None:
-        print_ROC_figure(ROC_fig, mean_fpr, mean_tpr, mean_auc)
+        print_ROC_figure(ROC_fig, mean_fpr, mean_tpr, mean_auroc)
 
     return CV_summary
 
