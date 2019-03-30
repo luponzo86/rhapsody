@@ -136,10 +136,13 @@ class UniprotMapping:
         # parse/import pdb and assign title
         if isinstance(PDB, str):
             pdb = parsePDB(PDB, subset='calpha')
-            if title is None: title = PDB
+            if title is None:
+                title = os.path.basename(PDB.strip())
+                title = title.replace(' ', '_')
         else:
             pdb = PDB.ca
-            if title is None: title = PDB.getTitle()
+            if title is None:
+                title = PDB.getTitle()
         # check if a record is already present
         rec = [d for d in self.customPDBmappings if d['PDB']==title]
         if recover and len(rec) > 1:
