@@ -48,18 +48,29 @@ class Rhapsody:
         # tuple of true labels (needed only when exporting data for training)
         self.trueLabels     = None
 
-    def importClassifier(self, classifier):
+    def importClassifier(self, classifier, force_env=None):
         assert self.classifier is None, 'Classifier already set.'
         assert isfile(classifier), 'Please provide a valid filename.'
+        assert force_env in [None, 'chain', 'reduced', 'sliced']
         clsf_dict = pickle.load(open(classifier, 'rb'))
         self.classifier = classifier
         featset = clsf_dict['features']
+        LOGGER.info(f"Imported feature set: '{featset[0]}'")
+        for f in featset[1:]:
+            LOGGER.info(' '*22 + f"'{f}'")
+        if force_env is not None:
+            # force a given ENM environment model
+            for i, f in enumerate(featset):
+                if f in RHAPSODY_FEATS['PDB'] and \
+                   (f.startswith('ANM') or f.startswith('GNM')):
+                    old_env = f.split('-')[-1]
+                    featset[i] = f.replace(old_env, force_env)
+            LOGGER.info(f"Modified feature set: '{featset[0]}'")
+            for f in featset[1:]:
+                LOGGER.info(' '*22 + f"'{f}'")
         self.setFeatSet(featset)
         self.CVsummary = clsf_dict['CV summary']
         del clsf_dict
-        LOGGER.info("Imported feature set: '{}'".format(featset[0]))
-        for f in featset[1:]:
-            LOGGER.info(' '*22 + "'{}'".format(f))
 
     def setCustomPDB(self, custom_PDB):
         if self.featSet is not None:
@@ -408,7 +419,6 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
     num_SAVs = len(SAV_coords)
     mapped_SAVs = np.zeros(num_SAVs, dtype=PDBmap_dtype)
     # map to PDB using Uniprot class
-    # mapped_SAVs = [None]*num_SAVs
     cache = {'acc': None, 'obj': None}
     count = 0
     for indx, SAV in [(i, SAV_coords[i]) for i in sorting_map]:
@@ -443,8 +453,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
                 raise ValueError('Index out of range')
             wt_aa = U2P_map.sequence[pos-1]
             if aa1 != wt_aa:
-                raise ValueError('Incorrect wt aa: ' + \
-                                 '{} instead of {}'.format(aa1, wt_aa))
+                raise ValueError(f'Incorrect wt aa: {aa1} instead of {wt_aa}')
             # map to PDB. Format: [('2DZF', 'A', 150, 'N', 335)]
             if custom_PDB is None:
                 r = U2P_map.mapSingleResidue(pos, check_aa=True)
@@ -467,9 +476,9 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
         else:
             uniq_coords = f'{U2P_map.uniq_acc} {pos} {aa1} {aa2}'
         mapped_SAVs[indx] = (SAV_str, uniq_coords, res_map, PDB_size)
-        # in the final iteration of the loop, save last pickle
-        if count == num_SAVs and cache['obj'] is not None:
-            cache['obj'].savePickle()
+    # save last pickle
+    if isinstance(cache['obj'], UniprotMapping):
+        cache['obj'].savePickle()
     LOGGER.report('SAVs have been mapped to PDB in %.1fs.', '_map2PDB')
     return mapped_SAVs
 

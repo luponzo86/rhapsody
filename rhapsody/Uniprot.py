@@ -8,7 +8,7 @@ from Bio.SubsMat   import MatrixInfo as matlist
 import numpy as np
 import os, re, pickle, datetime
 
-__all__ = ['UniprotMapping']  
+__all__ = ['UniprotMapping']
 
 class UniprotMapping:
 
@@ -33,9 +33,9 @@ class UniprotMapping:
                 self.refresh()
         else:
             self.refresh()
-        
+
     def refresh(self):
-        """Refresh imported Uniprot records and mappings, and 
+        """Refresh imported Uniprot records and mappings, and
         delete precomputed alignments.
         """
         # import Uniprot record and official accession number
@@ -53,23 +53,23 @@ class UniprotMapping:
         self._align_algo_args = ['localxs', -0.5, -0.1]
         self._align_algo_kwargs = {'one_alignment_only': True}
         self._timestamp = str(datetime.datetime.utcnow())
-        self.Pfam = None 
-        return 
-        
+        self.Pfam = None
+        return
+
     def getFullRecord(self):
         """Returns the output from :method:`.queryUniprot`"""
         return self.fullRecord
-        
+
     def getPDBrecords(self):
-        """Returns a dictionary containing only the 'dbReference' records 
+        """Returns a dictionary containing only the 'dbReference' records
         relative to PDB, extracted from the full Uniprot record.
         """
         return self.PDBrecords
-        
+
     def getPDBmappings(self, PDBID=None):
-        """Returns a list of dictionaries, with mappings of the Uniprot sequence onto 
-        single PDB chains. For each PDB chain, the residue intervals retrieved from the 
-        Uniprot database are parsed into a list of tuples ('chain_sel') corresponding 
+        """Returns a list of dictionaries, with mappings of the Uniprot sequence onto
+        single PDB chains. For each PDB chain, the residue intervals retrieved from the
+        Uniprot database are parsed into a list of tuples ('chain_sel') corresponding
         to endpoints of individual segments. NB: '@' stands for 'all chains', following
         Uniprot naming convention.
         """
@@ -83,10 +83,10 @@ class UniprotMapping:
             raise ValueError('PDBID %s not found in Uniprot record.' %PDBID)
         if len(recs) > 1:
             m  = "Multiple entries in Uniprot record for PDBID %s. ".format(PDBID)
-            m += "Only the first one will be considered." 
+            m += "Only the first one will be considered."
             LOGGER.warn(msg)
-        return recs[0] 
-    
+        return recs[0]
+
     def alignSinglePDB(self, PDBID, chain='longest'):
         """Aligns the Uniprot sequence with the sequence from the given PDB entry.
         """
@@ -101,7 +101,7 @@ class UniprotMapping:
             all_chains = PDBrecord['chain_seq'].keys()
         # select chains to be aligned
         chains_to_align = []
-        if chain == 'longest': 
+        if chain == 'longest':
             # align only the longest chain in the PDB file
             nCA_max = 0
             for c in sorted(all_chains):
@@ -117,7 +117,7 @@ class UniprotMapping:
             chains_to_align = [chain]
         else:
             raise ValueError('chain %s not found in Uniprot record.' %chain)
-        # align selected chains with BioPython module pairwise2 
+        # align selected chains with BioPython module pairwise2
         self._calcAlignments(PDBID, chains_to_align)
         # return alignments and maps of selected chains
         rec = [d for d in self.PDBmappings if d['PDB'] == PDBID][0]
@@ -125,7 +125,7 @@ class UniprotMapping:
         sel_maps = {c: rec['maps'][c] for c in chains_to_align}
         return sel_alignms, sel_maps
 
-    def alignCustomPDB(self, PDB, chain='all', title=None):
+    def alignCustomPDB(self, PDB, chain='all', title=None, recover=False):
         """Aligns the Uniprot sequence with the sequence from the given PDB.
         """
         assert isinstance(PDB, (str, Atomic)), \
@@ -141,10 +141,10 @@ class UniprotMapping:
             pdb = PDB.ca
             if title is None: title = PDB.getTitle()
         # check if a record is already present
-        rec = [d for d in self.customPDBmappings if d['PDB']==title] 
-        if len(rec) > 1:
+        rec = [d for d in self.customPDBmappings if d['PDB']==title]
+        if recover and len(rec) > 1:
             raise RuntimeError('Multiple records found with same ID.')
-        elif len(rec) == 1:
+        elif recover and len(rec) == 1:
             customPDBrecord = rec[0]
         else:
             # create record for custom PDB
@@ -153,7 +153,7 @@ class UniprotMapping:
                                'chain_seq': {},
                                'warnings' : [],}
             self.customPDBmappings.append(customPDBrecord)
-        # check given chain list 
+        # check given chain list
         all_chains = set(pdb.getChids())
         if chain == 'all' or chain == '@':
             chains_to_align = list(all_chains)
@@ -168,12 +168,13 @@ class UniprotMapping:
         for c in chains_to_align:
             if c in customPDBrecord['chain_res']:
                 continue
+
             customPDBrecord['chain_res'][c] = pdb[c].getResnums()
             customPDBrecord['chain_seq'][c] = pdb[c].getSequence()
-        # align selected chains with BioPython module pairwise2 
-        self._calcCustomAlignments(pdb, title, chains_to_align)
+        # align selected chains with BioPython module pairwise2
+        self._calcCustomAlignments(title, chains_to_align)
         return customPDBrecord
-    
+
     def alignAllPDBs(self, chain='longest'):
         """Aligns the Uniprot sequence with the sequences of all PDBs in the
         Uniprot record.
@@ -181,21 +182,21 @@ class UniprotMapping:
         assert chain in ['longest', 'all']
         PDBIDs_list = [d['PDB'] for d in self.PDBmappings]
         for PDBID in PDBIDs_list:
-            try: 
+            try:
                 _ = self.alignSinglePDB(PDBID, chain=chain)
             except:
                 continue
         return self.PDBmappings
-    
+
     def mapSingleResidue(self, resid, check_aa=False, depth='best'):
         """Map a single amino acid in a Uniprot sequence to PDBs.
         If 'check_aa' is True, it will return only PDB residues with the
         wild-type amino acid.
         If 'depth' is 'matching', it will use info from Uniprot record to
         determine which PDBs contain the given residue, and if 'depth' is 'best'
-        only the longest chain will be considered and printed, to save time. 
+        only the longest chain will be considered and printed, to save time.
         If 'depth' is all, it will perform a thorough search among all PDBs (slow).
-        The matching PDB residues will be sorted, in descending order, according 
+        The matching PDB residues will be sorted, in descending order, according
         to the identity of the relative chain with the Uniprot sequence.
         """
         assert 1 <= resid <= len(self.sequence), \
@@ -209,7 +210,7 @@ class UniprotMapping:
         matches = []
         if depth in ['best', 'matching']:
             # trust Uniprot database and find PDBs containing the given resid
-            # according to Uniprot records        
+            # according to Uniprot records
             for PDBrecord in self.PDBmappings:
                 PDBID = PDBrecord['PDB']
                 chain_sel = PDBrecord['chain_sel']
@@ -259,7 +260,7 @@ class UniprotMapping:
                     # resid is in the chain but has wrong aa type
                     continue
                 else:
-                    identity = sum([1 for a1, a2 in zip(als[c][0], als[c][1]) 
+                    identity = sum([1 for a1, a2 in zip(als[c][0], als[c][1])
                                     if a1==a2])
                     hits.append((PDBID, c, hit[0], hit[1], identity))
             if depth == 'best' and len(hits) > 0:
@@ -306,8 +307,8 @@ class UniprotMapping:
         # sort hits first by identity, then by title and chainID
         hits.sort(key=lambda x: (-x[4], x[0], x[1]))
         return hits
-    
-    def setAlignAlgorithm(self, align_algorithm=1, 
+
+    def setAlignAlgorithm(self, align_algorithm=1,
                           gap_open_penalty=-0.5, gap_ext_penalty=-0.1,
                           refresh=True):
         """Set the Biopython alignment algorithm used for aligning
@@ -324,7 +325,7 @@ class UniprotMapping:
             self._align_algo_args = ['localxx']
         elif align_algorithm == 1:
             # gaps are penalized when opened and extended
-            self._align_algo_args = ['localxs', 
+            self._align_algo_args = ['localxs',
                                      gap_open_penalty, gap_open_penalty]
         else:
             # slow, high quality alignment, with scoring of mismatching chars
@@ -332,7 +333,7 @@ class UniprotMapping:
             self._align_algo_args = ['localds', matlist.blosum62,
                                      gap_open_penalty, gap_open_penalty]
         return
-    
+
     def savePickle(self, filename=None, folder=None, store_custom_PDBs=False):
         if folder is None:
             folder = SETTINGS.get('rhapsody_local_folder', '.')
@@ -348,7 +349,7 @@ class UniprotMapping:
         self.customPDBmappings = cache
         LOGGER.info("Pickle '{}' saved.".format(filename))
         return pickle_path
-    
+
     def recoverPickle(self, filename=None, folder=None, days=30, **kwargs):
         acc = self.uniq_acc
         if acc is None:
@@ -374,7 +375,7 @@ class UniprotMapping:
         # load pickle
         recovered_self = pickle.load(open(pickle_path, "rb"))
         if acc not in [recovered_self.acc, recovered_self.uniq_acc]:
-            raise ValueError('Accession number in recovered pickle (%s) ' 
+            raise ValueError('Accession number in recovered pickle (%s) '
                              %recovered_self.uniq_acc + 'does not match.')
         # check timestamp and ignore pickles that are too old
         date_format = "%Y-%m-%d %H:%M:%S.%f"
@@ -394,8 +395,8 @@ class UniprotMapping:
         self._timestamp = recovered_self._timestamp
         self.Pfam = recovered_self.Pfam
         LOGGER.info("Pickle '{}' recovered.".format(filename))
-        return 
-    
+        return
+
     def _checkAccessionNumber(self, acc):
         if '-' in acc:
             acc = acc.split('-')[0]
@@ -403,7 +404,7 @@ class UniprotMapping:
                       acc + ' will be used instead.'
             LOGGER.warn(message)
         return acc
-         
+
     def _parseSelString(self, sel_str):
         # example: "A/B/C=15-100, D=30-200"
         # or: "@=10-200"
@@ -421,13 +422,13 @@ class UniprotMapping:
             for chain in chains:
                 parsedSelStr.setdefault(chain, []).append(resids)
         return parsedSelStr
-    
+
     def _initiatePDBmappings(self):
         illegal_chars = r"[^A-Za-z0-9-@=/,\s]"
         PDBmappings = []
         for singlePDBrecord in self.PDBrecords:
             PDBID = singlePDBrecord.get('PDB').upper()
-            mapping = {'PDB': PDBID, 
+            mapping = {'PDB': PDBID,
                        'chain_sel': None,
                        'chain_res': None,
                        'chain_seq': None,
@@ -467,7 +468,7 @@ class UniprotMapping:
             LOGGER.warn('No PDB entries have been found ' +\
                         'that map to given sequence.')
         return
-    
+
     def _align(self, seqU, seqC, PDBresids, print_info=False):
         algo = self._align_algo_args[0]
         args = self._align_algo_args[1:]
@@ -483,7 +484,7 @@ class UniprotMapping:
         if print_info is True:
             info = format_alignment(*al[0])
             LOGGER.info(info[:-1])
-            idnt = sum([1 for a1, a2 in zip(al[0][0], al[0][1]) if a1==a2]) 
+            idnt = sum([1 for a1, a2 in zip(al[0][0], al[0][1]) if a1==a2])
             frac = idnt/len(seqC)
             m = "{} out of {} ({:.1%}) residues".format(idnt, len(seqC), frac)
             m += " in the chain are identical to Uniprot amino acids."
@@ -505,7 +506,7 @@ class UniprotMapping:
             if aaC != '-':
                     resindx_PDB += 1
         return al[0][:2], mp
-   
+
     def _quickAlign(self, seqU, seqC, PDBresids):
         '''Works only if PDB sequence and resids perfectly match
         those found in Uniprot.'''
@@ -550,11 +551,11 @@ class UniprotMapping:
             # store alignments and maps into PDBmappings
             alignments[c] = a
             maps[c] = m
-        return 
+        return
 
-    def _calcCustomAlignments(self, pdb, title, chains_to_align):
+    def _calcCustomAlignments(self, title, chains_to_align):
         seqUniprot = self.sequence
-        PDBrecord = [d for d in self.customPDBmappings 
+        PDBrecord = [d for d in self.customPDBmappings
                      if d['PDB'] == title][0]
         alignments = PDBrecord.setdefault('alignments', {})
         maps = PDBrecord.setdefault('maps', {})
@@ -568,17 +569,17 @@ class UniprotMapping:
             LOGGER.timeit('_align')
             try:
                 a, m = self._quickAlign(seqUniprot, seqChain, PDBresids)
-                msg = "Chain {} was quick-aligned".format(c)
+                msg = f"Chain {c} was quick-aligned"
             except:
-                LOGGER.info("Aligning chain {} of custom PDB {}...".format(c, title))
-                a, m = self._align(seqUniprot, seqChain, PDBresids, 
+                LOGGER.info(f"Aligning chain {c} of custom PDB {title}...")
+                a, m = self._align(seqUniprot, seqChain, PDBresids,
                                    print_info=True)
-                msg = "Chain {} was aligned".format(c)
+                msg = f"Chain {c} was aligned"
             LOGGER.report(msg + ' in %.1fs.', '_align')
             # store alignments and maps into PDBmappings
             alignments[c] = a
             maps[c] = m
-        return 
+        return
 
     # PFAM methods
 
@@ -622,14 +623,14 @@ class UniprotMapping:
                 return None
             return seqid
         # fetch sequences from Pfam (all locations)
-        m = [None]*len(self.sequence) 
+        m = [None]*len(self.sequence)
         sP_list = []
         for i in indexes:
             arr = msa[i].getArray()
             cols = np.char.isalpha(arr).nonzero()[0]
             sP = str(arr[cols], 'utf-8').upper()
             sP_list.append((sP, cols))
-        # NB: it's not known which msa index corresponds 
+        # NB: it's not known which msa index corresponds
         # to each location
         for l in self.Pfam[PF_ID]['locations']:
             r_i = int(l['start']) - 1
@@ -644,12 +645,12 @@ class UniprotMapping:
                     max_seqid = seqid
                     m[r_i : r_f+1] = cols
                 if np.allclose(seqid, 1):
-                    break 
-        return {k:v for k,v in enumerate(m) if v is not None} 
+                    break
+        return {k:v for k,v in enumerate(m) if v is not None}
 
     def calcEvolProperties(self, resid='all', refresh=False, folder=None,
                            max_cols=None, max_seqs=25000, **kwargs):
-        ''' Computes Evol properties, i.e. Shannon entropy, Mutual 
+        ''' Computes Evol properties, i.e. Shannon entropy, Mutual
         Information and Direct Information, from Pfam Multiple
         Sequence Alignments, for a given residue.
         '''
@@ -660,7 +661,7 @@ class UniprotMapping:
             PF_list = self.Pfam.keys()
         else:
             # get list of Pfam domains containing resid
-            PF_list = [k for k in self.Pfam if any([ 
+            PF_list = [k for k in self.Pfam if any([
                        resid >= int(segment['start']) and
                        resid <= int(segment['end'])
                        for segment in self.Pfam[k]['locations'] ]) ]
@@ -668,7 +669,7 @@ class UniprotMapping:
                 raise RuntimeError('No Pfam domain for resid {}.'.format(resid))
             if len(PF_list) > 1:
                 LOGGER.warn('Residue {} is found in multiple '.format(resid) + \
-                            '({}) Pfam domains.'.format(len(PF_list))) 
+                            '({}) Pfam domains.'.format(len(PF_list)))
         if folder is None:
             folder = SETTINGS.get('rhapsody_local_folder', './')
         # iterate over Pfam families
@@ -693,7 +694,7 @@ class UniprotMapping:
 #               msa = parseMSA(fullname, **kwargs)
                 # fetch & parse MSA without saving downloaded MSA
                 f = fetchPfamMSA(PF)
-                msa = parseMSA(f, **kwargs)               
+                msa = parseMSA(f, **kwargs)
                 os.remove(f)
                 # slice MSA to match all segments of the Uniprot sequence
                 sliced_msa, indexes = self._sliceMSA(msa)
@@ -707,14 +708,14 @@ class UniprotMapping:
                 d['mapping'] = str(e)
                 continue
             try:
-                # refine MSA ('seqid' param. is set as in PolyPhen-2) 
+                # refine MSA ('seqid' param. is set as in PolyPhen-2)
                 rowocc = 0.6
                 while True :
                     sliced_msa = refineMSA(sliced_msa, rowocc=rowocc)
                     rowocc += 0.02
-                    if sliced_msa.numSequences() <= max_seqs or rowocc >= 1: 
+                    if sliced_msa.numSequences() <= max_seqs or rowocc >= 1:
                         break
-                ref_msa = refineMSA(sliced_msa, seqid=0.94, **kwargs) 
+                ref_msa = refineMSA(sliced_msa, seqid=0.94, **kwargs)
                 d['ref_MSA'] = ref_msa
                 # compute evolutionary properties
                 d['entropy'] = calcShannonEntropy(ref_msa)

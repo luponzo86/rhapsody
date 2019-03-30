@@ -3,8 +3,9 @@ from .rhapsody import *
 
 __all__ = ['rhapsody']
 
-def rhapsody(input_obj, classifier, input_type='SAVs',
-             custom_PDB=None, aux_classifier=None, log=True):
+
+def rhapsody(input_obj, classifier, aux_classifier=None,
+             input_type='SAVs', custom_PDB=None, force_env=None, log=True):
     """'input_obj' can be:
     * a filename, a list/tuple of strings or a single string, containing SAV
       coordinates, with the format "P17516 135 G E" (input_type='SAVs', default)
@@ -24,7 +25,7 @@ def rhapsody(input_obj, classifier, input_type='SAVs',
     r = Rhapsody()
 
     # import classifier and feature set from pickle
-    r.importClassifier(classifier)
+    r.importClassifier(classifier, force_env=force_env)
 
     # import custom PDB structure
     if custom_PDB is not None:
