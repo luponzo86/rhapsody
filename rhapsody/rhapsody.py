@@ -262,7 +262,7 @@ class Rhapsody:
         # import feature subset
         clsf_dict = pickle.load(open(aux_clsf, 'rb'))
         LOGGER.info('Auxiliary Random Forest classifier imported.')
-        feat_subset = tuple(clsf_dict['features'])
+        feat_subset = clsf_dict['features']
         if force_env is not None:
             # force a given ENM environment model
             for i, f in enumerate(feat_subset):
