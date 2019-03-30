@@ -255,13 +255,21 @@ class Rhapsody:
         self.predictions = p
         return self.predictions
 
-    def calcAuxPredictions(self, aux_clsf):
+    def calcAuxPredictions(self, aux_clsf, force_env=None):
         assert self.predictions is not None, 'Primary predictions not found.'
         assert self.featMatrix  is not None, 'Features not computed.'
+        assert force_env in [None, 'chain', 'reduced', 'sliced']
         # import feature subset
         clsf_dict = pickle.load(open(aux_clsf, 'rb'))
         LOGGER.info('Auxiliary Random Forest classifier imported.')
         feat_subset = tuple(clsf_dict['features'])
+        if force_env is not None:
+            # force a given ENM environment model
+            for i, f in enumerate(feat_subset):
+                if f in RHAPSODY_FEATS['PDB'] and \
+                   (f.startswith('ANM') or f.startswith('GNM')):
+                    old_env = f.split('-')[-1]
+                    feat_subset[i] = f.replace(old_env, force_env)
         assert all(f in self.featSet for f in feat_subset), \
                'The new set of features must be a subset of the original one.'
         # reduce original feature matrix

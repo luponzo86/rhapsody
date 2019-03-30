@@ -52,7 +52,7 @@ def rhapsody(input_obj, classifier, aux_classifier=None,
     if aux_classifier is not None:
         # compute additional predictions from a subset of features
         try:
-            r.calcAuxPredictions(aux_classifier)
+            r.calcAuxPredictions(aux_classifier, force_env=force_env)
             r.printPredictions(format="both",
             filename='rhapsody-predictions-full.txt')
         except Exception as e:
