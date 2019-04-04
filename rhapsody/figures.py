@@ -32,7 +32,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
 
     figure = plt.figure(figsize=(7, 7))
     plt.bar(bins[:-1], histo[0], width=dx, align='edge',
-            color='blue', alpha=0.7, label='neutral'    )
+            color='blue', alpha=0.7, label='neutral')
     plt.bar(bins[:-1], histo[1], width=dx, align='edge',
             color='red',  alpha=0.7, label='deleterious')
     plt.axvline(x=J_opt, color='k', ls='--', lw=1)
@@ -46,7 +46,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
 
 
 def print_path_prob_figure(filename, bins, histo, dx, path_prob,
-                     smooth_path_prob, cutoff=200):
+                           smooth_path_prob, cutoff=200):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
@@ -120,7 +120,7 @@ def print_feat_imp_figure(filename, feat_imp, featset):
     LOGGER.info(f'Feat. importance plot saved to {filename}')
 
 
-def adjust_res_interval(res_interval, min_size=10):
+def adjust_res_interval(res_interval, upper_lim, min_size=10):
     res_i = max(1, res_interval[0])
     res_f = max(1, res_interval[1])
     n = min_size - 1
@@ -130,25 +130,26 @@ def adjust_res_interval(res_interval, min_size=10):
         if (res_f - res_i) >= n:
             break
         res_f += 1
+    res_f = min(upper_lim, res_f)
     return (res_i, res_f)
 
 
-def print_sat_mutagen_figure(filename, rhapsody_obj,
-    res_interval=None, min_interval_size=15,
-    other_preds=None, PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
-    html=False, fig_height=8, dpi=300):
+def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
+                             min_interval_size=15, extra_plot=None, html=False,
+                             PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
+                             fig_height=8, fig_width=None, dpi=300):
 
     # check inputs
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj.predictions is not None, 'predictions not found'
     if res_interval is not None:
-        assert isinstance(res_interval, tuple) and len(res_interval)==2, \
-        'res_interval must be a tuple of 2 values'
+        assert isinstance(res_interval, tuple) and len(res_interval) == 2, \
+               'res_interval must be a tuple of 2 values'
         assert res_interval[1] >= res_interval[0], 'invalid res_interval'
-    if other_preds is not None:
-        assert len(other_preds) == len(rhapsody_obj.predictions), \
-        'length of additional predictions array is incorrect'
+    if extra_plot is not None:
+        assert len(extra_plot) == len(rhapsody_obj.predictions), \
+               'length of additional predictions array is incorrect'
     assert isinstance(fig_height, (int, float))
     assert isinstance(dpi, int)
 
@@ -161,9 +162,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     # make sure that all variants belong to the same Uniprot sequence
     s = rhapsody_obj.SAVcoords['acc']
-    if len(set(s)) == 1:
-        acc = s[0]
-    else:
+    if len(set(s)) != 1:
         m = 'Only variants from a single Uniprot sequence can be accepted'
         raise ValueError(m)
 
@@ -174,10 +173,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
 
     # import pathogenicity probability from Rhapsody object
     p_full = rhapsody_obj.predictions['path. probability']
-    p_aux  = None
-    p_mix  = None
+    p_mix = None
     if aux_preds_found:
-        p_aux = rhapsody_obj.auxPreds['path. probability']
         p_mix = rhapsody_obj.mixPreds['path. probability']
 
     # select an appropriate interval, based on available predictions
@@ -189,10 +186,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     table_full = np.zeros((20, upper_lim), dtype=float)
     table_full[:] = 'nan'
     table_mix = table_full.copy()
-    if other_preds is not None:
+    if extra_plot is not None:
         table_other = table_full.copy()
     if PP2:
-        table_PP2   = table_full.copy()
+        table_PP2 = table_full.copy()
     if EVmutation:
         table_EVmut = table_full.copy()
 
@@ -201,18 +198,18 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     #  0:    neutral
     # 'nan': no prediction/wt
     aa_list = 'ACDEFGHIKLMNPQRSTVWY'
-    aa_map  = {aa: i for i, aa in enumerate(aa_list)}
+    aa_map = {aa: i for i, aa in enumerate(aa_list)}
     for i, SAV in enumerate(rhapsody_obj.SAVcoords):
         aa_mut = SAV['aa_mut']
-        index  = SAV['pos']-1
+        index = SAV['pos']-1
         table_full[aa_map[aa_mut], index] = p_full[i]
         if aux_preds_found:
             table_mix[aa_map[aa_mut], index] = p_mix[i]
-        if other_preds is not None:
-            table_other[aa_map[aa_mut], index] = other_preds[i]
+        if extra_plot is not None:
+            table_other[aa_map[aa_mut], index] = extra_plot[i]
         if PP2:
-            s = float( rhapsody_obj.PP2output['pph2_prob'][i] )
-            table_PP2[  aa_map[aa_mut], index] = s
+            s = float(rhapsody_obj.PP2output['pph2_prob'][i])
+            table_PP2[aa_map[aa_mut], index] = s
         if EVmutation:
             s = rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
             table_EVmut[aa_map[aa_mut], index] = s/EVmut_cutoff*0.5
@@ -222,16 +219,15 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
         avg_p_full = np.nanmean(table_full, axis=0)
-        avg_p_mix  = np.nanmean(table_mix,  axis=0)
+        avg_p_mix = np.nanmean(table_mix, axis=0)
         min_p = np.nanmin(table_mix, axis=0)
         max_p = np.nanmax(table_mix, axis=0)
-        if other_preds is not None:
+        if extra_plot is not None:
             avg_p_other = np.nanmean(table_other, axis=0)
         if PP2:
-            avg_p_PP2   = np.nanmean(table_PP2,   axis=0)
+            avg_p_PP2 = np.nanmean(table_PP2, axis=0)
         if EVmutation:
             avg_p_EVmut = np.nanmean(table_EVmut, axis=0)
-
 
     # use upper strip for showing additional info, such as PDB lengths
     upper_strip = np.zeros((1, upper_lim))
@@ -270,23 +266,25 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     if res_interval is None:
         res_interval = (res_min, res_max)
     # adjust interval
-    res_i, res_f = adjust_res_interval(res_interval, min_interval_size)
+    res_i, res_f = adjust_res_interval(res_interval, upper_lim,
+                                       min_interval_size)
     nres_shown = res_f - res_i + 1
 
     # figure proportions
-    fig_width  = fig_height/2 # inches
-    fig_width *= nres_shown/20
+    if fig_width is None:
+        fig_width = fig_height/2  # inches
+        fig_width *= nres_shown/20
     fig, ax = plt.subplots(3, 2, figsize=(fig_width, fig_height))
-    wspace = 0.5 # inches
+    wspace = 0.5  # inches
     plt.subplots_adjust(wspace=wspace/fig_width, hspace=0.15)
 
     # figure structure
     gs = gridspec.GridSpec(3, 2, width_ratios=[nres_shown, 1],
                            height_ratios=[1, 20, 10])
-    ax0  = plt.subplot(gs[0, 0]) # secondary structure strip
-    ax1  = plt.subplot(gs[1, 0]) # mutagenesis table
-    axcb = plt.subplot(gs[1, 1]) # colorbar
-    ax2  = plt.subplot(gs[2, 0]) # average profile
+    ax0 = plt.subplot(gs[0, 0])  # secondary structure strip
+    ax1 = plt.subplot(gs[1, 0])  # mutagenesis table
+    axcb = plt.subplot(gs[1, 1])  # colorbar
+    ax2 = plt.subplot(gs[2, 0])  # average profile
 
     # padding for tick labels
     pad = 0.2/fig_width
@@ -306,7 +304,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
-    ax1.set_yticklabels(aa_list, ha='center', position=(-pad,0), fontsize=14)
+    ax1.set_yticklabels(aa_list, ha='center', position=(-pad, 0), fontsize=14)
     ax1.set_xticks(np.arange(5-res_i%5, res_f-res_i+1, 5))
     ax1.set_xticklabels([])
     ax1.set_ylabel('pathog. probability', labelpad=10)
@@ -314,13 +312,13 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     # average pathogenicity profile
     x_resids = np.arange(1, upper_lim+1)
     # shading showing range of values
-    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5, edgecolor='salmon',
-                     facecolor='salmon')
+    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5,
+                     edgecolor='salmon', facecolor='salmon')
     # plot average profile for other predictions, if available
-    if other_preds is not None:
-        ax2.plot(x_resids, avg_p_other, color='gray',  lw=1)
+    if extra_plot is not None:
+        ax2.plot(x_resids, avg_p_other, color='gray', lw=1)
     if PP2:
-        ax2.plot(x_resids, avg_p_PP2,   color='blue',  lw=1)
+        ax2.plot(x_resids, avg_p_PP2, color='blue', lw=1)
     if EVmutation:
         ax2.plot(x_resids, avg_p_EVmut, color='green', lw=1)
     # solid line for predictions obtained with full classifier
@@ -328,8 +326,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
     # dotted line for predictions obtained with auxiliary classifier
     ax2.plot(x_resids, avg_p_final, 'ro-', markerfacecolor='none', ls='dotted')
     # cutoff line
-    ax2.hlines(0.5, -.5, upper_lim+.5, colors='grey', lw=.8,
-               linestyle='dashed')
+    ax2.axhline(y=0.5, color='grey', lw=.8, linestyle='dashed')
 
     ax2.set_xlim((res_i-.5, res_f+.5))
     ax2.set_xlabel('residue number')
@@ -425,7 +422,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj,
             av_rh_pred = avg_p_final[t_j]
             pclass = pclass_final[i]
             others = {}
-            if other_preds is not None:
+            if extra_plot is not None:
                 others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
             if PP2:
                 others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
