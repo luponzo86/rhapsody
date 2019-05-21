@@ -1,3 +1,6 @@
+__version__ = '0.9.0'
+__release__ = __version__
+
 __all__ = []
 
 from . import PolyPhen2
