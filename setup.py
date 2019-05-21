@@ -14,19 +14,26 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='prody-rhapsody',
-    version='1.0.0',
+    version='0.9.1',
     description='Python program, based on ProDy, for pathogenicity prediction of human missense variants.',  
     long_description=long_description, 
     long_description_content_type='text/markdown', 
     url='https://github.com/prody/rhapsody',
     author='Luca Ponzoni', 
     author_email='ponzoniluca@gmail.com',  
+    platforms=['Windows', 'MacOS X', 'POSIX'],
+    license='GPL',
     classifiers=[ 
         'Development Status :: 4 - Beta',
 
-        'Intended Audience :: Biologists',
-        'Topic :: Genetics :: SAV Identification',
-        'License :: OSI Approved :: MIT License',
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
 
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
