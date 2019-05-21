@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.com/luponzo86/rhapsody.svg?branch=master)](https://travis-ci.com/luponzo86/rhapsody)
-
 .. image:: https://img.shields.io/travis/prody/rhapsody.svg
    :target: http://travis-ci.org/#!/prody/rhapsody
    
