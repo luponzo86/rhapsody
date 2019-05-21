@@ -5,8 +5,8 @@ Python program, based on Prody, for pathogenicity prediction of human missense v
 
 ## Install using pip
 Rhapsody is published on [PyPI](https://pypi.org/). To install rhapsody, please use pip in the terminal:
-```
-pip install -U rhapsody
+```console
+$ pip install -U rhapsody
 ```
 
 ## Install from source
