@@ -21,14 +21,19 @@ setup(
     url='https://github.com/prody/rhapsody',
     author='Luca Ponzoni', 
     author_email='ponzoniluca@gmail.com',  
-    platforms=['Windows', 'macOS', 'Linux'],
+    platforms=['Windows', 'MacOS X', 'POSIX'],
     license='GPL',
     classifiers=[ 
         'Development Status :: 4 - Beta',
 
-        'Intended Audience :: Biologists',
-        'Topic :: Genetics :: SAV Classification',
-        'License :: OSI Approved :: GPL License',
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
 
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
