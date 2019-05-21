@@ -16,5 +16,6 @@ EXPORT PYTHONPATH="path/to/rhapsody/:$PYTHONPATH"
 ```
 
 If you are running on Windows, please follow this tutorial:
+
 [How to add to the PYTHONPATH in Windows, so it finds my modules/packages? - stackoverflow](https://stackoverflow.com/a/4855685)
 
