@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.com/luponzo86/rhapsody.svg?branch=master)](https://travis-ci.com/luponzo86/rhapsody)
 
-# rhapsody
+# Rhapsody
 Python program, based on ProDy, for pathogenicity prediction of human missense variants.
 
 ## Install using pip
