@@ -7,8 +7,7 @@
 .. image:: https://img.shields.io/github/commit-activity/m/prody/prody-rhapsody.svg
    :target: https://github.com/prody/rhapsody/commits/master
 
-.. image:: https://img.shields.io/pypi/dm/prody-rhapsody.svg
-   :target: http://http://rhapsody.csb.pitt.edu/
+![PyPI - Downloads](https://img.shields.io/pypi/dm/prody-rhapsody.svg)
 
 # Rhapsody
 Python program, based on ProDy, for pathogenicity prediction of human missense variants.
