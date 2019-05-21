@@ -1,5 +1,17 @@
 [![Build Status](https://travis-ci.com/luponzo86/rhapsody.svg?branch=master)](https://travis-ci.com/luponzo86/rhapsody)
 
+.. image:: https://img.shields.io/travis/prody/rhapsody.svg
+   :target: http://travis-ci.org/#!/prody/rhapsody
+   
+.. image:: https://img.shields.io/pypi/v/prody-rhapsody.svg
+   :target: https://pypi.org/project/prody-rhapsody/
+
+.. image:: https://img.shields.io/github/commit-activity/m/prody/prody-rhapsody.svg
+   :target: https://github.com/prody/rhapsody/commits/master
+
+.. image:: https://img.shields.io/pypi/dm/prody-rhapsody.svg
+   :target: http://http://rhapsody.csb.pitt.edu/
+
 # Rhapsody
 Python program, based on ProDy, for pathogenicity prediction of human missense variants.
 
