@@ -188,20 +188,21 @@ def _importFeatMatrix(fm):
     amb_SAVs = del_SAVs.intersection(neu_SAVs)
     if amb_SAVs:
         raise RuntimeError('Ambiguous cases found in training dataset: {}'
-        .format(amb_SAVs))
+                           .format(amb_SAVs))
 
     # eliminate rows containing NaN values from feature matrix
-    featset = [f for f in fm.dtype.names if f not in ['true_label', 'SAV_coords']]
+    featset = [f for f in fm.dtype.names
+               if f not in ['true_label', 'SAV_coords']]
     sel = [~np.isnan(np.sum([x for x in r])) for r in fm[featset]]
     fms = fm[sel]
     n_i = len(fm)
     n_f = len(fms)
-    dn  = n_i - n_f
-    if dn: LOGGER.info(f'{dn} out of {n_i} cases ignored with missing features.')
+    dn = n_i - n_f
+    if dn:
+        LOGGER.info(f'{dn} out of {n_i} cases ignored with missing features.')
 
     # split into feature array and true label array
-    X = fms[featset].copy()
-    X = X.view((np.float32, len(featset)))
+    X = np.array([[np.float32(x) for x in v] for v in fms[featset]])
     y = fms['true_label']
 
     return X, y, featset
@@ -211,7 +212,8 @@ def RandomForestCV(feat_matrix, n_estimators=1500, max_features=2, **kwargs):
 
     X, y, featset = _importFeatMatrix(feat_matrix)
     CV_summary = _performCV(X, y, n_estimators=n_estimators,
-                 max_features=max_features, feature_names=featset, **kwargs)
+                            max_features=max_features, feature_names=featset,
+                            **kwargs)
     return CV_summary
 
 
@@ -223,7 +225,8 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
 
     # calculate optimal Youden cutoff through CV
     CV_summary = _performCV(X, y, n_estimators=n_estimators,
-                 max_features=max_features, feature_names=featset, **kwargs)
+                            max_features=max_features, feature_names=featset,
+                            **kwargs)
 
     # train a classifier on the whole dataset
     clsf = RandomForestClassifier(n_estimators=n_estimators,
