@@ -12,7 +12,7 @@ if not os.path.isdir('workspace'):
     os.mkdir('workspace')
 old_rhaps_dir = rd.pathRhapsodyFolder()
 old_EVmut_dir = rd.pathEVmutationFolder()
-old_prody_dir = pd.pathPDBFolder()[0]
+old_prody_dir = pd.pathPDBFolder()
 rd.pathRhapsodyFolder('./workspace')
 rd.pathEVmutationFolder('./data')
 pd.pathPDBFolder('./data')
@@ -46,7 +46,8 @@ os.rename('rhapsody-Uniprot2PDB.txt', 'workspace/rhapsody-Uniprot2PDB.txt')
 # restore previous settings
 rd.pathRhapsodyFolder(old_rhaps_dir)
 rd.pathEVmutationFolder(old_EVmut_dir)
-pd.pathPDBFolder(old_prody_dir)
+if old_prody_dir:
+    pd.pathPDBFolder(old_prody_dir[0])
 
 # final check
 precomp_feats = np.load('data/precomputed_features.npy')
