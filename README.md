@@ -27,7 +27,7 @@ conda develop path/to/local/repository
 ```
 
 If not using Conda, you can manually install all dependencies and then add the repository location to the `PYTHONPATH` environmental variable. For example, on Linux simply add the following line to your `~/.bashrc`:
-```
+```console
 export PYTHONPATH="path/to/local/repository/:$PYTHONPATH"
 ```
 
