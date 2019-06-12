@@ -1,4 +1,9 @@
-__version__ = '0.9.1'
+from os import path
+
+here = path.abspath(path.dirname(__file__))
+with open(path.join(here, '../VERSION'), encoding='utf-8') as f:
+    __version__ = f.read()
+
 __release__ = __version__
 
 __all__ = []
@@ -38,5 +43,3 @@ __all__.extend(interfaces.__all__)
 from . import figures
 from .figures import *
 __all__.extend(figures.__all__)
-
-
