@@ -10,6 +10,10 @@ Rhapsody is published on [PyPI](https://pypi.org/). To install Rhapsody, please 
 ```console
 $ pip install -U prody-rhapsody
 ```
+It might be necessary to manually install the DSSP program, by giving for instance on Linux:
+```console
+$ sudo apt get dssp
+```
 
 ## Install from source
 Rhapsody is written in pure Python so no local compilation is needed.

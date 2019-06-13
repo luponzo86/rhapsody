@@ -348,15 +348,15 @@ class PDBfeatures:
     def _launchDSSP(self, ag):
         LOGGER.info('Running DSSP...')
         LOGGER.timeit('_DSSP')
+        pdb_file = writePDB('_temp.pdb', ag, secondary=False)
         try:
-            pdb_file  = writePDB('_temp.pdb', ag, secondary=False)
             dssp_file = execDSSP(pdb_file, outputname='_temp')
-            ag = parseDSSP(dssp_file, ag)
-        except:
-            raise
-        finally:
-            os.remove('_temp.pdb')
-            os.remove('_temp.dssp')
+        except EnvironmentError:
+            raise EnvironmentError("dssp executable not found: please install "
+                                   "with 'sudo apt install dssp'")
+        ag = parseDSSP(dssp_file, ag)
+        os.remove('_temp.pdb')
+        os.remove('_temp.dssp')
         LOGGER.report('DSSP finished in %.1fs.', '_DSSP')
         return ag
 

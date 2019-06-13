@@ -17,7 +17,7 @@ setup(
     version=version,
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     python_requires='>=3.5, <4',
-    install_requires=['requests', 'numpy', 'scikit-learn',
+    install_requires=['requests', 'numpy', 'scikit-learn', 'matplotlib',
                       'biopython', 'pyparsing', 'prody'],
     description="""Python program, based on ProDy, for pathogenicity prediction
     of human missense variants.""",
