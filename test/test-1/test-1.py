@@ -7,12 +7,12 @@ import prody as pd
 sys.path.append('../../')
 import rhapsody as rd
 
-# set folders
+# temporarily switch to new set of folders
 if not os.path.isdir('workspace'):
     os.mkdir('workspace')
-old_rhaps_dir = pd.SETTINGS['rhapsody_local_folder']
-old_EVmut_dir = pd.SETTINGS['EVmutation_local_folder']
-old_prody_dir = pd.SETTINGS['pdb_local_folder']
+old_rhaps_dir = pd.SETTINGS.get('rhapsody_local_folder')
+old_EVmut_dir = pd.SETTINGS.get('EVmutation_local_folder')
+old_prody_dir = pd.SETTINGS.get('pdb_local_folder')
 pd.SETTINGS['rhapsody_local_folder'] = os.path.abspath('./workspace')
 pd.SETTINGS['EVmutation_local_folder'] = os.path.abspath('./data')
 pd.pathPDBFolder('./data')
@@ -44,9 +44,12 @@ m = rh.exportTrainingData()
 os.rename('rhapsody-Uniprot2PDB.txt', 'workspace/rhapsody-Uniprot2PDB.txt')
 
 # restore previous settings
-pd.SETTINGS['rhapsody_local_folder'] = old_rhaps_dir
-pd.SETTINGS['EVmutation_local_folder'] = old_EVmut_dir
-pd.SETTINGS['pdb_local_folder'] = old_prody_dir
+if old_rhaps_dir is not None:
+    pd.SETTINGS['rhapsody_local_folder'] = old_rhaps_dir
+if old_EVmut_dir is not None:
+    pd.SETTINGS['EVmutation_local_folder'] = old_EVmut_dir
+if old_prody_dir is not None:
+    pd.SETTINGS['pdb_local_folder'] = old_prody_dir
 
 # final check
 precomp_feats = np.load('data/precomputed_features.npy')
