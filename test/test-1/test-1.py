@@ -10,11 +10,11 @@ import rhapsody as rd
 # set folders
 if not os.path.isdir('workspace'):
     os.mkdir('workspace')
-old_rhaps_dir = rd.pathRhapsodyFolder()
-old_EVmut_dir = rd.pathEVmutationFolder()
-old_prody_dir = pd.pathPDBFolder()
-rd.pathRhapsodyFolder('./workspace')
-rd.pathEVmutationFolder('./data')
+old_rhaps_dir = pd.SETTINGS['rhapsody_local_folder']
+old_EVmut_dir = pd.SETTINGS['EVmutation_local_folder']
+old_prody_dir = pd.SETTINGS['pdb_local_folder']
+pd.SETTINGS['rhapsody_local_folder'] = os.path.abspath('./workspace')
+pd.SETTINGS['EVmutation_local_folder'] = os.path.abspath('./data')
 pd.pathPDBFolder('./data')
 
 # test cases
@@ -44,10 +44,9 @@ m = rh.exportTrainingData()
 os.rename('rhapsody-Uniprot2PDB.txt', 'workspace/rhapsody-Uniprot2PDB.txt')
 
 # restore previous settings
-rd.pathRhapsodyFolder(old_rhaps_dir)
-rd.pathEVmutationFolder(old_EVmut_dir)
-if old_prody_dir:
-    pd.pathPDBFolder(old_prody_dir[0])
+pd.SETTINGS['rhapsody_local_folder'] = old_rhaps_dir
+pd.SETTINGS['EVmutation_local_folder'] = old_EVmut_dir
+pd.SETTINGS['pdb_local_folder'] = old_prody_dir
 
 # final check
 precomp_feats = np.load('data/precomputed_features.npy')

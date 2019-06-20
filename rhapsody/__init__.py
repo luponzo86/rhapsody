@@ -8,6 +8,10 @@ __release__ = __version__
 
 __all__ = []
 
+from . import settings
+from .settings import *
+__all__.extend(settings.__all__)
+
 from . import PolyPhen2
 from .PolyPhen2 import *
 __all__.extend(PolyPhen2.__all__)

@@ -1,15 +1,15 @@
 import numpy as np
 import pickle
-from os.path import abspath, isdir, isfile
-from prody import LOGGER, SETTINGS, Atomic
-from prody import queryUniprot
+from os.path import isfile
+from prody import LOGGER, Atomic, queryUniprot
+from .settings import DEFAULT_FEATSETS
 from .Uniprot import *
 from .PolyPhen2 import *
 from .EVmutation import *
 from .calcFeatures import *
 
-__all__ = ['Rhapsody', 'pathRhapsodyFolder', 'seqScanning',
-           'printSAVlist', 'mapSAVs2PDB', 'calcPredictions']
+__all__ = ['Rhapsody', 'seqScanning', 'printSAVlist', 'mapSAVs2PDB',
+           'calcPredictions']
 
 
 class Rhapsody:
@@ -75,8 +75,8 @@ class Rhapsody:
     def setCustomPDB(self, custom_PDB):
         if self.featSet is not None:
             if not RHAPSODY_FEATS['PDB'].intersection(self.featSet):
-                LOGGER.warn('The given feature set does not require ' +\
-                'a PDB structure.')
+                LOGGER.warn('The given feature set does not require '
+                            'a PDB structure.')
                 return
         assert self.customPDB is None, 'Custom PDB structure already set.'
         assert isinstance(custom_PDB, (str, Atomic)), \
@@ -86,21 +86,11 @@ class Rhapsody:
     def setFeatSet(self, featset):
         assert self.featSet is None, 'Feature set already set.'
         if isinstance(featset, str):
-            assert featset in ['all', 'v2', 'v2_aux', 'v1']
+            assert featset in ['all', 'full', 'reduced', 'EVmut']
             if featset == 'all':
                 featset = sorted(list(RHAPSODY_FEATS['all']))
-            elif featset == 'v2':
-                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
-                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
-                'stiffness-chain', 'entropy', 'ranked_MI', 'BLOSUM']
-            elif featset == 'v2_aux':
-                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'ANM_MSF-chain',
-                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
-                'stiffness-chain', 'BLOSUM']
-            elif featset == 'v1':
-                featset = ['wt_PSIC', 'Delta_PSIC', 'SASA', 'GNM_MSF-chain',
-                'ANM_effectiveness-chain', 'ANM_sensitivity-chain',
-                'stiffness-chain']
+            else:
+                featset == DEFAULT_FEATSETS[featset]
         assert all([f in RHAPSODY_FEATS['all'] for f in featset]), \
                'Invalid list of features'
         self.featSet = tuple(featset)
@@ -341,37 +331,6 @@ class Rhapsody:
 
 
 #############################################################################
-
-
-def pathRhapsodyFolder(folder=None):
-    """Returns or sets path of local folder where files and pickles necessary
-    to run Rhapsody will be stored. To release the current folder, pass an
-    invalid path, e.g. ``folder=''``.
-    """
-    if folder is None:
-        folder = SETTINGS.get('rhapsody_local_folder')
-        if folder:
-            if isdir(folder):
-                return folder
-            else:
-                LOGGER.warn('Local folder {} is not accessible.'
-                            .format(repr(folder)))
-    else:
-        if isdir(folder):
-            folder = abspath(folder)
-            LOGGER.info('Local Rhapsody folder is set: {}'.
-                        format(repr(folder)))
-            SETTINGS['rhapsody_local_folder'] = folder
-            SETTINGS.save()
-        else:
-            current = SETTINGS.pop('rhapsody_local_folder')
-            if current:
-                LOGGER.info('Rhapsody folder {0} is released.'
-                            .format(repr(current)))
-                SETTINGS.save()
-            else:
-                raise IOError('{} is not a valid path.'
-                              .format(repr(folder)))
 
 
 def seqScanning(Uniprot_coord):

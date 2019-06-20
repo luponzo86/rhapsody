@@ -1,6 +1,6 @@
 import numpy as np
 from glob import glob
-from os.path import abspath, isdir, splitext, join, basename
+from os.path import splitext, join, basename
 from prody import SETTINGS, LOGGER
 
 # extract precomputed EVmutation scores for given mutants
@@ -10,41 +10,10 @@ from prody import SETTINGS, LOGGER
 # positive DeltaE_epist --> neutral/benign effect
 
 
-__all__ = ['EVMUT_FEATS', 'pathEVmutationFolder', 'recoverEVmutFeatures']
+__all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
 EVMUT_FEATS = ['EVmut-DeltaE_epist', 'EVmut-DeltaE_indep',
-               'EVmut-mut_aa_freq', 'EVmut-wt_aa_cons',]
-
-
-def pathEVmutationFolder(folder=None):
-    """Returns or sets path of local folder where EVmutation data are stored.
-    To release the current folder, pass an invalid path, e.g.
-    ``folder=''``.
-    """
-    if folder is None:
-        folder = SETTINGS.get('EVmutation_local_folder')
-        if folder:
-            if isdir(folder):
-                return folder
-            else:
-                LOGGER.warn('Local folder {} is not accessible.'
-                            .format(repr(folder)))
-    else:
-        if isdir(folder):
-            folder = abspath(folder)
-            LOGGER.info('Local EVmutation folder is set: {}'.
-                        format(repr(folder)))
-            SETTINGS['EVmutation_local_folder'] = folder
-            SETTINGS.save()
-        else:
-            current = SETTINGS.pop('EVmutation_local_folder')
-            if current:
-                LOGGER.info('EVmutation folder {0} is released.'
-                            .format(repr(current)))
-                SETTINGS.save()
-            else:
-                raise IOError('{} is not a valid path.'
-                              .format(repr(folder)))
+               'EVmut-mut_aa_freq', 'EVmut-wt_aa_cons']
 
 
 def recoverEVmutFeatures(SAVs):
@@ -67,7 +36,7 @@ def recoverEVmutFeatures(SAVs):
     features[:] = np.nan
 
     # recover EVmutation data
-    EVmut_dir = pathEVmutationFolder()
+    EVmut_dir = SETTINGS.get('EVmutation_local_folder')
     if EVmut_dir is None:
         raise RuntimeError('EVmutation folder not set')
     file_list = [basename(f) for f in glob(join(EVmut_dir, '*.csv'))]
