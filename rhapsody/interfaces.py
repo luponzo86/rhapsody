@@ -14,17 +14,18 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     """Obtain Rhapsody pathogenicity predictions on a list of human missense
     variants ([ref]_)
 
-    :arg input_obj:
-    * if *input_type*=``'SAVs'`` (default), it should be a filename, a string
+    :arg input_obj: Single Amino Acid Variants (SAVs) Uniprot coordinates
+    :type input_obj: str, list
+
+    - if *input_type* = ``'SAVs'`` (default), it should be a filename, a string
       or a list/tuple of strings, containing Uniprot SAV coordinates, with the
       format ``'P17516 135 G E'``
-    * if *input_type*=``'scanning'``, it should be a string identifying a
+    - if *input_type* = ``'scanning'``, it should be a string identifying a
       Uniprot sequence (e.g. ``'P17516'``) or a specific site in a sequence
       (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at the
       specified positions on the sequence will be analyzed
-    * if *input_type*=``'PP2'``, it should be a filename containing the output
-      from PolyPhen-2, usually named :file:`pph2-full.txt`
-    :type input_obj: str, list
+    - if *input_type* = ``'PP2'``, it should be a filename containing the
+      output from PolyPhen-2, usually named :file:`pph2-full.txt`
 
     :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PP2'``
     :type input_type: str
