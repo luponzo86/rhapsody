@@ -14,7 +14,7 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     """Obtain Rhapsody pathogenicity predictions on a list of human missense
     variants ([ref]_)
 
-    :arg input_obj: Single Amino Acid Variants (SAVs) Uniprot coordinates
+    :arg input_obj: Single Amino Acid Variants (SAVs) in Uniprot coordinates
 
       - if *input_type* = ``'SAVs'`` (default), it should be a filename, a
         string or a list/tuple of strings, containing Uniprot SAV coordinates,
