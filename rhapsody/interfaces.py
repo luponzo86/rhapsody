@@ -15,48 +15,48 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     variants ([ref]_)
 
     :arg input_obj: Single Amino Acid Variants (SAVs) Uniprot coordinates
-        - if *input_type* = ``'SAVs'`` (default), it should be a filename, a string
-        or a list/tuple of strings, containing Uniprot SAV coordinates, with the
-        format ``'P17516 135 G E'``
-        - if *input_type* = ``'scanning'``, it should be a string identifying a
+
+      - if *input_type* = ``'SAVs'`` (default), it should be a filename, a
+        string or a list/tuple of strings, containing Uniprot SAV coordinates,
+        with the format ``'P17516 135 G E'``
+      - if *input_type* = ``'scanning'``, it should be a string identifying a
         Uniprot sequence (e.g. ``'P17516'``) or a specific site in a sequence
-        (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at the
-        specified positions on the sequence will be analyzed
-        - if *input_type* = ``'PP2'``, it should be a filename containing the
+        (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at
+        the specified positions on the sequence will be analyzed
+      - if *input_type* = ``'PP2'``, it should be a filename containing the
         output from PolyPhen-2, usually named :file:`pph2-full.txt`
     :type input_obj: str, list
-
 
     :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PP2'``
     :type input_type: str
 
     :arg custom_PDB: a PDBID, a filename or an :class:`Atomic` to be used
-    for computing structural and dynamical features, instead of the PDB
-    structure automatically selected by the program
+      for computing structural and dynamical features, instead of the PDB
+      structure automatically selected by the program
     :type custom_PDB: str, :class:`AtomGroup`
 
     :arg input_type: force a specific environment model for GNM/ANM
-    calculations, among ``'chain'``, ``'reduced'`` and ``'PP2'``. If **None**
-    (default), the model of individual dynamical features will match that found
-    in the classifier's feature set
+      calculations, among ``'chain'``, ``'reduced'`` and ``'PP2'``. If **None**
+      (default), the model of individual dynamical features will match that
+      found in the classifier's feature set
     :type input_type: str
 
     :arg main_classifier: main classifier's filename. If **None**, the default
-    *full* Rhapsody classifier will be used
+      *full* Rhapsody classifier will be used
     :type main_classifier: str
 
     :arg aux_classifier: auxiliary classifier's filename. If both
-    *main_classifier* and *aux_classifier* are **None**, the default
-    *reduced* Rhapsody classifier will be used
+      *main_classifier* and *aux_classifier* are **None**, the default
+      *reduced* Rhapsody classifier will be used
     :type aux_classifier: str
 
     :arg log: if **True**, log messages will be saved in
-    :file:`rhapsody-log.txt`
+      :file:`rhapsody-log.txt`
     :type log: str
 
     .. [ref] Ponzoni L, Bahar I. Structural dynamics is a determinant of
-    the functional significance of missense variants. *PNAS* **2018**
-    115 (16) 4164-4169.
+      the functional significance of missense variants. *PNAS* **2018**
+      115 (16) 4164-4169.
     """
     assert input_type in ('SAVs', 'scanning', 'PP2')
 
