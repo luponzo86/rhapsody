@@ -13,6 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+import sphinx_bootstrap_theme
 
 
 # -- Project information -----------------------------------------------------
@@ -46,27 +47,29 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**tar.gz**']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_bootstrap_theme'
-# others: 'alabaster', 'pyramid', 'nature', 'sphinx_rtd_theme'
+html_theme = 'bootstrap'
+html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+# others: 'alabaster', 'pyramid', 'nature'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_theme_options = {
-    'canonical_url': '',
-    # 'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
-    'logo_only': False,
-    'display_version': False,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': '#b7270b',
-    # Toc options
-    'collapse_navigation': False,
-    'sticky_navigation': False,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False
-}
+# html_theme = 'sphinx_rtd_theme'
+# html_theme_options = {
+#     'canonical_url': '',
+#     # 'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
+#     'logo_only': False,
+#     'display_version': False,
+#     'prev_next_buttons_location': 'bottom',
+#     'style_external_links': False,
+#     'vcs_pageview_mode': '',
+#     'style_nav_header_background': '#b7270b',
+#     # Toc options
+#     'collapse_navigation': False,
+#     'sticky_navigation': False,
+#     'navigation_depth': 4,
+#     'includehidden': True,
+#     'titles_only': False
+# }
