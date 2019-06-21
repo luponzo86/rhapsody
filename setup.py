@@ -21,8 +21,7 @@ setup(
                       'biopython', 'pyparsing', 'prody'],
     extras_require={
         'docs': ['sphinx >= 1.4', 'sphinx_rtd_theme']
-    }
-
+    },
     description="""Python program, based on ProDy, for pathogenicity prediction
     of human missense variants.""",
     long_description=long_description,
