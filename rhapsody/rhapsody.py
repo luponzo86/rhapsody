@@ -71,7 +71,10 @@ class Rhapsody:
         self.mixPreds       = None
 
     def setSAVs(self):
-        pass  # TO DO
+        # TO DO:
+        # self.data = np.ma.masked_all(nSAVs, dtype=self.data_dtype) ...
+        # self.data['SAV coords'] = SAVs ...
+        pass
 
     def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
         assert self.PP2output is None, "PolyPhen-2's output already imported."
