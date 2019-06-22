@@ -18,6 +18,7 @@ class Rhapsody:
     compare results from other prediction tools, namely PolyPhen-2 and
     EVmutation.
     """
+
     def __init__(self):
 
         # masked NumPy array that will contain all info abut SAVs
@@ -72,31 +73,6 @@ class Rhapsody:
         self.auxPreds       = None
         # original and auxiliary predictions combined
         self.mixPreds       = None
-
-
-    def importClassifier(self, classifier, force_env=None):
-        assert self.classifier is None, 'Classifier already set.'
-        assert isfile(classifier), 'Please provide a valid filename.'
-        assert force_env in [None, 'chain', 'reduced', 'sliced']
-        clsf_dict = pickle.load(open(classifier, 'rb'))
-        self.classifier = classifier
-        featset = clsf_dict['features']
-        LOGGER.info(f"Imported feature set: '{featset[0]}'")
-        for f in featset[1:]:
-            LOGGER.info(' '*22 + f"'{f}'")
-        if force_env is not None:
-            # force a given ENM environment model
-            for i, f in enumerate(featset):
-                if f in RHAPSODY_FEATS['PDB'] and \
-                   (f.startswith('ANM') or f.startswith('GNM')):
-                    old_env = f.split('-')[-1]
-                    featset[i] = f.replace(old_env, force_env)
-            LOGGER.info(f"Modified feature set: '{featset[0]}'")
-            for f in featset[1:]:
-                LOGGER.info(' '*22 + f"'{f}'")
-        self.setFeatSet(featset)
-        self.CVsummary = clsf_dict['CV summary']
-        del clsf_dict
 
     def setCustomPDB(self, custom_PDB):
         if self.featSet is not None:
@@ -184,12 +160,12 @@ class Rhapsody:
                             'Uniprot coords         '
                             'PDB/ch/res/aa/size \n')
                 for s in self.data:
-                    orig_SAV = f'{s['SAV coords']},'
-                    U_coords = f'{s['unique SAV coords']},'
+                    orig_SAV = s['SAV coords'] + ','
+                    U_coords = s['unique SAV coords'] + ','
                     if s['PDB size'] == 0:
-                        PDB_coords = f'{s['PDB SAV coords']}'
+                        PDB_coords = s['PDB SAV coords']
                     else:
-                        PDB_coords = f'{s['PDB SAV coords']} {s['PDB size']}'
+                        PDB_coords = s['PDB SAV coords'] + ' ' + s['PDB size']
                     f.write(f'{orig_SAV:<22} {U_coords:<22} {PDB_coords:<}\n')
         return self.data[['SAV coords', 'unique SAV coords',
                           'PDB SAV coords', 'PDB size']]
@@ -262,6 +238,30 @@ class Rhapsody:
         for i, f in enumerate(self.featSet):
             trainData[f] = self.featMatrix[:, i]
         return trainData
+
+    def importClassifier(self, classifier, force_env=None):
+        assert self.classifier is None, 'Classifier already set.'
+        assert isfile(classifier), 'Please provide a valid filename.'
+        assert force_env in [None, 'chain', 'reduced', 'sliced']
+        clsf_dict = pickle.load(open(classifier, 'rb'))
+        self.classifier = classifier
+        featset = clsf_dict['features']
+        LOGGER.info(f"Imported feature set: '{featset[0]}'")
+        for f in featset[1:]:
+            LOGGER.info(' '*22 + f"'{f}'")
+        if force_env is not None:
+            # force a given ENM environment model
+            for i, f in enumerate(featset):
+                if f in RHAPSODY_FEATS['PDB'] and (f.startswith('ANM')
+                                                   or f.startswith('GNM')):
+                    old_env = f.split('-')[-1]
+                    featset[i] = f.replace(old_env, force_env)
+            LOGGER.info(f"Modified feature set: '{featset[0]}'")
+            for f in featset[1:]:
+                LOGGER.info(' '*22 + f"'{f}'")
+        self.setFeatSet(featset)
+        self.CVsummary = clsf_dict['CV summary']
+        del clsf_dict
 
     def calcPredictions(self):
         assert self.predictions is None, 'Predictions already computed.'
@@ -510,7 +510,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
 
     # define a structured array for storing predictions
     pred_dtype = np.dtype([('score', 'f'),
-                           ('path. probability' , 'f'),
+                           ('path. probability', 'f'),
                            ('path. class', 'U12'),
                            ('training info', 'U12')])
     predictions = np.zeros(len(feat_matrix), dtype=pred_dtype)
@@ -562,7 +562,6 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
             # store values
             predictions[i] = (score, path_prob, path_class, SAV_status)
             k = k + 1
-    LOGGER.report('{} predictions computed in %.1fs.'.format(n_pred),
-                  '_preds')
+    LOGGER.report(f'{n_pred} predictions computed in %.1fs.', '_preds')
 
     return predictions
