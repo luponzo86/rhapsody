@@ -161,8 +161,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     filename = os.path.splitext(filename)[0]
 
     # make sure that all variants belong to the same Uniprot sequence
-    s = rhapsody_obj.SAVcoords['acc']
-    if len(set(s)) != 1:
+    accs = [s.split()[0] for s in rhapsody_obj.data['SAV coords']]
+    if len(set(accs)) != 1:
         m = 'Only variants from a single Uniprot sequence can be accepted'
         raise ValueError(m)
 
@@ -178,8 +178,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         p_mix = rhapsody_obj.mixPreds['path. probability']
 
     # select an appropriate interval, based on available predictions
-    res_min = np.min(rhapsody_obj.SAVcoords['pos'])
-    res_max = np.max(rhapsody_obj.SAVcoords['pos'])
+    seq_pos = [int(s.split()[1]) for s in rhapsody_obj.data['SAV coords']]
+    res_min = np.min(seq_pos)
+    res_max = np.max(seq_pos)
     upper_lim = res_max + min_interval_size
 
     # create empty (20 x num_res) mutagenesis tables
@@ -199,9 +200,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # 'nan': no prediction/wt
     aa_list = 'ACDEFGHIKLMNPQRSTVWY'
     aa_map = {aa: i for i, aa in enumerate(aa_list)}
-    for i, SAV in enumerate(rhapsody_obj.SAVcoords):
-        aa_mut = SAV['aa_mut']
-        index = SAV['pos']-1
+    for i, SAV in enumerate(rhapsody_obj.data['SAV coords']):
+        aa_mut = SAV.split()[3]
+        index = int(SAV.split()[1]) - 1
         table_full[aa_map[aa_mut], index] = p_full[i]
         if aux_preds_found:
             table_mix[aa_map[aa_mut], index] = p_mix[i]
@@ -235,11 +236,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     upper_strip[:] = 'nan'
     PDB_sizes = np.zeros(upper_lim, dtype=int)
     PDB_coords = ['']*upper_lim
-    for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
-        index = a['pos'] - 1
-        if b['PDB size'] != 0:
-            PDB_length = int(b['PDB size'])
-            PDBID_chain = ':'.join(b['PDB SAV coords'][0].split()[:2])
+    for s in rhapsody_obj.data:
+        index = int(s['SAV coords'].split()[1]) - 1
+        if s['PDB size'] != 0:
+            PDB_length = int(s['PDB size'])
+            PDBID_chain = ':'.join(s['PDB SAV coords'][0].split()[:2])
             upper_strip[0, index] = PDB_length
             PDB_sizes[index] = PDB_length
             PDB_coords[index] = PDBID_chain
@@ -403,10 +404,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         for k in ['strip', 'table', 'bplot']:
             n_cols = 20 if k == 'table' else 1
             info[k] = [['']*nres_shown for i in range(n_cols)]
-        for i, SAV in enumerate(rhapsody_obj.SAVcoords):
-            resid = SAV['pos']
-            aa_wt = SAV['aa_wt']
-            aa_mut = SAV['aa_mut']
+        for i, SAV in enumerate(rhapsody_obj.data['SAV coords']):
+            acc, resid, aa_wt, aa_mut = SAV.split()
+            resid = int(resid)
             # consider only residues shown in figure
             if not (res_i <= resid <= res_f):
                 continue

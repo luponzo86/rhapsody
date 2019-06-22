@@ -43,8 +43,9 @@ def recoverEVmutFeatures(SAVs):
     if not file_list:
         raise RuntimeError('EVmutation folder does not contain any .csv files')
     for i, SAV in enumerate(SAVs):
-        acc, pos, wt_aa, mut_aa, SAV_txt = SAV
-#       LOGGER.info('Recovering EVmutation data for {}.'.format(SAV_txt))
+        acc, pos, wt_aa, mut_aa = SAV.split()
+        pos = int(pos)
+#       LOGGER.info('Recovering EVmutation data for {}.'.format(SAV))
         # find files containing given SAV coordinates
         match_files = find_matching_files(file_list, acc, pos)
         # recover data and average them if multiple values are found
@@ -59,7 +60,7 @@ def recoverEVmutFeatures(SAVs):
                         break
         data = np.array(data, dtype=float)
         if len(data) == 0:
-#           LOGGER.warn(f"EVmutation data not found for '{SAV_txt}'")
+#           LOGGER.warn(f"EVmutation data not found for '{SAV}'")
             continue
         else:
             features[i] = tuple(np.mean(data, axis=0))

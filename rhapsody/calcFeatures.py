@@ -38,7 +38,7 @@ def calcPP2features(PP2output):
 
 
 def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
-    LOGGER.info('Computing structural and dynamical features ' + \
+    LOGGER.info('Computing structural and dynamical features '
                 'from PDB structures...')
     LOGGER.timeit('_calcPDBFeats')
     if sel_feats is None:
@@ -51,7 +51,7 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
     if custom_PDB is None:
         # sort SAVs, so to group together those
         # belonging to the same PDB
-        PDBID_list = [r[2][:4] if r[3]!=0 else '' for r in mapped_SAVs]
+        PDBID_list = [r[2][:4] if r[3] != 0 else '' for r in mapped_SAVs]
         sorting_map = np.argsort(PDBID_list)
     else:
         # no need to sort when using a custom PDB or PDBID
@@ -63,8 +63,7 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
         if SAV['PDB size'] == 0:
             # SAV could not be mapped to PDB
             _features = np.nan
-#           LOGGER.info("[{}/{}] Skipping SAV with no PDB info..."
-#                       .format(count, num_SAVs))
+#           LOGGER.info(f"[{count}/{num_SAVs}] Skipped SAV with no PDB info")
         else:
             parsed_PDB_coords = SAV['PDB SAV coords'].split()
             PDBID, chID = parsed_PDB_coords[:2]
@@ -72,7 +71,7 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
             LOGGER.info("[{}/{}] Analizing mutation site {}:{} {}..."
                         .format(count, num_SAVs, PDBID, chID, resid))
             # chID == "?" stands for "empty space"
-            chID = " " if chID=="?" else chID
+            chID = " " if chID == "?" else chID
             if PDBID == cache['PDBID']:
                 # use PDBfeatures instance from previous iteration
                 obj = cache['obj']
@@ -111,7 +110,8 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
         # store computed features
         features[indx] = _features
         # in the final iteration of the loop, save last pickle
-        if count == num_SAVs and cache['obj'] is not None and custom_PDB is None:
+        if count == num_SAVs and cache['obj'] is not None \
+           and custom_PDB is None:
             cache['obj'].savePickle()
     LOGGER.report('PDB features have been computed in %.1fs.', '_calcPDBFeats')
     return features
@@ -147,7 +147,8 @@ def calcPfamFeatures(SAVs):
     LOGGER.timeit('_calcPfamFeats')
     # sort SAVs, so to group together those
     # with identical accession number
-    sorting_map = np.argsort(SAVs['acc'])
+    accs = [s.split()[0] for s in SAVs]
+    sorting_map = np.argsort(accs)
     # define a structured array for features computed from Pfam
     num_SAVs = len(SAVs)
     feat_dtype = np.dtype([('entropy', 'f'), ('ranked_MI', 'f')])
@@ -157,9 +158,9 @@ def calcPfamFeatures(SAVs):
     count = 0
     for indx, SAV in [(i, SAVs[i]) for i in sorting_map]:
         count += 1
-        acc, pos, aa1, aa2, SAV_txt = SAV
-        LOGGER.info("[{}/{}] Mapping SAV '{}' to Pfam..."
-                    .format(count, num_SAVs, SAV_txt))
+        acc, pos, aa1, aa2 = SAV.split()
+        pos = int(pos)
+        LOGGER.info(f"[{count}/{num_SAVs}] Mapping SAV '{SAV}' to Pfam...")
         # map to Pfam domains using 'UniprotMapping' class
         if acc == cache['acc']:
             # use object from previous iteration
@@ -212,8 +213,8 @@ def calcBLOSUMfeatures(SAV_coords):
     feat_dtype = np.dtype([('BLOSUM', 'f')])
     features = np.zeros(len(SAV_coords), dtype=feat_dtype)
     for i, SAV in enumerate(SAV_coords):
-        aa1 = SAV['aa_wt']
-        aa2 = SAV['aa_mut']
+        aa1 = SAV.split()[2]
+        aa2 = SAV.split()[3]
         features[i] = blosum62.get((aa1, aa2), blosum62.get((aa2, aa1)))
     return features
 
