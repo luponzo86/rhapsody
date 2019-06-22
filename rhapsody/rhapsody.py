@@ -137,7 +137,8 @@ class Rhapsody:
         assert self.data is None, 'SAVs already set.'
         self.PP2output = parsePP2output(PP2output)
         # store SAV coords
-        self.data = np.ma.masked_all(len(PP2output), dtype=self.data_dtype)
+        nSAVs = len(self.PP2output)
+        self.data = np.ma.masked_all(nSAVs, dtype=self.data_dtype)
         self.data['SAV coords'] = getSAVcoords(self.PP2output)['text']
         return self.PP2output
 
