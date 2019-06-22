@@ -72,8 +72,8 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     # initialize object that will contain all results and predictions
     r = Rhapsody()
 
-    # import classifier and feature set from pickle
-    r.importClassifier(main_classifier, force_env=force_env)
+    # import classifiers and feature set from pickle
+    r.importClassifiers(main_classifier, aux_classifier, force_env=force_env)
 
     # import custom PDB structure
     if custom_PDB is not None:

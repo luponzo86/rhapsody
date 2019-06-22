@@ -20,7 +20,6 @@ class Rhapsody:
     """
 
     def __init__(self):
-
         # masked NumPy array that will contain all info abut SAVs
         self.data = None
         self.data_dtype = np.dtype([
@@ -53,19 +52,16 @@ class Rhapsody:
             ('EVmutation score', 'f4'),
             ('EVmutation path. class', 'U12')
         ])
-
-        # filename of the classifier pickle
-        self.classifier = None
-        # tuple of feature names
-        self.featSet = None
-        # dictionary of properties of the trained classifier
-        self.CVsummary = None
-        # custom PDB structure used for PDB features calculation
-        self.customPDB = None
         # structured array containing parsed PolyPhen-2 output
         self.PP2output = None
-        # numpy array (num_SAVs)x(num_features)
+        # custom PDB structure used for PDB features calculation
+        self.customPDB = None
+        # NumPy array (num_SAVs)x(num_features)
         self.featMatrix = None
+        # classifiers and main feature set
+        self.classifier = None
+        self.aux_classifier = None
+        self.featSet = None
 
         # structured array containing predictions
         self.predictions    = None
@@ -74,39 +70,8 @@ class Rhapsody:
         # original and auxiliary predictions combined
         self.mixPreds       = None
 
-    def setCustomPDB(self, custom_PDB):
-        if self.featSet is not None:
-            if not RHAPSODY_FEATS['PDB'].intersection(self.featSet):
-                LOGGER.warn('The given feature set does not require '
-                            'a PDB structure.')
-                return
-        assert self.customPDB is None, 'Custom PDB structure already set.'
-        assert isinstance(custom_PDB, (str, Atomic)), \
-               'Please provide a PDBID, a filename or an Atomic instance.'
-        self.customPDB = custom_PDB
-
-    def setFeatSet(self, featset):
-        assert self.featSet is None, 'Feature set already set.'
-        if isinstance(featset, str):
-            assert featset in ['all', 'full', 'reduced', 'EVmut']
-            if featset == 'all':
-                featset = sorted(list(RHAPSODY_FEATS['all']))
-            else:
-                featset == DEFAULT_FEATSETS[featset]
-        assert all([f in RHAPSODY_FEATS['all'] for f in featset]), \
-               'Invalid list of features'
-        self.featSet = tuple(featset)
-
-    def setTrueLabels(self, true_label_dict):
-        # NB: PolyPhen-2 may reshuffle or discard entries, that's why it is
-        # better to ask for a dictionary...
-        assert self.data is not None, 'SAVs not set.'
-        assert set(self.data['SAV coords']).issubset(
-                   set(true_label_dict.keys())), 'Some labels are missing.'
-        assert set(true_label_dict.values()).issubset(
-                   {-1, 0, 1}), 'Invalid labels.'
-        true_labels = [true_label_dict[s] for s in self.data['SAV coords']]
-        self.data['true labels'] = tuple(true_labels)
+    def setSAVs(self):
+        pass  # TO DO
 
     def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
         assert self.PP2output is None, "PolyPhen-2's output already imported."
@@ -141,6 +106,42 @@ class Rhapsody:
         self.data = np.ma.masked_all(nSAVs, dtype=self.data_dtype)
         self.data['SAV coords'] = getSAVcoords(self.PP2output)['text']
         return self.PP2output
+
+    def setFeatSet(self, featset):
+        assert self.featSet is None, 'Feature set already set.'
+        if isinstance(featset, str):
+            assert featset in ['all', 'full', 'reduced', 'EVmut']
+            if featset == 'all':
+                featset = sorted(list(RHAPSODY_FEATS['all']))
+            else:
+                featset == DEFAULT_FEATSETS[featset]
+        if any([f not in RHAPSODY_FEATS['all'] for f in featset]):
+            raise RuntimeError('Invalid list of features.')
+        if len(set(featset)) != len(featset):
+            raise RuntimeError('Duplicate features in feature set.')
+        self.featSet = tuple(featset)
+
+    def setCustomPDB(self, custom_PDB):
+        if self.featSet is not None:
+            if not RHAPSODY_FEATS['PDB'].intersection(self.featSet):
+                LOGGER.warn('The given feature set does not require '
+                            'a PDB structure.')
+                return
+        assert self.customPDB is None, 'Custom PDB structure already set.'
+        assert isinstance(custom_PDB, (str, Atomic)), \
+               'Please provide a PDBID, a filename or an Atomic instance.'
+        self.customPDB = custom_PDB
+
+    def setTrueLabels(self, true_label_dict):
+        # NB: PolyPhen-2 may reshuffle or discard entries, that's why it is
+        # better to ask for a dictionary...
+        assert self.data is not None, 'SAVs not set.'
+        assert set(self.data['SAV coords']).issubset(
+                   set(true_label_dict.keys())), 'Some labels are missing.'
+        assert set(true_label_dict.values()).issubset(
+                   {-1, 0, 1}), 'Invalid labels.'
+        true_labels = [true_label_dict[s] for s in self.data['SAV coords']]
+        self.data['true labels'] = tuple(true_labels)
 
     def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt',
                           header=True):
@@ -242,37 +243,82 @@ class Rhapsody:
             trainData[f] = self.featMatrix[:, i]
         return trainData
 
-    def importClassifier(self, classifier, force_env=None):
-        assert self.classifier is None, 'Classifier already set.'
-        assert isfile(classifier), 'Please provide a valid filename.'
+    def importClassifiers(self, classifier, aux_classifier=None,
+                          force_env=None):
+        assert self.classifier is None, 'Classifiers already set.'
         assert force_env in [None, 'chain', 'reduced', 'sliced']
-        clsf_dict = pickle.load(open(classifier, 'rb'))
-        self.classifier = classifier
-        featset = clsf_dict['features']
-        LOGGER.info(f"Imported feature set: '{featset[0]}'")
-        for f in featset[1:]:
-            LOGGER.info(' '*22 + f"'{f}'")
-        if force_env is not None:
+        # import main classifier
+        p = pickle.load(open(classifier, 'rb'))
+        featset = p['features']
+        main_clsf = {
+            'path': classifier,
+            'CV summary': p['CV summary'],
+            'featset': p['features']
+        }
+        if force_env:
             # force a given ENM environment model
-            for i, f in enumerate(featset):
-                if f in RHAPSODY_FEATS['PDB'] and (f.startswith('ANM')
-                                                   or f.startswith('GNM')):
-                    old_env = f.split('-')[-1]
-                    featset[i] = f.replace(old_env, force_env)
-            LOGGER.info(f"Modified feature set: '{featset[0]}'")
-            for f in featset[1:]:
-                LOGGER.info(' '*22 + f"'{f}'")
+            featset = self._replaceEnvModel(featset, force_env)
+            main_clsf['mod. featset'] = featset
+        # import auxiliary classifier
+        if aux_classifier is None:
+            aux_clsf = None
+            aux_featset = []
+        else:
+            p = pickle.load(open(aux_classifier, 'rb'))
+            aux_featset = p['features']
+            aux_clsf = {
+                'path': aux_classifier,
+                'CV summary': p['CV summary'],
+                'featset': p['features']
+            }
+            if any(f not in main_clsf['featset'] for f in aux_clsf['featset']):
+                raise ValueError('The auxiliary feature set must be a '
+                                 'subset of the main one.')
+            if force_env:
+                # force a given ENM environment model
+                aux_featset = self._replaceEnvModel(aux_featset, force_env)
+                aux_clsf['mod. featset'] = aux_featset
+        # print featset
+        LOGGER.info('Imported feature set:')
+        for i, f in enumerate(featset):
+            note1 = ''
+            note2 = ''
+            if f != main_clsf['featset'][i]:
+                original_env = main_clsf['featset'][i].split('-')[-1]
+                note1 = f"(originally '-{original_env}')"
+            if f in aux_featset:
+                note2 = '(*)' if f in aux_clsf['featset'] else ''
+            notes = ' '.join([note1, note2])
+            LOGGER.info(f"  '{f}' {notes}")
+        if aux_clsf:
+            LOGGER.info("(*) auxiliary classifier's feature set")
+        # store classifiers and main feature set
+        self.classifier = main_clsf
+        self.aux_classifier = aux_clsf
         self.setFeatSet(featset)
-        self.CVsummary = clsf_dict['CV summary']
-        del clsf_dict
+
+    def _replaceEnvModel(self, featset, new_env):
+        ENMfeats = [f for f in RHAPSODY_FEATS['PDB'] if
+                    f.startswith('GNM') or f.startswith('ANM')]
+        new_env = '-' + new_env
+        for i, f in enumerate(featset):
+            if f in ENMfeats:
+                old_env = '-' + f.split('-')[-1]
+                featset[i] = f.replace(old_env, new_env)
+        return featset
 
     def calcPredictions(self):
         assert self.predictions is None, 'Predictions already computed.'
         assert self.classifier is not None, 'Classifier not set.'
         assert self.featMatrix is not None, 'Features not computed.'
-        p = calcPredictions(self.featMatrix, self.classifier,
+        # compute main predictions
+        p = calcPredictions(self.featMatrix, self.classifier['path'],
                             SAV_coords=self.data['SAV coords'])
         self.predictions = p
+        # compute auxiliary predictions, if needed
+        ############################
+        ####  TO DO  ###############
+        ############################
         return self.predictions
 
     def calcAuxPredictions(self, aux_clsf, force_env=None):
@@ -404,7 +450,7 @@ def seqScanning(Uniprot_coord):
 
 def printSAVlist(input_SAVs, filename):
     if isinstance(input_SAVs, str):
-        input_SAVs = [input_SAVs,]
+        input_SAVs = [input_SAVs]
     with open(filename, 'w', 1) as f:
         for i, line in enumerate(input_SAVs):
             m = f'error in SAV {i}: '
