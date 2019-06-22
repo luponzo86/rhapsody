@@ -163,10 +163,12 @@ class Rhapsody:
                 for s in self.data:
                     orig_SAV = s['SAV coords'] + ','
                     U_coords = s['unique SAV coords'] + ','
-                    if s['PDB size'] == 0:
-                        PDB_coords = s['PDB SAV coords']
+                    if s['PDB size'] != 0:
+                        PDB_coords = (s['PDB SAV coords'] + ' '
+                                      + str(s['PDB size']))
                     else:
-                        PDB_coords = s['PDB SAV coords'] + ' ' + s['PDB size']
+                        # print error message
+                        PDB_coords = s['PDB SAV coords']
                     f.write(f'{orig_SAV:<22} {U_coords:<22} {PDB_coords:<}\n')
         return self.data[['SAV coords', 'unique SAV coords',
                           'PDB SAV coords', 'PDB size']]
