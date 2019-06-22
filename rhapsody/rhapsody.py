@@ -45,6 +45,9 @@ class Rhapsody:
         self.auxPreds       = None
         # original and auxiliary predictions combined
         self.mixPreds       = None
+        # structured array containing predictions from main and aux
+        # classifier, PolyPhen-2 and EVmutation predictions, and other info
+        self.predictionX = None
         # tuple of true labels (needed only when exporting data for training)
         self.trueLabels     = None
 
@@ -157,8 +160,8 @@ class Rhapsody:
                 if header:
                     f.write(h)
                 for row in self.Uniprot2PDBmap:
-                    orig_SAV   = f'{row[0]},'
-                    U_coords   = f'{row[1]},'
+                    orig_SAV = f'{row[0]},'
+                    U_coords = f'{row[1]},'
                     if row['PDB size'] == 0:
                         PDB_coords = f'{row[2]}'
                     else:

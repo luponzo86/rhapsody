@@ -16,7 +16,7 @@ def calcMetrics(y_test, y_pred):
     fpr, tpr, roc_thr = roc_curve(y_test, y_pred)
     auroc = roc_auc_score(y_test, y_pred)
     # compute optimal cutoff J (argmax of Youden's index)
-    diff = np.array([y-x for x,y in zip(fpr, tpr)])
+    diff = np.array([y-x for x, y in zip(fpr, tpr)])
     J_opt = roc_thr[(-diff).argsort()][0]
     # compute Precision-Recall curve and AUPRC
     pre, rec, prc_thr = precision_recall_curve(y_test, y_pred)
@@ -24,12 +24,13 @@ def calcMetrics(y_test, y_pred):
     return {'FPR': fpr, 'TPR': tpr, 'ROC_thresholds': roc_thr,
             'AUROC': auroc, 'optimal cutoff': J_opt,
             'precision': pre, 'recall': rec, 'PRC_thresholds': prc_thr,
-            'AUPRC': auprc }
+            'AUPRC': auprc}
 
 
 def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
-    ppred_reliability_cutoff=200, pred_distrib_fig='predictions_distribution.png',
-    path_prob_fig='pathogenicity_prob.png', **kwargs):
+                           ppred_reliability_cutoff=200,
+                           pred_distrib_fig='predictions_distribution.png',
+                           path_prob_fig='pathogenicity_prob.png', **kwargs):
     '''Compute pathogenicity probabilities,
     from predictions on CV test sets
     '''

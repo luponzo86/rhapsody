@@ -2,7 +2,7 @@ import numpy as np
 import os
 import warnings
 from string import Template
-from prody import LOGGER
+from prody import LOGGER, SETTINGS
 from .rhapsody import Rhapsody
 
 __all__ = ['print_pred_distrib_figure', 'print_path_prob_figure',
@@ -58,10 +58,10 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
 
     figure = plt.figure(figsize=(7, 7))
     s = np.sum(histo, axis=0)
-    v1 = np.where(s>=cutoff, path_prob, 0)
-    v2 = np.where(s< cutoff, path_prob, 0)
-    v3 = np.where(s>=cutoff, smooth_path_prob, 0.)
-    plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1  )
+    v1 = np.where(s >= cutoff, path_prob, 0)
+    v2 = np.where(s < cutoff, path_prob, 0)
+    v3 = np.where(s >= cutoff, smooth_path_prob, 0.)
+    plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1)
     plt.bar(bins[:-1], v2, width=dx, align='edge', color='red', alpha=0.7)
     plt.plot(bins[:-1]+dx/2, v3, color='orange')
     plt.ylabel('pathogenicity prob.')
@@ -86,7 +86,7 @@ def print_ROC_figure(filename, fpr, tpr, mean_auc):
     fig = plt.figure(figsize=(7, 7))
     plt.plot([0, 1], [0, 1], linestyle='--', lw=1, color='k')
     plt.plot(fpr, tpr,       linestyle='-',  lw=2, color='r',
-             label = f'Mean AUROC = {mean_auc:.3f}')
+             label=f'Mean AUROC = {mean_auc:.3f}')
     plt.xlim([-0.05, 1.05])
     plt.ylim([-0.05, 1.05])
     plt.xlabel('False Positive Rate')
@@ -135,8 +135,8 @@ def adjust_res_interval(res_interval, upper_lim, min_size=10):
 
 
 def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
-                             min_interval_size=15, extra_plot=None, html=False,
-                             PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
+                             min_interval_size=15, html=False,
+                             PP2=True, EVmutation=True, extra_plot=None,
                              fig_height=8, fig_width=None, dpi=300):
 
     # check inputs
@@ -211,7 +211,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             s = float(rhapsody_obj.PP2output['pph2_prob'][i])
             table_PP2[aa_map[aa_mut], index] = s
         if EVmutation:
-            s = rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
+            s = -rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
+            EVmut_cutoff = SETTINGS.get('EVmutation_metrics')['optimal cutoff']
             table_EVmut[aa_map[aa_mut], index] = s/EVmut_cutoff*0.5
 
     # compute average pathogenicity profiles
@@ -305,7 +306,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
     ax1.set_yticklabels(aa_list, ha='center', position=(-pad, 0), fontsize=14)
-    ax1.set_xticks(np.arange(5-res_i%5, res_f-res_i+1, 5))
+    ax1.set_xticks(np.arange(5-res_i % 5, res_f-res_i+1, 5))
     ax1.set_xticklabels([])
     ax1.set_ylabel('pathog. probability', labelpad=10)
 
@@ -359,8 +360,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         # tight bbox as used by fig.savefig()
         html_data["tight_bbox"] = fig.get_tightbbox(fig.canvas.get_renderer())
         # compute new origin and height, based on tight box and padding
-        html_data["new_orig"]   = html_data["tight_bbox"].min - tight_padding
-        html_data["new_height"] = html_data["tight_bbox"].height + 2*tight_padding
+        html_data["new_orig"] = html_data["tight_bbox"].min - tight_padding
+        html_data["new_height"] = (html_data["tight_bbox"].height
+                                   + 2*tight_padding)
 
         def get_area_coords(ax, d):
             assert ax_type in ("strip", "table", "bplot")
@@ -371,7 +373,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             # adjust bbox coordinates based on tight bbox
             b_adj = b_inch - d["new_orig"]
             # use html reference system (y = 1 - y)
-            b_html = b_adj*np.array([1,-1]) + np.array([0, d["new_height"]])
+            b_html = b_adj*np.array([1, -1]) + np.array([0, d["new_height"]])
             # convert to pixels
             b_px = (d["dpi"]*b_html).astype(int)
             # put in html format
@@ -381,8 +383,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
         # html templates
         area_html = Template(
-        '<area shape="rect" coords="$coords" ' + \
-        'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
+            '<area shape="rect" coords="$coords" '
+            'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
         )
 
         # write html
@@ -399,7 +401,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         # populate info table that will be passed as a javascript variable
         info = {}
         for k in ['strip', 'table', 'bplot']:
-            n_cols = 20 if k=='table' else 1
+            n_cols = 20 if k == 'table' else 1
             info[k] = [['']*nres_shown for i in range(n_cols)]
         for i, SAV in enumerate(rhapsody_obj.SAVcoords):
             resid = SAV['pos']
@@ -425,12 +427,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             if extra_plot is not None:
                 others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
             if PP2:
-                others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
+                others['PP2'] = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
             if EVmutation:
                 others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for table
             m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
-            for k,t in others.items():
+            for k, t in others.items():
                 m += f', {k}={t[0]:<4.2f}'
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
@@ -441,7 +443,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             info['strip'][0][ts_j] = m
             # compose message for bottom plot
             m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
-            for k,t in others.items():
+            for k, t in others.items():
                 m += f', {k}={t[1]:<4.2f}'
             info['bplot'][0][ts_j] = m
 
@@ -456,11 +458,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             return text
 
         area_js = Template(
-        '{{map_data}}["{{map_id}}_$areaid"] = { \n' + \
-        '  "num_rows": $num_rows, \n' + \
-        '  "num_cols": $num_cols, \n' + \
-        '  "info_msg": $info_msg, \n' + \
-        '}; \n'
+            '{{map_data}}["{{map_id}}_$areaid"] = { \n'
+            '  "num_rows": $num_rows, \n'
+            '  "num_cols": $num_cols, \n'
+            '  "info_msg": $info_msg, \n'
+            '}; \n'
         )
 
         # dump info in javascript format
@@ -468,7 +470,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             f.write('var {{map_data}} = {{map_data}} || {}; \n')
             for ax_type, d in info.items():
                 vars = {'areaid': ax_type}
-                vars['num_rows'] = 20 if ax_type=='table' else 1
+                vars['num_rows'] = 20 if ax_type == 'table' else 1
                 vars['num_cols'] = nres_shown
                 vars['info_msg'] = create_info_msg(ax_type, d)
                 f.write(area_js.substitute(vars))

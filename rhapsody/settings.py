@@ -12,7 +12,8 @@ import numpy as np
 import prody as pd
 import rhapsody as rd
 
-__all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers']
+__all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
+           'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME')
 DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
@@ -83,6 +84,7 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
 
     # check for pre-existing folder containing trained classifiers
     folder = os.path.join(working_dir, DEFAULT_CLSF_DIR)
+    training_dataset = None
     if os.path.isdir(folder) and not refresh:
         pd.LOGGER.info(f'Pre-existing classifiers found: {folder}')
         # check for missing classifiers
@@ -97,6 +99,8 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             shutil.rmtree(folder)
         os.mkdir(folder)
         pd.LOGGER.info(f'Classifiers folder created: {folder}')
+        # delete EVmutation metrics as well, that must be updated
+        pd.SETTINGS.pop('EVmutation_metrics')
         # import training dataset included with package
         tar = tarfile.open(PACKAGE_DATA, "r:gz")
         tar.extractall(path=working_dir)
@@ -122,6 +126,32 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             pd.LOGGER.close(logfile)
         pd.LOGGER.info('')
 
+    # check EVmutation metrics
+    metrics = pd.SETTINGS.get('EVmutation_metrics', default={})
+    if 'AUROC' in metrics:
+        pd.LOGGER.info(f'Pre-existing EVmutation metrics found.')
+    else:
+        # compute EVmutation metrics from included training dataset
+        if training_dataset is None:
+            tar = tarfile.open(PACKAGE_DATA, "r:gz")
+            tar.extractall(path=working_dir)
+            tar.close()
+            fname = os.path.join(working_dir, TRAINING_DATASET)
+            training_dataset = np.load(fname)
+            os.remove(fname)
+        if 'EVmut-DeltaE_epist' not in training_dataset.dtype.names:
+            pd.SETTINGS['EVmutation_metrics'] = np.nan
+            pd.LOGGER.warn('Unable to compute EVmutation cutoff: '
+                           'precomputed scores not found.')
+        else:
+            sel = ~np.isnan(training_dataset['EVmut-DeltaE_epist'])
+            # NB: EVmutation score and pathogenicity are anti-correlated
+            true_labels = training_dataset['true_label'][sel]
+            EVmut_predictor = -training_dataset['EVmut-DeltaE_epist'][sel]
+            metrics = rd.calcMetrics(true_labels, EVmut_predictor)
+            pd.SETTINGS['EVmutation_metrics'] = metrics
+            pd.LOGGER.info(f'EVmutation metrics computed.')
+
     # fetch EVmutation precomputed data, if needed
     folder = pd.SETTINGS.get('EVmutation_local_folder')
     if type(folder) is str and os.path.isdir(folder):
@@ -146,7 +176,7 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             folder = None
             msg = ('For full functionality, please consider downloading '
                    f'EVmutation data from {EVMUT_URL} and then set up the '
-                   'relative path in the configuration file')
+                   'relative path in the configuration file.')
             pd.LOGGER.warn(msg)
     pd.SETTINGS['EVmutation_local_folder'] = folder
 
@@ -158,14 +188,16 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
                "'sudo apt install dssp'")
         pd.LOGGER.warn(msg)
     else:
-        pd.LOGGER.info('DSSP is installed on the system')
+        pd.LOGGER.info('DSSP is installed on the system.')
 
     pd.SETTINGS.save()
-    pd.LOGGER.info('Setup complete')
+    pd.LOGGER.info('Setup complete.')
+
+    return getSettings(print=False)
 
 
 def getDefaultClassifiers():
-    """Returns a dictionary with the paths of the three default classifiers
+    """Returns a dictionary with the paths to the three default classifiers
     (``'full'``, ``'reduced'`` and ``'EVmut'``)
     """
     working_dir = pd.SETTINGS.get('rhapsody_local_folder')
@@ -179,3 +211,35 @@ def getDefaultClassifiers():
                       'Please rerun initialSetup()')
     else:
         return def_clsfs
+
+
+def getSettings(print=True):
+    """Returns and prints essential information about the current Rhapsody
+    configuration, such as the location of working directory and default
+    classifiers
+    """
+
+    config_dict = {}
+
+    for entry in ['rhapsody_local_folder', 'EVmutation_local_folder']:
+        config_dict[entry] = pd.SETTINGS.get(entry)
+
+    EVmut_metrics = pd.SETTINGS.get('EVmutation_metrics', default={})
+    config_dict['EVmutation_metrics'] = EVmut_metrics
+
+    def_clsfs = getDefaultClassifiers()
+    for fs, path in def_clsfs.items():
+        fs += ' classifier'
+        config_dict[fs] = path
+
+    if print:
+        entries = ['rhapsody_local_folder', 'EVmutation_local_folder'] \
+                  + [f'{c} classifier' for c in def_clsfs]
+        for entry in entries:
+            pd.LOGGER.info(f'{entry:24}: {config_dict[entry]}')
+        if 'AUROC' in EVmut_metrics:
+            pd.LOGGER.info('EVmutation_metrics      : <computed>')
+        else:
+            pd.LOGGER.info('EVmutation_metrics      : <missing>')
+
+    return config_dict
