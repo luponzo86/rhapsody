@@ -6,33 +6,33 @@ from .PDB import *
 from .Uniprot import *
 from .EVmutation import *
 
-__all__ = ['RHAPSODY_FEATS', 'calcPP2features', 'calcPDBfeatures',
+__all__ = ['RHAPSODY_FEATS', 'calcPolyPhen2features', 'calcPDBfeatures',
            'calcPfamFeatures', 'calcBLOSUMfeatures',
            'buildFeatMatrix']
 
 
 # list of all available features in RHAPSODY
 RHAPSODY_FEATS = {
-    'PP2'   : {'wt_PSIC', 'Delta_PSIC'},
-    'PDB'   : set(PDB_FEATS),
-    'Pfam'  : {'entropy', 'ranked_MI'},
+    'PolyPhen2': {'wt_PSIC', 'Delta_PSIC'},
+    'PDB': set(PDB_FEATS),
+    'Pfam': {'entropy', 'ranked_MI'},
     'BLOSUM': {'BLOSUM'},
-    'EVmut' : set(EVMUT_FEATS),
+    'EVmut': set(EVMUT_FEATS),
 }
 RHAPSODY_FEATS['all'] = set().union(*RHAPSODY_FEATS.values())
 
 
-def calcPP2features(PP2output):
+def calcPolyPhen2features(PolyPhen2output):
     # define a datatype for sequence-conservation features
     # extracted from the output of PolyPhen-2
     feat_dtype = np.dtype([('wt_PSIC', 'f'),
                            ('Delta_PSIC', 'f')])
     # import selected quantities from PolyPhen-2's output
     # into a structured array
-    f_l = PP2output[['Score1', 'dScore']]
-    f_t = [tuple(np.nan if x=='?' else x for x in l) for l in f_l]
+    f_l = PolyPhen2output[['Score1', 'dScore']]
+    f_t = [tuple(np.nan if x == '?' else x for x in l) for l in f_l]
     features = np.array(f_t, dtype=feat_dtype)
-    LOGGER.info("Sequence-conservation features have been " + \
+    LOGGER.info("Sequence-conservation features have been "
                 "retrieved from PolyPhen-2's output.")
     return features
 

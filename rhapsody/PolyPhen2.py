@@ -6,7 +6,7 @@ from requests.packages.urllib3.util.retry import Retry
 from math import log
 
 __all__ = ['requests_retry_session', 'queryPolyPhen2',
-           'parsePP2output', 'getSAVcoords']
+           'parsePolyPhen2output', 'getSAVcoords']
 
 pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2',
@@ -21,9 +21,10 @@ pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'CpG', 'MinDJxn', 'PfamHit', 'IdPmax', 'IdPSNP',
                 'IdQmin', 'other']
 
+
 def requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
                            status_forcelist=(404,), session=None):
-    # see: https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+    # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
     session = session or requests.Session()
     retry = Retry(total=retries, read=retries, connect=retries,
                   backoff_factor=backoff_factor,
@@ -32,6 +33,7 @@ def requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
+
 
 def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     # original PolyPhen-2 curl command (see:
@@ -47,7 +49,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     assert type(prefix) is str
 
     LOGGER.info('Submitting query to PolyPhen-2...')
-    num_lines = sum(1 for line in open(filename, 'rb') if line[0]!='#')
+    num_lines = sum(1 for line in open(filename, 'rb') if line[0] != '#')
     input_file = open(filename, 'rb')
     # submit query
     address = 'http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi'
@@ -62,8 +64,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     # parse job ID from response page
     jobID = response.cookies['polyphenweb2']
     # results and semaphore files
-    results_dir = 'http://genetics.bwh.harvard.edu/ggi/pph2/' + \
-                   jobID + '/1/'
+    results_dir = f'http://genetics.bwh.harvard.edu/ggi/pph2/{jobID}/1/'
     files = {'started':   results_dir + 'started.txt',
              'completed': results_dir + 'completed.txt',
              'short':     results_dir + 'pph2-short.txt',
@@ -85,7 +86,8 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
             LOGGER.timeit('_queryPP2')
             r = requests_retry_session(retries=12, timeout=log(num_lines)/2,
                                        backoff_factor=0.2).get(files[k])
-            LOGGER.report('Query to PolyPhen-2 completed in %.1fs.', '_queryPP2')
+            LOGGER.report('Query to PolyPhen-2 completed in %.1fs.',
+                          '_queryPP2')
         else:
             r = requests_retry_session(retries=12, timeout=0,
                                        backoff_factor=0.01).get(files[k])
@@ -97,7 +99,8 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
 
     return output
 
-def parsePP2output(pph2_output):
+
+def parsePolyPhen2output(pph2_output):
     '''Import PolyPhen-2 results directly from the output of
     'queryPolyPhen2' or from a file (in 'full' format).
     '''
@@ -108,11 +111,12 @@ def parsePP2output(pph2_output):
         with open(pph2_output, 'r') as file:
             lines = file.readlines()
     # discard invalid lines
-    lines = [l for l in lines if l.strip() and l[0]!='#']
+    lines = [l for l in lines if l.strip() and l[0] != '#']
     if not lines:
-        msg = "PolyPhen-2's output is empty. Please make sure that: \n" +\
-        '1) variants\' format is correct (\"UniprotID pos wt_aa mut_aa\") \n' +\
-        "2) query contains *human* variants \n"
+        msg = ("PolyPhen-2's output is empty. Please make sure that: \n"
+               "1) variants' format is correct "
+               '(\"UniprotID pos wt_aa mut_aa\") \n'
+               "2) query contains *human* variants \n")
         raise RuntimeError(msg)
     # define a structured array
     pl_dtype = np.dtype([(col, 'U25') for col in pph2_columns])
@@ -127,7 +131,7 @@ def parsePP2output(pph2_output):
         if n_words == n_cols - 1:
             # manually insert null 'other' column
             words.append('?')
-        elif n_words != n_cols :
+        elif n_words != n_cols:
             msg = 'Incorrect number of columns: {}'.format(n_words)
             raise ValueError(msg)
         # import to structured array
@@ -135,19 +139,20 @@ def parsePP2output(pph2_output):
     LOGGER.info("PolyPhen-2's output parsed.")
     return parsed_lines
 
+
 def getSAVcoords(parsed_lines):
     """Extracts SAV Uniprot coordinates as provided by the user. If not
     possible, the Uniprot coordinates computed by PolyPhen-2 will be returned.
     A string containing the original submitted SAV is returned as well.
     """
-    SAV_dtype = np.dtype([('acc', 'U15'), ('pos' , 'i'),
+    SAV_dtype = np.dtype([('acc', 'U15'), ('pos', 'i'),
                           ('aa_wt', 'U1'), ('aa_mut', 'U1'),
                           ('text', 'U25')])
     SAV_coords = np.empty(len(parsed_lines), dtype=SAV_dtype)
     for i, line in enumerate(parsed_lines):
         o_acc = line['o_acc']
         if o_acc.startswith('rs') or o_acc.startswith('chr'):
-            # recover Uniprot accession number from PP2 output
+            # recover Uniprot accession number from PolyPhen-2 output
             acc = line['acc']
             pos = int(line['pos'])
             aa1 = line['aa1']
@@ -161,5 +166,3 @@ def getSAVcoords(parsed_lines):
             SAV_str = '{} {} {} {}'.format(acc, pos, aa1, aa2)
         SAV_coords[i] = (acc, pos, aa1, aa2, SAV_str)
     return SAV_coords
-
-

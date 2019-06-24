@@ -4,9 +4,12 @@ from os.path import isfile
 from prody import LOGGER, SETTINGS, Atomic, queryUniprot
 from .settings import DEFAULT_FEATSETS
 from .Uniprot import *
-from .PolyPhen2 import *
-from .EVmutation import *
-from .calcFeatures import *
+from .PolyPhen2 import queryPolyPhen2, parsePolyPhen2output, getSAVcoords
+from .EVmutation import recoverEVmutFeatures
+from .calcFeatures import RHAPSODY_FEATS
+from .calcFeatures import calcPolyPhen2features, calcPfamFeatures
+from .calcFeatures import calcPDBfeatures, calcBLOSUMfeatures
+from .calcFeatures import buildFeatMatrix
 
 __all__ = ['Rhapsody', 'seqScanning', 'printSAVlist', 'mapSAVs2PDB',
            'calcPredictions']
@@ -43,17 +46,22 @@ class Rhapsody:
             ('main path. prob.', 'f4'),
             ('main path. class', 'U12'),
             # predictions from auxiliary classifier
-            ('aux score', 'f4'),
-            ('aux path. prob.', 'f4'),
-            ('aux path. class', 'U12'),
+            ('aux. score', 'f4'),
+            ('aux. path. prob.', 'f4'),
+            ('aux. path. class', 'U12'),
+            # string indicating the best prediction set
+            # ('main' or 'aux') to use for a given SAV
+            ('best classifier', 'U4'),
             # predictions from PolyPhen-2 and EVmutation
             ('PolyPhen-2 score', 'f4'),
             ('PolyPhen-2 path. class', 'U12'),
             ('EVmutation score', 'f4'),
             ('EVmutation path. class', 'U12')
         ])
+        # number of SAVs
+        self.numSAVs = None
         # structured array containing parsed PolyPhen-2 output
-        self.PP2output = None
+        self.PolyPhen2output = None
         # custom PDB structure used for PDB features calculation
         self.customPDB = None
         # NumPy array (num_SAVs)x(num_features)
@@ -63,21 +71,21 @@ class Rhapsody:
         self.aux_classifier = None
         self.featSet = None
 
-        # structured array containing predictions
-        self.predictions    = None
-        # structured arrays of auxiliary predictions from a subclassifier
-        self.auxPreds       = None
-        # original and auxiliary predictions combined
-        self.mixPreds       = None
+    def _isColSet(self, column):
+        return self.data[column].count() != 0
 
-    def setSAVs(self):
-        # TO DO:
-        # self.data = np.ma.masked_all(nSAVs, dtype=self.data_dtype) ...
-        # self.data['SAV coords'] = SAVs ...
-        pass
+    def setSAVs(self, SAV_list):
+        # TO DO: write function that allows to import a SAV list
+        # without querying PolyPhen-2
+        numSAVs = len(SAV_list)
+        data = np.ma.masked_all(numSAVs, dtype=self.data_dtype)
+        data['SAV coords'] = SAV_list
+        self.data = data
+        self.numSAVs = len(SAV_list)
 
     def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
-        assert self.PP2output is None, "PolyPhen-2's output already imported."
+        assert self.PolyPhen2output is None, ("PolyPhen-2 output "
+                                              "already imported.")
         SAV_file = ''
         if scanning:
             # 'x' is a string, e.g. 'P17516' or 'P17516 135'
@@ -91,24 +99,23 @@ class Rhapsody:
             SAV_file = printSAVlist(x, filename)
         # submit query to PolyPhen-2
         try:
-            PP2_output = queryPolyPhen2(SAV_file)
-        except:
-            err = ('Unable to get a response from PolyPhen-2. Please click '
-                   '"Check Status" on the server homepage \n'
+            PolyPhen2_output = queryPolyPhen2(SAV_file)
+        except Exception as e:
+            err = (f'Unable to get a response from PolyPhen-2: {e} \n'
+                   'Please click "Check Status" on the server homepage \n'
                    '(http://genetics.bwh.harvard.edu/pph2) \n'
                    'and try again when "Load" is "Low" and "Health" is 100%')
             raise RuntimeError(err)
-        return self.importPolyPhen2output(PP2_output)
+        return self.importPolyPhen2output(PolyPhen2_output)
 
-    def importPolyPhen2output(self, PP2output):
-        assert self.PP2output is None, "PolyPhen-2's output already imported."
+    def importPolyPhen2output(self, PolyPhen2output):
+        assert self.PolyPhen2output is None, ("PolyPhen-2 output "
+                                              "already imported.")
         assert self.data is None, 'SAVs already set.'
-        self.PP2output = parsePP2output(PP2output)
+        self.PolyPhen2output = parsePolyPhen2output(PolyPhen2output)
         # store SAV coords
-        nSAVs = len(self.PP2output)
-        self.data = np.ma.masked_all(nSAVs, dtype=self.data_dtype)
-        self.data['SAV coords'] = getSAVcoords(self.PP2output)['text']
-        return self.PP2output
+        self.setSAVs(getSAVcoords(self.PolyPhen2output)['text'])
+        return self.PolyPhen2output
 
     def setFeatSet(self, featset):
         assert self.featSet is None, 'Feature set already set.'
@@ -147,11 +154,11 @@ class Rhapsody:
         self.data['true labels'] = tuple(true_labels)
 
     def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt',
-                          header=True):
+                          print_header=True):
         """Maps each SAV to the corresponding resid in a PDB chain.
         """
         assert self.data is not None, "SAVs not set."
-        if self.data['PDB SAV coords'].count() == 0:
+        if not self._isColSet('PDB SAV coords'):
             # compute mapping
             m = mapSAVs2PDB(self.data['SAV coords'], custom_PDB=self.customPDB)
             self.data['unique SAV coords'] = m['unique SAV coords']
@@ -160,7 +167,7 @@ class Rhapsody:
         # print to file, if requested
         if filename is not None:
             with open(filename, 'w') as f:
-                if header:
+                if print_header:
                     f.write('# SAV coords           '
                             'Uniprot coords         '
                             'PDB/ch/res/aa/size \n')
@@ -198,11 +205,11 @@ class Rhapsody:
         assert self.featSet is not None, 'Feature set not set.'
         # list of structured arrays that will contain all computed features
         all_feats = []
-        if RHAPSODY_FEATS['PP2'].intersection(self.featSet):
+        if RHAPSODY_FEATS['PolyPhen2'].intersection(self.featSet):
             # retrieve sequence-conservation features from PolyPhen-2's output
-            assert self.PP2output is not None, \
+            assert self.PolyPhen2output is not None, \
                    "Please import PolyPhen-2's output first."
-            f = calcPP2features(self.PP2output)
+            f = calcPolyPhen2features(self.PolyPhen2output)
             all_feats.append(f)
         sel_PDBfeats = RHAPSODY_FEATS['PDB'].intersection(self.featSet)
         if sel_PDBfeats:
@@ -229,7 +236,7 @@ class Rhapsody:
 
     def exportTrainingData(self):
         assert self.data is not None, 'SAVs not set.'
-        assert self.data['true labels'].count() > 0, 'True labels not set.'
+        assert self._isColSet('true labels'), 'True labels not set.'
         if self.featMatrix is None:
             self.featMatrix = self._calcFeatMatrix()
         dt = np.dtype([('SAV_coords', '<U50'), ('Uniprot2PDB', '<U100'),
@@ -238,7 +245,7 @@ class Rhapsody:
         num_SAVs = len(self.data)
         trainData = np.empty(num_SAVs, dtype=dt)
         trainData['SAV_coords'] = self.data['SAV coords']
-        if self.data['PDB SAV coords'].count() > 0:
+        if self._isColSet('PDB SAV coords'):
             trainData['Uniprot2PDB'] = self.data['PDB SAV coords']
             trainData['PDB_length'] = self.data['PDB size']
         trainData['true_label'] = self.data['true labels']
@@ -249,7 +256,8 @@ class Rhapsody:
     def importClassifiers(self, classifier, aux_classifier=None,
                           force_env=None):
         assert self.classifier is None, 'Classifiers already set.'
-        assert force_env in [None, 'chain', 'reduced', 'sliced']
+        assert force_env in [None, 'chain', 'reduced', 'sliced'], \
+               "Invalid 'force_env' value"
         # import main classifier
         p = pickle.load(open(classifier, 'rb'))
         featset = p['features']
@@ -284,137 +292,226 @@ class Rhapsody:
         # print featset
         LOGGER.info('Imported feature set:')
         for i, f in enumerate(featset):
-            note1 = ''
-            note2 = ''
+            note1 = '*' if f in aux_featset else ''
             if f != main_clsf['featset'][i]:
                 original_env = main_clsf['featset'][i].split('-')[-1]
-                note1 = f"(originally '-{original_env}')"
-            if f in aux_featset:
-                note2 = '(*)' if f in aux_clsf['featset'] else ''
-            notes = ' '.join([note1, note2])
-            LOGGER.info(f"  '{f}' {notes}")
+                note2 = f"(originally '-{original_env}')"
+            else:
+                note2 = ''
+            LOGGER.info(f"   '{f}'{note1} {note2}")
         if aux_clsf:
-            LOGGER.info("(*) auxiliary classifier's feature set")
+            LOGGER.info("   (* auxiliary feature set)")
         # store classifiers and main feature set
         self.classifier = main_clsf
         self.aux_classifier = aux_clsf
         self.setFeatSet(featset)
 
     def _replaceEnvModel(self, featset, new_env):
-        ENMfeats = [f for f in RHAPSODY_FEATS['PDB'] if
-                    f.startswith('GNM') or f.startswith('ANM')]
         new_env = '-' + new_env
+        new_featset = []
         for i, f in enumerate(featset):
-            if f in ENMfeats:
+            if any(f.endswith(e) for e in ['-chain', '-reduced', '-sliced']):
                 old_env = '-' + f.split('-')[-1]
-                featset[i] = f.replace(old_env, new_env)
-        return featset
+                new_featset.append(f.replace(old_env, new_env))
+            else:
+                new_featset.append(f)
+        return new_featset
 
-    def calcPredictions(self):
-        assert self.predictions is None, 'Predictions already computed.'
+    def _calcPredictions(self):
         assert self.classifier is not None, 'Classifier not set.'
-        assert self.featMatrix is not None, 'Features not computed.'
+        if self._isColSet('main score'):
+            return
+        # compute features
+        self.calcFeatures()
         # compute main predictions
-        p = calcPredictions(self.featMatrix, self.classifier['path'],
-                            SAV_coords=self.data['SAV coords'])
-        self.predictions = p
-        # compute auxiliary predictions, if needed
-        ############################
-        ####  TO DO  ###############
-        ############################
-        return self.predictions
+        preds = calcPredictions(self.featMatrix, self.classifier['path'],
+                                SAV_coords=self.data['SAV coords'])
+        self.data['training info'] = preds['training info']
+        self.data['main score'] = preds['score']
+        self.data['main path. prob.'] = preds['path. probability']
+        self.data['main path. class'] = preds['path. class']
+        self.data['best classifier'] = 'main'
+        if self.aux_classifier:
+            # reduce original feature matrix
+            aux_fs = self.aux_classifier.get('mod. featset',
+                                             self.aux_classifier['featset'])
+            sel = [i for i, f in enumerate(self.featSet) if f in aux_fs]
+            fm = self.featMatrix[:, sel]
+            # compute auxiliary predictions
+            aux_preds = calcPredictions(fm, self.aux_classifier['path'],
+                                        SAV_coords=self.data['SAV coords'])
+            self.data['aux. score'] = aux_preds['score']
+            self.data['aux. path. prob.'] = aux_preds['path. probability']
+            self.data['aux. path. class'] = aux_preds['path. class']
+            # select best classifier for each SAV
+            main_score = self.data['main score']
+            self.data['best classifier'] = np.where(np.isnan(main_score),
+                                                    'aux.', 'main')
 
-    def calcAuxPredictions(self, aux_clsf, force_env=None):
-        assert self.predictions is not None, 'Primary predictions not found.'
-        assert self.featMatrix  is not None, 'Features not computed.'
-        assert force_env in [None, 'chain', 'reduced', 'sliced']
-        # import feature subset
-        clsf_dict = pickle.load(open(aux_clsf, 'rb'))
-        LOGGER.info('Auxiliary Random Forest classifier imported.')
-        feat_subset = clsf_dict['features']
-        if force_env is not None:
-            # force a given ENM environment model
-            for i, f in enumerate(feat_subset):
-                if f in RHAPSODY_FEATS['PDB'] and \
-                   (f.startswith('ANM') or f.startswith('GNM')):
-                    old_env = f.split('-')[-1]
-                    feat_subset[i] = f.replace(old_env, force_env)
-        assert all(f in self.featSet for f in feat_subset), \
-               'The new set of features must be a subset of the original one.'
-        # reduce original feature matrix
-        sel = [i for i,f in enumerate(self.featSet) if f in feat_subset]
-        fm = self.featMatrix[:, sel]
-        p_a = calcPredictions(fm, clsf_dict,
-                              SAV_coords=self.data['SAV coords'])
-        if p_a is None:
-            LOGGER.warn('No additional predictions.')
-            return None
-        self.auxPreds = p_a
-        p_o = self.predictions
-        self.mixPreds = np.where(np.isnan(p_o['score']), p_a, p_o)
-        return self.auxPreds, self.mixPreds
+    def _calcPolyPhen2Predictions(self):
+        assert self.PolyPhen2output is not None, 'PolyPhen-2 output not found.'
+        if self._isColSet('PolyPhen-2 score'):
+            return
+        PP2_score = [x if x != '?' else 'nan' for x in
+                     self.PolyPhen2output['pph2_prob']]
+        PP2_class = self.PolyPhen2output['pph2_class']
+        self.data['PolyPhen-2 score'] = PP2_score
+        self.data['PolyPhen-2 path. class'] = PP2_class
 
-    def calcEVmutPredictions(self):
-        if self.data['EVmutation score'].count() == 0:
-            EVmut_feats = recoverEVmutFeatures(self.data['SAV coords'])
-            EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
-            c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
-            EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
-            self.data['EVmutation score'] = EVmut_score
-            self.data['EVmutation path. class'] = EVmut_class
-        return self.data[['SAV coords', 'EVmutation score',
-                          'EVmutation path. class']]
+    def _calcEVmutPredictions(self):
+        if self._isColSet('EVmutation score'):
+            return
+        EVmut_feats = recoverEVmutFeatures(self.data['SAV coords'])
+        EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
+        c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
+        EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
+        self.data['EVmutation score'] = EVmut_score
+        self.data['EVmutation path. class'] = EVmut_class
 
-    def printPredictions(self, format="auto", header=True,
-                         filename='rhapsody-predictions.txt'):
-        assert format in ["auto", "full", "aux", "mixed", "both"]
-        assert isinstance(filename, str)
-        assert isinstance(header, bool)
-        if format != "both":
-            # select what predictions to print
-            if format == "auto":
-                preds = self.mixPreds
-                if self.mixPreds is None:
-                    preds = self.predictions
-            elif format == "full":
-                preds = self.predictions
-            elif format == "aux":
-                preds = self.auxPreds
-            elif format == "mixed":
-                preds = self.mixPreds
-            # check if predictions are computed
-            if preds is None:
-                raise RuntimeError('Predictions not computed')
-            # print
-            with open(filename, 'w') as f:
-                h = '# SAV coords           score   prob    class        info\n'
-                if header:
-                    f.write(h)
-                for SAV, p in zip(self.data['SAV coords'], preds):
-                    p_cols = '{:<5.3f}   {:<5.3f}   {:12s} {:12s}'.format(*p)
-                    f.write(f'{SAV:22} {p_cols} \n')
+    def getPredictions(self, SAV='all', classifier='best',
+                       PolyPhen2=True, EVmutation=True):
+        assert classifier in ['best', 'main', 'aux'], "Invalid 'classifier'."
+        if classifier == 'aux' and self.aux_classifier is None:
+            raise ValueError('Auxiliary classifier not found.')
+        # initialize output array
+        cols = [
+            ('SAV coords', 'U50'),
+            ('training info', 'U12'),
+            ('score', 'f4'),
+            ('path. prob.', 'f4'),
+            ('path. class', 'U12')
+        ]
+        if PolyPhen2:
+            cols.extend([
+                ('PolyPhen-2 score', 'f4'),
+                ('PolyPhen-2 path. class', 'U12')
+            ])
+        if EVmutation:
+            cols.extend([
+                ('EVmutation score', 'f4'),
+                ('EVmutation path. class', 'U12')
+            ])
+        output = np.empty(self.numSAVs, dtype=np.dtype(cols))
+        output['SAV coords'] = self.data['SAV coords']
+        output['training info'] = self.data['training info']
+        # get Rhapsody predictions
+        self._calcPredictions()
+        for s in ['score', 'path. prob.', 'path. class']:
+            if classifier == 'best':
+                output[s] = np.where(self.data['best classifier'] == 'main',
+                                     self.data[f'main {s}'],
+                                     self.data[f'aux. {s}'])
+            elif classifier == 'main':
+                output[s] = self.data[f'main {s}']
+            else:
+                output[s] = self.data[f'aux. {s}']
+        # get PolyPhen-2 predictions
+        if PolyPhen2:
+            self._calcPolyPhen2Predictions()
+            for s in ['PolyPhen-2 score', 'PolyPhen-2 path. class']:
+                output[s] = self.data[s]
+        # get EVmutation predictions
+        if EVmutation:
+            self._calcEVmutPredictions()
+            for s in ['EVmutation score', 'EVmutation path. class']:
+                output[s] = self.data[s]
+        # return output
+        if SAV == 'all':
+            return output
+        elif isinstance(SAV, int):
+            return output[SAV]
+        elif SAV in output['SAV coords']:
+            return output[output['SAV coords'] == SAV][0]
         else:
-            if self.mixPreds is None:
-                raise RuntimeError('Auxiliary predictions not computed')
-            # print both full and aux predictions in a more detailed format
+            raise ValueError('Invalid SAV.')
+
+    def printPredictions(self, classifier='best',
+                         PolyPhen2=True, EVmutation=True,
+                         filename='rhapsody-predictions.txt',
+                         print_header=True):
+        assert classifier in ['best', 'main', 'aux', 'both']
+        if classifier != 'both':
+            preds = self.getPredictions(classifier=classifier,
+                                        PolyPhen2=PolyPhen2,
+                                        EVmutation=EVmutation)
             with open(filename, 'w') as f:
-                h  = '# SAV coords           '
-                h += 'full-classifier predictions        '
-                h += 'reduced-classifier predictions \n'
-                if header:
-                    f.write(h)
-                SAVs = self.data['SAV coords']
-                p_o  = self.predictions
-                p_a  = self.auxPreds
-                p_m  = self.mixPreds
-                for SAV, t_o, t_a, t_m in zip(SAVs, p_o, p_a, p_m):
-                    f.write(f'{SAV:22} ')
-                    f.write(f'{t_m[0]:<5.3f}  {t_m[1]:<5.3f}  {t_m[2]:12s}')
-                    if np.isnan(t_o['score']) and not np.isnan(t_a['score']):
-                        f.write('   <--   ')
+                if print_header:
+                    header = '{:25} {:16} {:6} {:6} {:14}'.format(
+                        '# SAV coords',
+                        'training info',
+                        'score',
+                        'prob.',
+                        'class'
+                    )
+                    if PolyPhen2:
+                        header += 'PolyPhen-2 score/class   '
+                    if EVmutation:
+                        header += 'EVmutation score/class'
+                    f.write(header + '\n')
+                for SAV in preds:
+                    row = '{:25} {:16} {:5.3f}  {:5.3f}  {:14}'.format(
+                        SAV['SAV coords'],
+                        SAV['training info'],
+                        SAV['score'],
+                        SAV['path. prob.'],
+                        SAV['path. class']
+                    )
+                    if PolyPhen2:
+                        row += '{:5.3f}    {:16}'.format(
+                            SAV['PolyPhen-2 score'],
+                            SAV['PolyPhen-2 path. class']
+                        )
+                    if EVmutation:
+                        row += '{:6.3f}    {:12}'.format(
+                            SAV['EVmutation score'],
+                            SAV['EVmutation path. class']
+                        )
+                    f.write(row + '\n')
+        else:
+            # print both main and aux predictions in a more detailed format
+            self.getPredictions(classifier='aux', PolyPhen2=PolyPhen2,
+                                EVmutation=EVmutation)
+            with open(filename, 'w') as f:
+                if print_header:
+                    header = '{:25} {:16} {:33} {:30}'.format(
+                        '# SAV coords',
+                        'training info',
+                        'main classifier predictions',
+                        'aux. classifier predictions')
+                    if PolyPhen2:
+                        header += 'PolyPhen-2 score/class   '
+                    if EVmutation:
+                        header += 'EVmutation score/class'
+                    f.write(header + '\n')
+                for SAV in self.data:
+                    row = '{:25} {:16} {:5.3f}  {:5.3f}  {:15}'.format(
+                        SAV['SAV coords'],
+                        SAV['training info'],
+                        SAV['main score'],
+                        SAV['main path. prob.'],
+                        SAV['main path. class']
+                    )
+                    if np.isnan(SAV['main score']) and \
+                       not np.isnan(SAV['aux. score']):
+                        row += '<--'
                     else:
-                        f.write('   x--   ')
-                    f.write(f'{t_a[0]:<5.3f}  {t_a[1]:<5.3f}  {t_a[2]:12s}\n')
+                        row += 'x--'
+                    row += '  {:5.3f}  {:5.3f}  {:16}'.format(
+                        SAV['aux. score'],
+                        SAV['aux. path. prob.'],
+                        SAV['aux. path. class']
+                    )
+                    if PolyPhen2:
+                        row += '{:5.3f}    {:16}'.format(
+                            SAV['PolyPhen-2 score'],
+                            SAV['PolyPhen-2 path. class']
+                        )
+                    if EVmutation:
+                        row += '{:6.3f}    {:12}'.format(
+                            SAV['EVmutation score'],
+                            SAV['EVmutation path. class']
+                        )
+                    f.write(row + '\n')
 
     def savePickle(self, filename='rhapsody-pickle.pkl'):
         f = pickle.dump(self, open(filename, "wb"))
@@ -527,8 +624,8 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
                     chID = '?'
                 res_map = f'{PDBID} {chID} {resid} {aa}'
         except Exception as e:
-                res_map = str(e)
-                PDB_size = 0
+            res_map = str(e)
+            PDB_size = 0
         # store SAVs mapped on PDB chains and unique Uniprot coordinates
         if isinstance(U2P_map, str):
             uniq_coords = U2P_map
@@ -543,7 +640,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
 
 
 def calcPredictions(feat_matrix, clsf, SAV_coords=None):
-    assert SAV_coords is None or len(SAV_coords)==len(feat_matrix)
+    assert SAV_coords is None or len(SAV_coords) == len(feat_matrix)
 
     # import classifier and other info
     if isinstance(clsf, dict):
@@ -568,7 +665,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     predictions = np.zeros(len(feat_matrix), dtype=pred_dtype)
 
     # select rows where all features are well-defined
-    sel_rows = [i for i,r in enumerate(feat_matrix) if all(~np.isnan(r))]
+    sel_rows = [i for i, r in enumerate(feat_matrix) if all(~np.isnan(r))]
     n_pred = len(sel_rows)
     if n_pred == 0:
         LOGGER.warning('No predictions could be computed.')
@@ -581,7 +678,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     # output
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
-    Jplus  = J + err_bar
+    Jplus = J + err_bar
     k = 0
     for i in range(len(feat_matrix)):
         # determine SAV status

@@ -23,11 +23,11 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
         Uniprot sequence (e.g. ``'P17516'``) or a specific site in a sequence
         (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at
         the specified positions on the sequence will be analyzed
-      - if *input_type* = ``'PP2'``, it should be a filename containing the
-        output from PolyPhen-2, usually named :file:`pph2-full.txt`
+      - if *input_type* = ``'PolyPhen2'``, it should be a filename containing
+        the output from PolyPhen-2, usually named :file:`pph2-full.txt`
     :type input_obj: str, list
 
-    :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PP2'``
+    :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PolyPhen2'``
     :type input_type: str
 
     :arg custom_PDB: a PDBID, a filename or an :class:`Atomic` to be used
@@ -36,9 +36,9 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     :type custom_PDB: str, :class:`AtomGroup`
 
     :arg input_type: force a specific environment model for GNM/ANM
-      calculations, among ``'chain'``, ``'reduced'`` and ``'PP2'``. If **None**
-      (default), the model of individual dynamical features will match that
-      found in the classifier's feature set
+      calculations, among ``'chain'``, ``'reduced'`` and ``'PolyPhen2'``.
+      If **None** (default), the model of individual dynamical features will
+      match that found in the classifier's feature set
     :type input_type: str
 
     :arg main_classifier: main classifier's filename. If **None**, the default
@@ -58,7 +58,9 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
       the functional significance of missense variants. *PNAS* **2018**
       115 (16) 4164-4169.
     """
-    assert input_type in ('SAVs', 'scanning', 'PP2')
+
+    assert input_type in ('SAVs', 'scanning', 'PolyPhen2'), \
+           "Invalid 'input_type' argument."
 
     if log:
         LOGGER.start('rhapsody-log.txt')
@@ -88,26 +90,18 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
         # 'input_obj' is a Uniprot accession number identifying a sequence,
         # with or without a specified position
         r.queryPolyPhen2(input_obj, scanning=True)
-    elif input_type == 'PP2':
+    elif input_type == 'PolyPhen2':
         # 'input_obj' is a filename containing PolyPhen-2's output
         r.importPolyPhen2output(input_obj)
 
-    # compute needed features
-    r.calcFeatures()
-
     # compute predictions
-    r.calcPredictions()
-    if aux_classifier is not None:
-        # compute additional predictions from a subset of features
-        try:
-            r.calcAuxPredictions(aux_classifier, force_env=force_env)
-            r.printPredictions(format="both",
-                               filename='rhapsody-predictions-full.txt')
-        except Exception as e:
-            LOGGER.warn(f'Unable to compute auxiliary predictions: {e}')
+    r.getPredictions()
 
-    # print final predictions
-    r.printPredictions(filename='rhapsody-predictions.txt')
+    # print predictions to file
+    r.printPredictions()
+    # print both 'full' and 'reduced' predictions in a more detailed format
+    r.printPredictions(classifier="both", #PolyPhen2=False, EVmutation=False,
+                       filename='rhapsody-predictions-full_vs_reduced.txt')
 
     # save pickle
     r.savePickle()

@@ -135,20 +135,20 @@ def adjust_res_interval(res_interval, upper_lim, min_size=10):
 
 
 def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
-                             min_interval_size=15, html=False,
-                             PP2=True, EVmutation=True, extra_plot=None,
-                             fig_height=8, fig_width=None, dpi=300):
+                             PolyPhen2=True, EVmutation=True, extra_plot=None,
+                             fig_height=8, fig_width=None, dpi=300,
+                             min_interval_size=15, html=False):
 
     # check inputs
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
-    assert rhapsody_obj.predictions is not None, 'predictions not found'
+    assert rhapsody_obj._isColSet('main score'), 'predictions not found'
     if res_interval is not None:
         assert isinstance(res_interval, tuple) and len(res_interval) == 2, \
                'res_interval must be a tuple of 2 values'
         assert res_interval[1] >= res_interval[0], 'invalid res_interval'
     if extra_plot is not None:
-        assert len(extra_plot) == len(rhapsody_obj.predictions), \
+        assert len(extra_plot) == rhapsody_obj.numSAVs, \
                'length of additional predictions array is incorrect'
     assert isinstance(fig_height, (int, float))
     assert isinstance(dpi, int)
@@ -166,17 +166,6 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         m = 'Only variants from a single Uniprot sequence can be accepted'
         raise ValueError(m)
 
-    if rhapsody_obj.auxPreds is not None:
-        aux_preds_found = True
-    else:
-        aux_preds_found = False
-
-    # import pathogenicity probability from Rhapsody object
-    p_full = rhapsody_obj.predictions['path. probability']
-    p_mix = None
-    if aux_preds_found:
-        p_mix = rhapsody_obj.mixPreds['path. probability']
-
     # select an appropriate interval, based on available predictions
     seq_pos = [int(s.split()[1]) for s in rhapsody_obj.data['SAV coords']]
     res_min = np.min(seq_pos)
@@ -184,15 +173,26 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     upper_lim = res_max + min_interval_size
 
     # create empty (20 x num_res) mutagenesis tables
-    table_full = np.zeros((20, upper_lim), dtype=float)
-    table_full[:] = 'nan'
-    table_mix = table_full.copy()
+    table_best = np.zeros((20, upper_lim), dtype=float)
+    table_best[:] = 'nan'
+    table_main = table_best.copy()
     if extra_plot is not None:
-        table_other = table_full.copy()
-    if PP2:
-        table_PP2 = table_full.copy()
+        table_other = table_best.copy()
+    if PolyPhen2:
+        table_PP2 = table_best.copy()
     if EVmutation:
-        table_EVmut = table_full.copy()
+        table_EVmut = table_best.copy()
+
+    # import pathogenicity probabilities from Rhapsody object
+    p_best = rhapsody_obj.getPredictions(classifier='best')['path. prob.']
+    p_main = rhapsody_obj.data['main path. prob.']
+    if PolyPhen2:
+        rhapsody_obj._calcPolyPhen2Predictions()
+        p_PP2 = rhapsody_obj.data['PolyPhen-2 score']
+    if EVmutation:
+        rhapsody_obj._calcEVmutationPredictions()
+        EVmut_cutoff = SETTINGS.get('EVmutation_metrics')['optimal cutoff']
+        p_EVmut = -rhapsody_obj.data['EVmutation score']/EVmut_cutoff*0.5
 
     # fill tables with predicted probability
     #  1:    deleterious
@@ -203,30 +203,26 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     for i, SAV in enumerate(rhapsody_obj.data['SAV coords']):
         aa_mut = SAV.split()[3]
         index = int(SAV.split()[1]) - 1
-        table_full[aa_map[aa_mut], index] = p_full[i]
-        if aux_preds_found:
-            table_mix[aa_map[aa_mut], index] = p_mix[i]
+        table_best[aa_map[aa_mut], index] = p_best[i]
+        table_main[aa_map[aa_mut], index] = p_main[i]
         if extra_plot is not None:
             table_other[aa_map[aa_mut], index] = extra_plot[i]
-        if PP2:
-            s = float(rhapsody_obj.PP2output['pph2_prob'][i])
-            table_PP2[aa_map[aa_mut], index] = s
+        if PolyPhen2:
+            table_PP2[aa_map[aa_mut], index] = p_PP2[i]
         if EVmutation:
-            s = -rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
-            EVmut_cutoff = SETTINGS.get('EVmutation_metrics')['optimal cutoff']
-            table_EVmut[aa_map[aa_mut], index] = s/EVmut_cutoff*0.5
+            table_EVmut[aa_map[aa_mut], index] = p_EVmut[i]
 
     # compute average pathogenicity profiles
     # NB: I expect to see RuntimeWarnings in this block
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        avg_p_full = np.nanmean(table_full, axis=0)
-        avg_p_mix = np.nanmean(table_mix, axis=0)
-        min_p = np.nanmin(table_mix, axis=0)
-        max_p = np.nanmax(table_mix, axis=0)
+        avg_p_best = np.nanmean(table_best, axis=0)
+        avg_p_main = np.nanmean(table_main, axis=0)
+        min_p = np.nanmin(table_best, axis=0)
+        max_p = np.nanmax(table_best, axis=0)
         if extra_plot is not None:
             avg_p_other = np.nanmean(table_other, axis=0)
-        if PP2:
+        if PolyPhen2:
             avg_p_PP2 = np.nanmean(table_PP2, axis=0)
         if EVmutation:
             avg_p_EVmut = np.nanmean(table_EVmut, axis=0)
@@ -247,17 +243,6 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     max_PDB_size = max(PDB_sizes)
     if max_PDB_size != 0:
         upper_strip[0, :] /= max_PDB_size
-
-    # final data to show on figure
-    if aux_preds_found:
-        table_final = table_mix
-        avg_p_final = avg_p_mix
-        pclass_final = rhapsody_obj.mixPreds['path. class']
-    else:
-        table_final = table_full
-        avg_p_final = avg_p_full
-        pclass_final = rhapsody_obj.predictions['path. class']
-    # avg_p_final = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
 
     # PLOT FIGURE
 
@@ -302,7 +287,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
     # mutagenesis table (heatmap)
     matplotlib.cm.coolwarm.set_bad(color='white')
-    im = ax1.imshow(table_final[:, res_i-1:res_f], aspect='auto',
+    im = ax1.imshow(table_best[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
@@ -319,14 +304,14 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # plot average profile for other predictions, if available
     if extra_plot is not None:
         ax2.plot(x_resids, avg_p_other, color='gray', lw=1)
-    if PP2:
+    if PolyPhen2:
         ax2.plot(x_resids, avg_p_PP2, color='blue', lw=1)
     if EVmutation:
         ax2.plot(x_resids, avg_p_EVmut, color='green', lw=1)
     # solid line for predictions obtained with full classifier
-    ax2.plot(x_resids, avg_p_full, 'ro-')
+    ax2.plot(x_resids, avg_p_main, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
-    ax2.plot(x_resids, avg_p_final, 'ro-', markerfacecolor='none', ls='dotted')
+    ax2.plot(x_resids, avg_p_best, 'ro-', markerfacecolor='none', ls='dotted')
     # cutoff line
     ax2.axhline(y=0.5, color='grey', lw=.8, linestyle='dashed')
 
@@ -400,6 +385,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             f.write('</div>\n')
 
         # populate info table that will be passed as a javascript variable
+        arr_best = rhapsody_obj.getPredictions(classifier='best')
         info = {}
         for k in ['strip', 'table', 'bplot']:
             n_cols = 20 if k == 'table' else 1
@@ -420,14 +406,14 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             ts_i = t_i
             ts_j = resid - res_i
             # predictions and other info
-            rh_pred = table_final[t_i, t_j]
-            av_rh_pred = avg_p_final[t_j]
-            pclass = pclass_final[i]
+            rh_pred = table_best[t_i, t_j]
+            av_rh_pred = avg_p_best[t_j]
+            pclass = arr_best['path. class'][i]
             others = {}
             if extra_plot is not None:
                 others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
-            if PP2:
-                others['PP2'] = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
+            if PolyPhen2:
+                others['PolyPhen2'] = (table_PP2[t_i, t_j], avg_p_PP2[t_j])
             if EVmutation:
                 others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for table
