@@ -57,6 +57,8 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
     :type download_EVmutation: bool
     """
 
+    pd.LOGGER.info(f'You are running Rhapsody v{rd.__version__}')
+
     # set working directory
     if working_dir is None:
         # check pre-existing configuration

@@ -409,16 +409,16 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             rh_pred = table_best[t_i, t_j]
             av_rh_pred = avg_p_best[t_j]
             pclass = arr_best['path. class'][i]
-            others = {}
+            alii = {}
             if extra_plot is not None:
-                others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
+                alii['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
             if PolyPhen2:
-                others['PolyPhen2'] = (table_PP2[t_i, t_j], avg_p_PP2[t_j])
+                alii['PolyPhen2'] = (table_PP2[t_i, t_j], avg_p_PP2[t_j])
             if EVmutation:
-                others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
+                alii['EVmutation'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for table
             m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
-            for k, t in others.items():
+            for k, t in alii.items():
                 m += f', {k}={t[0]:<4.2f}'
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
@@ -429,7 +429,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             info['strip'][0][ts_j] = m
             # compose message for bottom plot
             m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
-            for k, t in others.items():
+            for k, t in alii.items():
                 m += f', {k}={t[1]:<4.2f}'
             info['bplot'][0][ts_j] = m
 

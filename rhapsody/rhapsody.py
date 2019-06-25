@@ -358,7 +358,7 @@ class Rhapsody:
         self.data['PolyPhen-2 score'] = PP2_score
         self.data['PolyPhen-2 path. class'] = PP2_class
 
-    def _calcEVmutPredictions(self):
+    def _calcEVmutationPredictions(self):
         if self._isColSet('EVmutation score'):
             return
         EVmut_feats = recoverEVmutFeatures(self.data['SAV coords'])
@@ -412,7 +412,7 @@ class Rhapsody:
                 output[s] = self.data[s]
         # get EVmutation predictions
         if EVmutation:
-            self._calcEVmutPredictions()
+            self._calcEVmutationPredictions()
             for s in ['EVmutation score', 'EVmutation path. class']:
                 output[s] = self.data[s]
         # return output
