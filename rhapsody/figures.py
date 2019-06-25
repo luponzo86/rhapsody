@@ -191,8 +191,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         p_PP2 = rhapsody_obj.data['PolyPhen-2 score']
     if EVmutation:
         rhapsody_obj._calcEVmutationPredictions()
+        EVmut_score = np.array(rhapsody_obj.data['EVmutation score'])
         EVmut_cutoff = SETTINGS.get('EVmutation_metrics')['optimal cutoff']
-        p_EVmut = -rhapsody_obj.data['EVmutation score']/EVmut_cutoff*0.5
+        p_EVmut = -EVmut_score/EVmut_cutoff*0.5
 
     # fill tables with predicted probability
     #  1:    deleterious
