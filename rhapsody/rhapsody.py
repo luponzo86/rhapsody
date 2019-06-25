@@ -154,13 +154,14 @@ class Rhapsody:
         self.data['true labels'] = tuple(true_labels)
 
     def getUniprot2PDBmap(self, filename='rhapsody-Uniprot2PDB.txt',
-                          print_header=True):
+                          print_header=True, refresh=False):
         """Maps each SAV to the corresponding resid in a PDB chain.
         """
         assert self.data is not None, "SAVs not set."
         if not self._isColSet('PDB SAV coords'):
             # compute mapping
-            m = mapSAVs2PDB(self.data['SAV coords'], custom_PDB=self.customPDB)
+            m = mapSAVs2PDB(self.data['SAV coords'], custom_PDB=self.customPDB,
+                            refresh=refresh)
             self.data['unique SAV coords'] = m['unique SAV coords']
             self.data['PDB SAV coords'] = m['PDB SAV coords']
             self.data['PDB size'] = m['PDB size']
@@ -181,12 +182,37 @@ class Rhapsody:
                         # print error message
                         PDB_coords = s['PDB SAV coords']
                     f.write(f'{orig_SAV:<22} {U_coords:<22} {PDB_coords:<}\n')
-        return self.data[['SAV coords', 'unique SAV coords',
-                          'PDB SAV coords', 'PDB size']]
+        return np.array(self.data[['SAV coords', 'unique SAV coords',
+                                   'PDB SAV coords', 'PDB size']])
 
-    def calcFeatures(self, filename='rhapsody-features.txt'):
+    def getPDBcoords(self):
+        self.getUniprot2PDBmap(filename=None)
+        dt = np.dtype([
+            ('SAV coords', 'U50'),
+            ('PDB SAV coords', 'U100'),
+            ('PDBID', 'U4'),
+            ('chain', 'U1'),
+            ('resid', 'i4'),
+            ('resname', 'U1'),
+            ('PDB size', 'i4')
+        ])
+        PDBcoords = np.zeros(self.numSAVs, dtype=dt)
+        PDBcoords['SAV coords'] = self.data['SAV coords']
+        PDBcoords['PDB SAV coords'] = self.data['PDB SAV coords']
+        fields = [
+            row['PDB SAV coords'].split() if row['PDB size'] > 0
+            else ['?', '?', -999, '?'] for row in self.data
+        ]
+        PDBcoords['PDBID'] = [r[0] for r in fields]
+        PDBcoords['chain'] = [r[1] for r in fields]
+        PDBcoords['resid'] = [r[2] for r in fields]
+        PDBcoords['resname'] = [r[3] for r in fields]
+        PDBcoords['PDB size'] = self.data['PDB size']
+        return PDBcoords
+
+    def calcFeatures(self, filename='rhapsody-features.txt', refresh=False):
         if self.featMatrix is None:
-            self.featMatrix = self._calcFeatMatrix()
+            self.featMatrix = self._calcFeatMatrix(refresh=refresh)
         # print to file, if requested
         if filename is not None:
             h = ''
@@ -200,7 +226,7 @@ class Rhapsody:
             np.savetxt(filename, self.featMatrix, fmt='%15.3e', header=h)
         return self.featMatrix
 
-    def _calcFeatMatrix(self):
+    def _calcFeatMatrix(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
         assert self.featSet is not None, 'Feature set not set.'
         # list of structured arrays that will contain all computed features
@@ -214,10 +240,10 @@ class Rhapsody:
         sel_PDBfeats = RHAPSODY_FEATS['PDB'].intersection(self.featSet)
         if sel_PDBfeats:
             # map SAVs to PDB structures
-            Uniprot2PDBmap = self.getUniprot2PDBmap()
+            Uniprot2PDBmap = self.getUniprot2PDBmap(refresh=refresh)
             # compute structural and dynamical features from a PDB structure
             f = calcPDBfeatures(Uniprot2PDBmap, sel_feats=sel_PDBfeats,
-                                custom_PDB=self.customPDB)
+                                custom_PDB=self.customPDB, refresh=refresh)
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
             # retrieve BLOSUM values
@@ -234,11 +260,11 @@ class Rhapsody:
         # build matrix of selected features
         return buildFeatMatrix(self.featSet, all_feats)
 
-    def exportTrainingData(self):
+    def exportTrainingData(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
         assert self._isColSet('true labels'), 'True labels not set.'
         if self.featMatrix is None:
-            self.featMatrix = self._calcFeatMatrix()
+            self.featMatrix = self._calcFeatMatrix(refresh=refresh)
         dt = np.dtype([('SAV_coords', '<U50'), ('Uniprot2PDB', '<U100'),
                        ('PDB_length', '<i2'), ('true_label', '<i2')] +
                       [(f, '<f4') for f in self.featSet])
@@ -317,12 +343,12 @@ class Rhapsody:
                 new_featset.append(f)
         return new_featset
 
-    def _calcPredictions(self):
+    def _calcPredictions(self, refresh=False):
         assert self.classifier is not None, 'Classifier not set.'
         if self._isColSet('main score'):
             return
         # compute features
-        self.calcFeatures()
+        self.calcFeatures(refresh=refresh)
         # compute main predictions
         preds = calcPredictions(self.featMatrix, self.classifier['path'],
                                 SAV_coords=self.data['SAV coords'])
@@ -369,7 +395,7 @@ class Rhapsody:
         self.data['EVmutation path. class'] = EVmut_class
 
     def getPredictions(self, SAV='all', classifier='best',
-                       PolyPhen2=True, EVmutation=True):
+                       PolyPhen2=True, EVmutation=True, refresh=False):
         assert classifier in ['best', 'main', 'aux'], "Invalid 'classifier'."
         if classifier == 'aux' and self.aux_classifier is None:
             raise ValueError('Auxiliary classifier not found.')
@@ -395,7 +421,7 @@ class Rhapsody:
         output['SAV coords'] = self.data['SAV coords']
         output['training info'] = self.data['training info']
         # get Rhapsody predictions
-        self._calcPredictions()
+        self._calcPredictions(refresh=refresh)
         for s in ['score', 'path. prob.', 'path. class']:
             if classifier == 'best':
                 output[s] = np.where(self.data['best classifier'] == 'main',
@@ -560,7 +586,7 @@ def printSAVlist(input_SAVs, filename):
     return filename
 
 
-def mapSAVs2PDB(SAV_coords, custom_PDB=None):
+def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
     LOGGER.info('Mapping SAVs to PDB structures...')
     LOGGER.timeit('_map2PDB')
     # sort SAVs, so to group together those
@@ -593,7 +619,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None):
             cache['acc'] = acc
             # compute the new mapping
             try:
-                U2P_map = UniprotMapping(acc, recover_pickle=True)
+                U2P_map = UniprotMapping(acc, recover_pickle=not(refresh))
                 if custom_PDB is not None:
                     LOGGER.info('Aligning Uniprot sequence to custom PDB...')
                     U2P_map.alignCustomPDB(custom_PDB, 'all')

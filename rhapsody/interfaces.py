@@ -9,8 +9,10 @@ from .rhapsody import Rhapsody
 __all__ = ['rhapsody']
 
 
-def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
-             main_classifier=None, aux_classifier=None, log=True):
+def rhapsody(input_obj, input_type='SAVs',
+             main_classifier=None, aux_classifier=None,
+             custom_PDB=None, force_env=None,
+             refresh=False, log=True):
     """Obtain Rhapsody pathogenicity predictions on a list of human missense
     variants ([ref]_)
 
@@ -30,17 +32,6 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
     :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PolyPhen2'``
     :type input_type: str
 
-    :arg custom_PDB: a PDBID, a filename or an :class:`Atomic` to be used
-      for computing structural and dynamical features, instead of the PDB
-      structure automatically selected by the program
-    :type custom_PDB: str, :class:`AtomGroup`
-
-    :arg input_type: force a specific environment model for GNM/ANM
-      calculations, among ``'chain'``, ``'reduced'`` and ``'PolyPhen2'``.
-      If **None** (default), the model of individual dynamical features will
-      match that found in the classifier's feature set
-    :type input_type: str
-
     :arg main_classifier: main classifier's filename. If **None**, the default
       *full* Rhapsody classifier will be used
     :type main_classifier: str
@@ -49,6 +40,21 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
       *main_classifier* and *aux_classifier* are **None**, the default
       *reduced* Rhapsody classifier will be used
     :type aux_classifier: str
+
+    :arg custom_PDB: a PDBID, a filename or an :class:`Atomic` to be used
+      for computing structural and dynamical features, instead of the PDB
+      structure automatically selected by the program
+    :type custom_PDB: str, :class:`AtomGroup`
+
+    :arg force_env: force a specific environment model for GNM/ANM
+      calculations, among ``'chain'``, ``'reduced'`` and ``'PolyPhen2'``.
+      If **None** (default), the model of individual dynamical features will
+      match that found in the classifier's feature set
+    :type force_env: str
+
+    :arg refresh: if **True**, precomputed features and PDB mappings found in
+      the working directory will be ignored and computed again
+    :type refresh: str
 
     :arg log: if **True**, log messages will be saved in
       :file:`rhapsody-log.txt`
@@ -59,8 +65,8 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
       115 (16) 4164-4169.
     """
 
-    assert input_type in ('SAVs', 'scanning', 'PolyPhen2'), \
-           "Invalid 'input_type' argument."
+    assert input_type in ('SAVs', 'scanning', 'PolyPhen2'), (
+        "'input_type' must be 'SAVs', 'scanning' or 'PolyPhen2'")
 
     if log:
         LOGGER.start('rhapsody-log.txt')
@@ -95,12 +101,12 @@ def rhapsody(input_obj, input_type='SAVs', custom_PDB=None, force_env=None,
         r.importPolyPhen2output(input_obj)
 
     # compute predictions
-    r.getPredictions()
+    r.getPredictions(refresh=refresh)
 
     # print predictions to file
     r.printPredictions()
     # print both 'full' and 'reduced' predictions in a more detailed format
-    r.printPredictions(classifier="both", #PolyPhen2=False, EVmutation=False,
+    r.printPredictions(classifier="both", PolyPhen2=False, EVmutation=False,
                        filename='rhapsody-predictions-full_vs_reduced.txt')
 
     # save pickle

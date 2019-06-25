@@ -37,7 +37,8 @@ def calcPolyPhen2features(PolyPhen2output):
     return features
 
 
-def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
+def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
+                    refresh=False):
     LOGGER.info('Computing structural and dynamical features '
                 'from PDB structures...')
     LOGGER.timeit('_calcPDBFeats')
@@ -84,7 +85,7 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None):
                 try:
                     # instantiate new PDBfeatures object
                     if custom_PDB is None:
-                        obj = PDBfeatures(PDBID, recover_pickle=True)
+                        obj = PDBfeatures(PDBID, recover_pickle=not(refresh))
                     else:
                         obj = PDBfeatures(custom_PDB, recover_pickle=False)
                 except Exception as e:
