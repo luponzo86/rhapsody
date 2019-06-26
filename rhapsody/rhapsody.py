@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import pickle
 from os.path import isfile
 from prody import LOGGER, SETTINGS, Atomic, queryUniprot
@@ -183,6 +184,11 @@ class Rhapsody:
         # store SAV coords
         self.setSAVs(getSAVcoords(self.PolyPhen2output)['text'])
         return self.PolyPhen2output
+
+    def getSAVcoords(self):
+        # they could also *not* be in Uniprot format, e.g.
+        # 'rs397518423' or 'chr5:80390175 G/A'
+        return np.array(self.data['SAV coords'])
 
     def setFeatSet(self, featset):
         assert self.featSet is None, 'Feature set already set.'
@@ -484,7 +490,8 @@ class Rhapsody:
         self.data['EVmutation path. class'] = EVmut_class
 
     def getPredictions(self, SAV='all', classifier='best',
-                       PolyPhen2=True, EVmutation=True, refresh=False):
+                       PolyPhen2=True, EVmutation=True,
+                       PDBcoords=False, refresh=False):
         assert classifier in ['best', 'main', 'aux'], "Invalid 'classifier'."
         if classifier == 'aux' and self.aux_classifier is None:
             raise ValueError('Auxiliary classifier not found.')
@@ -506,6 +513,10 @@ class Rhapsody:
                 ('EVmutation score', 'f4'),
                 ('EVmutation path. class', 'U12')
             ])
+        if PDBcoords:
+            cols.append(
+                ('PDB SAV coords', 'U100')
+            )
         output = np.empty(self.numSAVs, dtype=np.dtype(cols))
         output['SAV coords'] = self.data['SAV coords']
         output['training info'] = self.data['training info']
@@ -530,6 +541,10 @@ class Rhapsody:
             self._calcEVmutationPredictions()
             for s in ['EVmutation score', 'EVmutation path. class']:
                 output[s] = self.data[s]
+        # get PDB coordinates
+        if PDBcoords:
+            self.getUniprot2PDBmap(filename=None)
+            output['PDB SAV coords'] = self.data['PDB SAV coords']
         # return output
         if SAV == 'all':
             return output
@@ -539,6 +554,76 @@ class Rhapsody:
             return output[output['SAV coords'] == SAV][0]
         else:
             raise ValueError('Invalid SAV.')
+
+    def _calcResAvg(self, array, dtype='float'):
+        assert dtype in ['float', 'int', 'str']
+        array = array.copy()
+        m = array.reshape((-1, 19)).T
+        if dtype == 'float':
+            return np.nanmean(m, axis=0)
+        else:
+            uniq_rows = np.unique(m, axis=0)
+            if len(uniq_rows) != 1:
+                raise RuntimeError('Invalid saturation mutagenesis list')
+            return uniq_rows[0]
+
+    def getResAvgPredictions(self, classifier='best',
+                             PolyPhen2=True, EVmutation=True,
+                             refresh=False):
+        assert self._isSaturationMutagenesis(), ('Not a saturation '
+                                                 'mutagenesis list of SAVs')
+        # initialize output array
+        cols = [
+            ('sequence index', 'i4'),
+            ('PDB resid', 'i4'),
+            ('wt. aa', 'U1'),
+            ('score', 'f4'),
+            ('path. prob.', 'f4'),
+            ('path. class', 'U12')
+        ]
+        if PolyPhen2:
+            cols.extend([
+                ('PolyPhen-2 score', 'f4'),
+                ('PolyPhen-2 path. class', 'U12')
+            ])
+        if EVmutation:
+            cols.extend([
+                ('EVmutation score', 'f4'),
+                ('EVmutation path. class', 'U12')
+            ])
+        output = np.empty(int(self.numSAVs/19), dtype=np.dtype(cols))
+        # fetch unique SAV coords, PDB coords and predictions
+        uSAVc = self.getUniqueSAVcoords()
+        PDBc = self.getPDBcoords()
+        preds = self.getPredictions(classifier=classifier, PolyPhen2=PolyPhen2,
+                                    EVmutation=EVmutation, refresh=refresh)
+        # compute residue-averaged quantities
+        output['sequence index'] = self._calcResAvg(uSAVc['position'], 'int')
+        output['PDB resid'] = self._calcResAvg(PDBc['resid'], 'int')
+        output['wt. aa'] = self._calcResAvg(uSAVc['wt. aa'], 'str')
+        # NB: I expect to see RuntimeWarnings in this block
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            output['score'] = self._calcResAvg(preds['score'])
+            pp = self._calcResAvg(preds['path. prob.'])
+            pc = np.where(pp > 0.5, 'deleterious', 'neutral')
+            pc = np.where(np.isnan(pp), '?', pc)
+            output['path. prob.'] = pp
+            output['path. class'] = pc
+            if PolyPhen2:
+                ps = self._calcResAvg(preds['PolyPhen-2 score'])
+                pc = np.where(ps > 0.5, 'deleterious', 'neutral')
+                pc = np.where(np.isnan(ps), '?', pc)
+                output['PolyPhen-2 score'] = ps
+                output['PolyPhen-2 path. class'] = pc
+            if EVmutation:
+                ps = self._calcResAvg(preds['EVmutation score'])
+                cutoff = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
+                pc = np.where(ps < cutoff, 'deleterious', 'neutral')
+                pc = np.where(np.isnan(ps), '?', pc)
+                output['EVmutation score'] = ps
+                output['EVmutation path. class'] = pc
+        return output
 
     def printPredictions(self, classifier='best',
                          PolyPhen2=True, EVmutation=True,
