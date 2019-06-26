@@ -9,28 +9,28 @@ from .rhapsody import Rhapsody
 __all__ = ['rhapsody']
 
 
-def rhapsody(input_obj, input_type='SAVs',
+def rhapsody(query, query_type='SAVs',
              main_classifier=None, aux_classifier=None,
              custom_PDB=None, force_env=None,
              refresh=False, log=True):
     """Obtain Rhapsody pathogenicity predictions on a list of human missense
     variants ([ref]_)
 
-    :arg input_obj: Single Amino Acid Variants (SAVs) in Uniprot coordinates
+    :arg query: Single Amino Acid Variants (SAVs) in Uniprot coordinates
 
-      - if *input_type* = ``'SAVs'`` (default), it should be a filename, a
+      - if *query_type* = ``'SAVs'`` (default), it should be a filename, a
         string or a list/tuple of strings, containing Uniprot SAV coordinates,
-        with the format ``'P17516 135 G E'``
-      - if *input_type* = ``'scanning'``, it should be a string identifying a
+        with the format ``'P17516 135 G E'``.
+      - if *query_type* = ``'scanning'``, it should be a string identifying a
         Uniprot sequence (e.g. ``'P17516'``) or a specific site in a sequence
         (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at
         the specified positions on the sequence will be analyzed
-      - if *input_type* = ``'PolyPhen2'``, it should be a filename containing
+      - if *query_type* = ``'PolyPhen2'``, it should be a filename containing
         the output from PolyPhen-2, usually named :file:`pph2-full.txt`
-    :type input_obj: str, list
+    :type query: str, list
 
-    :arg input_type: ``'SAVs'``, ``'scanning'`` or ``'PolyPhen2'``
-    :type input_type: str
+    :arg query_type: ``'SAVs'``, ``'scanning'`` or ``'PolyPhen2'``
+    :type query_type: str
 
     :arg main_classifier: main classifier's filename. If **None**, the default
       *full* Rhapsody classifier will be used
@@ -65,9 +65,6 @@ def rhapsody(input_obj, input_type='SAVs',
       115 (16) 4164-4169.
     """
 
-    assert input_type in ('SAVs', 'scanning', 'PolyPhen2'), (
-        "'input_type' must be 'SAVs', 'scanning' or 'PolyPhen2'")
-
     if log:
         LOGGER.start('rhapsody-log.txt')
 
@@ -88,17 +85,10 @@ def rhapsody(input_obj, input_type='SAVs',
         r.setCustomPDB(custom_PDB)
 
     # obtain or import PolyPhen-2 results
-    if input_type == 'SAVs':
-        # 'input_obj' is a filename, list, tuple or string
-        # containing SAV coordinates
-        r.queryPolyPhen2(input_obj)
-    elif input_type == 'scanning':
-        # 'input_obj' is a Uniprot accession number identifying a sequence,
-        # with or without a specified position
-        r.queryPolyPhen2(input_obj, scanning=True)
-    elif input_type == 'PolyPhen2':
-        # 'input_obj' is a filename containing PolyPhen-2's output
-        r.importPolyPhen2output(input_obj)
+    if query_type == 'SAVs':
+        r.queryPolyPhen2(query)
+    elif query_type == 'PolyPhen2':
+        r.importPolyPhen2output(query)
 
     # compute predictions
     r.getPredictions(refresh=refresh)

@@ -22,7 +22,30 @@ class Rhapsody:
     EVmutation.
     """
 
-    def __init__(self):
+    def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True):
+
+        assert query_type in ('SAVs', 'PolyPhen2')
+        assert isinstance(queryPolyPhen2, bool)
+
+        if query is None:
+            # a SAV list can be uploaded later with setSAVs()
+            # (useful when PolyPhen-2 features are not needed)
+            self.query = None
+            self.saturation_mutagenesis = None
+        elif query_type == 'PolyPhen2':
+            # 'query' must be a filename containing PolyPhen-2's output
+            self.importPolyPhen2output(query)
+        elif queryPolyPhen2:
+            # 'query' can be a filename, list, tuple or string
+            # containing SAV coordinates, or just a single string with
+            # the Uniprot accession number of a sequence (with or without
+            # a specified position) for which a complete scanning of all
+            # mutations will be computed
+            self.queryPolyPhen2(query)
+        else:
+            # as above, but without querying PolyPhen-2
+            self.setSAVs(query)
+
         # masked NumPy array that will contain all info abut SAVs
         self.data = None
         self.data_dtype = np.dtype([
@@ -74,29 +97,71 @@ class Rhapsody:
     def _isColSet(self, column):
         return self.data[column].count() != 0
 
-    def setSAVs(self, SAV_list):
-        # TO DO: write function that allows to import a SAV list
-        # without querying PolyPhen-2
+    def _isSaturationMutagenesis(self):
+        assert self._isColSet('SAV coords'), 'SAV list not set.'
+        if self.saturation_mutagenesis is None:
+            self.saturation_mutagenesis = False
+            try:
+                SAV_list = list(self.data['SAV coords'])
+                acc = SAV_list[0].split()[0]
+                generated_SAV_list = seqScanning(acc)
+                if SAV_list == generated_SAV_list:
+                    self.saturation_mutagenesis = True
+            except Exception as e:
+                LOGGER.warn(f'Not a saturation mutagenesis list: {e}')
+        return self.saturation_mutagenesis
+
+    def setSAVs(self, query):
+        # 'query' can be a filename, list, tuple or string
+        # containing SAV coordinates, or just a single string with
+        # the Uniprot accession number of a sequence (with or without
+        # a specified position) for which a complete scanning of all
+        # mutations will be computed
+        assert self.data is None, 'SAV list already set.'
+        SAV_dtype = [
+            ('acc', 'U10'),
+            ('pos', 'i'),
+            ('wt_aa', 'U1'),
+            ('mut_aa', 'U1')
+        ]
+        if isinstance(query, str):
+            if isfile(query):
+                # 'query' is a filename, with line format 'P17516 135 G E'
+                SAVs = np.loadtxt(query, dtype=SAV_dtype)
+                SAV_list = ['{} {} {} {}'.format(*s) for s in SAVs]
+            elif len(query.split()) < 3:
+                # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
+                SAV_list = seqScanning(query)
+                self.saturation_mutagenesis = True
+            else:
+                # single SAV
+                SAV = np.array(query.split(), dtype=SAV_dtype)
+                SAV_list = ['{} {} {} {}'.format(*SAV)]
+        else:
+            # 'query' is a list or tuple of SAV coordinates
+            SAVs = np.array([tuple(s.split()) for s in query], dtype=SAV_dtype)
+            SAV_list = ['{} {} {} {}'.format(*s) for s in SAVs]
+        # store SAV coordinates
         numSAVs = len(SAV_list)
         data = np.ma.masked_all(numSAVs, dtype=self.data_dtype)
         data['SAV coords'] = SAV_list
         self.data = data
         self.numSAVs = len(SAV_list)
 
-    def queryPolyPhen2(self, x, scanning=False, filename='rhapsody-SAVs.txt'):
-        assert self.PolyPhen2output is None, ("PolyPhen-2 output "
-                                              "already imported.")
-        SAV_file = ''
-        if scanning:
-            # 'x' is a string, e.g. 'P17516' or 'P17516 135'
-            SAV_list = seqScanning(x)
+    def queryPolyPhen2(self, query, filename='rhapsody-SAVs.txt'):
+        assert self.data is None, 'SAV list already set.'
+        assert self.PolyPhen2output is None, "PolyPhen-2 output " \
+                                             "already imported."
+        if isinstance(query, str) and isfile(query):
+            # 'query' is a filename
+            SAV_file = query
+        elif isinstance(query, str) and len(query.split()) < 3:
+            # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
+            SAV_list = seqScanning(query)
             SAV_file = printSAVlist(SAV_list, filename)
-        elif isinstance(x, str) and isfile(x):
-            # 'x' is a filename, with line format 'P17516 135 G E'
-            SAV_file = x
         else:
-            # 'x' is a list, tuple or single string of SAV coordinates
-            SAV_file = printSAVlist(x, filename)
+            # 'query' is a list, tuple or single string of SAV coordinates
+            SAV_file = printSAVlist(query, filename)
         # submit query to PolyPhen-2
         try:
             PolyPhen2_output = queryPolyPhen2(SAV_file)
@@ -106,13 +171,15 @@ class Rhapsody:
                    '(http://genetics.bwh.harvard.edu/pph2) \n'
                    'and try again when "Load" is "Low" and "Health" is 100%')
             raise RuntimeError(err)
-        return self.importPolyPhen2output(PolyPhen2_output)
+        # import PolyPhen-2 output
+        self.importPolyPhen2output(PolyPhen2_output)
+        return self.PolyPhen2output
 
-    def importPolyPhen2output(self, PolyPhen2output):
+    def importPolyPhen2output(self, filename):
+        assert self.data is None, 'SAV list already set.'
         assert self.PolyPhen2output is None, ("PolyPhen-2 output "
                                               "already imported.")
-        assert self.data is None, 'SAVs already set.'
-        self.PolyPhen2output = parsePolyPhen2output(PolyPhen2output)
+        self.PolyPhen2output = parsePolyPhen2output(filename)
         # store SAV coords
         self.setSAVs(getSAVcoords(self.PolyPhen2output)['text'])
         return self.PolyPhen2output
@@ -138,8 +205,8 @@ class Rhapsody:
                             'a PDB structure.')
                 return
         assert self.customPDB is None, 'Custom PDB structure already set.'
-        assert isinstance(custom_PDB, (str, Atomic)), \
-               'Please provide a PDBID, a filename or an Atomic instance.'
+        assert isinstance(custom_PDB, (str, Atomic)), (
+            'Please provide a PDBID, a filename or an Atomic instance.')
         self.customPDB = custom_PDB
 
     def setTrueLabels(self, true_label_dict):
@@ -209,6 +276,28 @@ class Rhapsody:
         PDBcoords['resname'] = [r[3] for r in fields]
         PDBcoords['PDB size'] = self.data['PDB size']
         return PDBcoords
+
+    def getUniqueSAVcoords(self):
+        self.getUniprot2PDBmap(filename=None)
+        dt = np.dtype([
+            ('SAV coords', 'U50'),
+            ('unique SAV coords', 'U50'),
+            ('Uniprot ID', 'U10'),
+            ('position', 'i4'),
+            ('wt. aa', 'U1'),
+            ('mut. aa', 'U1')
+        ])
+        uSAVcoords = np.zeros(self.numSAVs, dtype=dt)
+        for i, SAV in enumerate(self.data):
+            try:
+                uSAVcoords[i] = tuple(
+                    [SAV['SAV coords'], SAV['unique SAV coords']] +
+                    SAV['unique SAV coords'].split()
+                )
+            except Exception as e:
+                LOGGER.warn(f'Invalid Uniprot coordinates at line {i}: {e}')
+                uSAVcoords[i] = tuple(['?', -999, '?', '?'])
+        return uSAVcoords
 
     def calcFeatures(self, filename='rhapsody-features.txt', refresh=False):
         if self.featMatrix is None:
@@ -555,9 +644,9 @@ def seqScanning(Uniprot_coord):
     '''
     assert isinstance(Uniprot_coord, str), "Must be a string."
     coord = Uniprot_coord.strip().split()
-    assert len(coord)<3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
+    assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
     Uniprot_record = queryUniprot(coord[0])
-    sequence = Uniprot_record['sequence   0'].replace("\n","")
+    sequence = Uniprot_record['sequence   0'].replace("\n", "")
     if len(coord) == 1:
         positions = range(len(sequence))
     else:
