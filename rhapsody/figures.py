@@ -46,7 +46,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
 
 
 def print_path_prob_figure(filename, bins, histo, dx, path_prob,
-                           smooth_path_prob, cutoff=200):
+                           extra_plot=None, cutoff=200):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
@@ -60,10 +60,11 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     s = np.sum(histo, axis=0)
     v1 = np.where(s >= cutoff, path_prob, 0)
     v2 = np.where(s < cutoff, path_prob, 0)
-    v3 = np.where(s >= cutoff, smooth_path_prob, 0.)
     plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1)
     plt.bar(bins[:-1], v2, width=dx, align='edge', color='red', alpha=0.7)
-    plt.plot(bins[:-1]+dx/2, v3, color='orange')
+    if extra_plot is not None:
+        v3 = np.where(s >= cutoff, extra_plot, 0.)
+        plt.plot(bins[:-1]+dx/2, v3, color='orange')
     plt.ylabel('pathogenicity prob.')
     plt.xlabel('predicted score')
     plt.ylim((0, 1))

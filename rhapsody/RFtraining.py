@@ -29,7 +29,7 @@ def calcMetrics(y_test, y_pred):
             'AUPRC': auprc}
 
 
-def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
+def calcPathogenicityProbs(CV_info, bin_width=0.1, smooth_window=5,
                            ppred_reliability_cutoff=200,
                            pred_distrib_fig='predictions_distribution.png',
                            path_prob_fig='pathogenicity_prob.png', **kwargs):
@@ -62,26 +62,33 @@ def calcPathogenicityProbs(CV_info, bin_width=0.04, smooth_window=5,
     path_prob = np.divide(norm_histo[1], s, out=np.zeros_like(s),
                           where=(s != 0))
 
-    # smooth pathogenicity probability profile
-    smooth_path_prob = np.zeros_like(path_prob)
-    for i in range(n_bins):
-        p = path_prob[i]
-        sw = 0
-        for k in range(1, smooth_window+1):
-            if (i-k < 0) or (i+k >= n_bins):
-                break
-            else:
-                sw = k
-                p += path_prob[i-k] + path_prob[i+k]
-        smooth_path_prob[i] = p / (1 + sw*2)
+    # # smooth pathogenicity probability profile
+    # smooth_path_prob = _calcSmoothCurve(path_prob, smooth_window)
 
     # print pathogenicity probability figure
     if path_prob_fig is not None:
-        print_path_prob_figure(path_prob_fig, bins, histo, dx,
-                               path_prob, smooth_path_prob,
+        print_path_prob_figure(path_prob_fig, bins, histo, dx, path_prob,
+                               extra_plot=path_prob,  # or: smooth_path_prob
                                cutoff=ppred_reliability_cutoff)
 
-    return np.array((bins[:-1], path_prob, smooth_path_prob))
+    return np.array((bins[:-1], path_prob))
+
+
+def _calcSmoothCurve(curve, smooth_window):
+    # smooth pathogenicity probability profile
+    n = len(curve)
+    smooth_curve = np.zeros_like(curve)
+    for i in range(n):
+        p = curve[i]
+        sw = 0
+        for k in range(1, smooth_window + 1):
+            if (i-k < 0) or (i+k >= n):
+                break
+            else:
+                sw = k
+                p += curve[i-k] + curve[i+k]
+        smooth_curve[i] = p / (1 + sw*2)
+    return smooth_curve
 
 
 def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
