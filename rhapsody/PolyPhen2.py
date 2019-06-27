@@ -5,8 +5,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
 
-__all__ = ['requests_retry_session', 'queryPolyPhen2',
-           'parsePolyPhen2output', 'getSAVcoords']
+__all__ = ['queryPolyPhen2', 'parsePolyPhen2output', 'getSAVcoords']
 
 pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2',
@@ -22,8 +21,8 @@ pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'IdQmin', 'other']
 
 
-def requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
-                           status_forcelist=(404,), session=None):
+def _requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
+                            status_forcelist=(404,), session=None):
     # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
     session = session or requests.Session()
     retry = Retry(total=retries, read=retries, connect=retries,
@@ -78,19 +77,19 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
         # delay = timeout + backoff_factor*[2^(total_retries - 1)]
         if k == 'started':
             LOGGER.timeit('_started')
-            r = requests_retry_session(retries=16, timeout=0,
-                                       backoff_factor=0.1).get(files[k])
+            r = _requests_retry_session(retries=16, timeout=0,
+                                        backoff_factor=0.1).get(files[k])
             LOGGER.report('Query to PolyPhen-2 started in %.1fs.', '_started')
             LOGGER.info('PolyPhen-2 is running...')
         elif k == 'completed':
             LOGGER.timeit('_queryPP2')
-            r = requests_retry_session(retries=12, timeout=log(num_lines)/2,
-                                       backoff_factor=0.2).get(files[k])
+            r = _requests_retry_session(retries=12, timeout=log(num_lines)/2,
+                                        backoff_factor=0.2).get(files[k])
             LOGGER.report('Query to PolyPhen-2 completed in %.1fs.',
                           '_queryPP2')
         else:
-            r = requests_retry_session(retries=12, timeout=0,
-                                       backoff_factor=0.01).get(files[k])
+            r = _requests_retry_session(retries=12, timeout=0,
+                                        backoff_factor=0.01).get(files[k])
         output[k] = r
         # print to file, if requested
         if dump:

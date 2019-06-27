@@ -10,7 +10,7 @@ __all__ = ['print_pred_distrib_figure', 'print_path_prob_figure',
            'print_sat_mutagen_figure']
 
 
-def try_import_matplotlib():
+def _try_import_matplotlib():
     try:
         import matplotlib as plt
         plt.rcParams.update({'font.size': 20, 'font.family': 'Arial'})
@@ -24,7 +24,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
     else:
@@ -50,7 +50,7 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
     else:
@@ -78,7 +78,7 @@ def print_ROC_figure(filename, fpr, tpr, mean_auc):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
     else:
@@ -104,7 +104,7 @@ def print_feat_imp_figure(filename, feat_imp, featset):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
     else:
@@ -121,7 +121,7 @@ def print_feat_imp_figure(filename, feat_imp, featset):
     LOGGER.info(f'Feat. importance plot saved to {filename}')
 
 
-def adjust_res_interval(res_interval, upper_lim, min_size=10):
+def _adjust_res_interval(res_interval, upper_lim, min_size=10):
     res_i = max(1, res_interval[0])
     res_f = max(1, res_interval[1])
     n = min_size - 1
@@ -154,7 +154,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     assert isinstance(fig_height, (int, float))
     assert isinstance(dpi, int)
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
 
@@ -255,8 +255,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     if res_interval is None:
         res_interval = (res_min, res_max)
     # adjust interval
-    res_i, res_f = adjust_res_interval(res_interval, upper_lim,
-                                       min_interval_size)
+    res_i, res_f = _adjust_res_interval(res_interval, upper_lim,
+                                        min_interval_size)
     nres_shown = res_f - res_i + 1
 
     # figure proportions
