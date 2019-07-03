@@ -71,7 +71,7 @@ def calcPathogenicityProbs(CV_info, bin_width=0.1, smooth_window=5,
                                extra_plot=path_prob,  # or: smooth_path_prob
                                cutoff=ppred_reliability_cutoff)
 
-    return np.array((bins[:-1], path_prob))
+    return np.array((bins[:-1]+dx/2, path_prob))
 
 
 def _calcSmoothCurve(curve, smooth_window):
