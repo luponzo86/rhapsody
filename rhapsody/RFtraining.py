@@ -29,7 +29,7 @@ def calcMetrics(y_test, y_pred):
             'AUPRC': auprc}
 
 
-def calcPathogenicityProbs(CV_info, bin_width=0.1, smooth_window=5,
+def calcPathogenicityProbs(CV_info, num_bins=15,
                            ppred_reliability_cutoff=200,
                            pred_distrib_fig='predictions_distribution.png',
                            path_prob_fig='pathogenicity_prob.png', **kwargs):
@@ -42,10 +42,9 @@ def calcPathogenicityProbs(CV_info, bin_width=0.1, smooth_window=5,
              np.array(CV_info['predictions_1'])]
 
     # compute (normalized) histograms
-    dx = bin_width
+    dx = 1./num_bins
     bins = np.arange(0, 1+dx, dx)
-    n_bins = len(bins)-1
-    histo = np.empty((2, n_bins))
+    histo = np.empty((2, len(bins)-1))
     norm_histo = np.empty_like(histo)
     for i in [0, 1]:
         h, _ = np.histogram(preds[i], bins, range=(0, 1))
@@ -62,17 +61,25 @@ def calcPathogenicityProbs(CV_info, bin_width=0.1, smooth_window=5,
     path_prob = np.divide(norm_histo[1], s, out=np.zeros_like(s),
                           where=(s != 0))
 
-    # # smooth pathogenicity probability profile
-    # smooth_path_prob = _calcSmoothCurve(path_prob, smooth_window)
+    # smooth path. probability profile and extend it to [0, 1] interval
+    _smooth = _running_average(path_prob)
+    # _smooth = _calcSmoothCurve(path_prob, 5)
+    y_ext = np.concatenate([[0], _smooth, [1]])
+    x_ext = np.concatenate([[0], bins[:-1]+dx/2, [1]])
+    smooth_path_prob = np.array([x_ext, y_ext])
 
     # print pathogenicity probability figure
     if path_prob_fig is not None:
         print_path_prob_figure(path_prob_fig, bins, histo, dx, path_prob,
-                               extra_plot=path_prob,  # or: smooth_path_prob
+                               smooth_plot=smooth_path_prob,
                                cutoff=ppred_reliability_cutoff)
 
-    return np.array((bins[:-1]+dx/2, path_prob))
+    return np.array(smooth_path_prob)
 
+
+def _running_average(curve):
+    ext_pprob = np.concatenate([[0], curve, [1]])
+    return np.convolve(ext_pprob, np.ones((3,))/3, mode='valid')
 
 def _calcSmoothCurve(curve, smooth_window):
     # smooth pathogenicity probability profile

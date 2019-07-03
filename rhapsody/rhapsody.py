@@ -879,8 +879,6 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
     Jplus = J + err_bar
-    x_interp = np.concatenate([[0], path_curve[0], [1]])
-    y_interp = np.concatenate([[0], path_curve[1], [1]])
     k = 0
     for i in range(len(feat_matrix)):
         # determine SAV status
@@ -900,7 +898,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
             score = proba[k, 1]
             # assign pathogenicity probability by interpolating
             # the pathogenicity profile computed during CV
-            path_prob = np.interp(score, x_interp, y_interp)
+            path_prob = np.interp(score, path_curve[0], path_curve[1])
             # assign class of pathogenicity based on Youden's cutoff
             if score > Jplus:
                 path_class = "deleterious"

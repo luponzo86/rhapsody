@@ -122,7 +122,11 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             fields = ['SAV_coords', 'true_label'] + featset
             rd.trainRFclassifier(training_dataset[fields])
             # move trained classifier and figures into folder
-            output_files = glob.glob('*png') + ['trained_classifier.pkl', ]
+            output_files = ['predictions_distribution.png',
+                            'pathogenicity_prob.png',
+                            'ROC.png',
+                            'feat_importances.png',
+                            'trained_classifier.pkl', ]
             for file in output_files:
                 os.rename(file, os.path.join(clsf_folder, file))
             pd.LOGGER.close(logfile)

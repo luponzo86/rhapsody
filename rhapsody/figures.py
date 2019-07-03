@@ -46,7 +46,7 @@ def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
 
 
 def print_path_prob_figure(filename, bins, histo, dx, path_prob,
-                           extra_plot=None, cutoff=200):
+                           smooth_plot=None, cutoff=200):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
@@ -60,14 +60,16 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     s = np.sum(histo, axis=0)
     v1 = np.where(s >= cutoff, path_prob, 0)
     v2 = np.where(s < cutoff, path_prob, 0)
-    plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1)
+    plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1,
+            label='fraction of positives')
     plt.bar(bins[:-1], v2, width=dx, align='edge', color='red', alpha=0.7)
-    if extra_plot is not None:
-        v3 = np.where(s >= cutoff, extra_plot, 0.)
-        plt.plot(bins[:-1]+dx/2, v3, color='orange')
-    plt.ylabel('pathogenicity prob.')
+    if smooth_plot is not None:
+        plt.plot(smooth_plot[0], smooth_plot[1], color='orange',
+                 label='smoothed path. prob.')
+    plt.ylabel('')
     plt.xlabel('predicted score')
     plt.ylim((0, 1))
+    plt.legend()
     figure.savefig(filename, format='png', bbox_inches='tight')
     plt.close()
     plt.rcParams.update(plt.rcParamsDefault)
@@ -388,6 +390,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
         # populate info table that will be passed as a javascript variable
         arr_best = rhapsody_obj.getPredictions(classifier='best')
+        PDB_coords = rhapsody_obj.getPDBcoords()
         info = {}
         for k in ['strip', 'table', 'bplot']:
             n_cols = 20 if k == 'table' else 1
@@ -398,9 +401,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             # consider only residues shown in figure
             if not (res_i <= resid <= res_f):
                 continue
-            # SAV & PDB coordinates
+            # SAV coordinates
             SAV_code = f'{aa_wt}{resid}{aa_mut}'
-            PDB_code = PDB_coords[resid - 1]
             # coordinates on table
             t_i = aa_map[aa_mut]
             t_j = resid - 1
@@ -425,9 +427,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
             # compose message for upper strip
-            m = f'{PDB_code}'
-            if PDB_code != '':
-                m += f' (size: {PDB_sizes[t_j]} res)'
+            PDB_SAV = PDB_coords[t_j]['PDB SAV coords']
+            PDB_size = PDB_coords[t_j]['PDB size']
+            if PDB_size > 0:
+                m = f'{PDB_SAV} (size: {PDB_size} res)'
+            else:
+                m = 'no PDB'
             info['strip'][0][ts_j] = m
             # compose message for bottom plot
             m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
