@@ -570,8 +570,8 @@ class Rhapsody:
     def getResAvgPredictions(self, classifier='best',
                              PolyPhen2=True, EVmutation=True,
                              refresh=False):
-        assert self._isSaturationMutagenesis(), ('Not a saturation '
-                                                 'mutagenesis list of SAVs')
+        if not self._isSaturationMutagenesis():
+            return None
         # initialize output array
         cols = [
             ('sequence index', 'i4'),
