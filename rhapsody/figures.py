@@ -281,16 +281,22 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     pad = 0.2/fig_width
 
     # top strip
+    matplotlib.cm.YlGn.set_bad(color='antiquewhite')
     ax0.imshow(upper_strip[0:1, res_i-1:res_f], aspect='auto',
                cmap='YlGn', vmin=0, vmax=1)
     ax0.set_ylim((-0.45, .45))
     ax0.set_yticks([])
     ax0.set_ylabel(f'PDB size \n[0-{max_PDB_size} res] ', fontsize=14,
                    ha='right', va='center', rotation=0)
-    ax0.set_xticks([])
+    ax0.set_xticks(np.arange(5-res_i % 5, res_f-res_i+1, 5))
+    ax0.set_xticklabels([])
+    # add white grid
+    ax0.set_xticks(np.arange(-.5, res_f-res_i+1, 1), minor=True)
+    ax0.tick_params(axis='both', which='minor', length=0)
+    ax0.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # mutagenesis table (heatmap)
-    matplotlib.cm.coolwarm.set_bad(color='white')
+    matplotlib.cm.coolwarm.set_bad(color='antiquewhite')
     im = ax1.imshow(table_best[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
@@ -299,6 +305,11 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     ax1.set_xticks(np.arange(5-res_i % 5, res_f-res_i+1, 5))
     ax1.set_xticklabels([])
     ax1.set_ylabel('pathog. probability', labelpad=10)
+    # add white grid
+    ax1.set_xticks(np.arange(-.5, res_f-res_i+1, 1), minor=True)
+    ax1.set_yticks(np.arange(-.5, 20, 1), minor=True)
+    ax1.tick_params(axis='both', which='minor', length=0)
+    ax1.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # average pathogenicity profile
     x_resids = np.arange(1, upper_lim+1)
@@ -427,8 +438,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
             # compose message for upper strip
-            PDB_SAV = PDB_coords[t_j]['PDB SAV coords']
-            PDB_size = PDB_coords[t_j]['PDB size']
+            PDB_SAV = PDB_coords[i]['PDB SAV coords']
+            PDB_size = PDB_coords[i]['PDB size']
             if PDB_size > 0:
                 m = f'{PDB_SAV} (size: {PDB_size} res)'
             else:

@@ -20,16 +20,16 @@ def rhapsody(query, query_type='SAVs',
 
       - if *query_type* = ``'SAVs'`` (default), it should be a filename, a
         string or a list/tuple of strings, containing Uniprot SAV coordinates,
-        with the format ``'P17516 135 G E'``.
-      - if *query_type* = ``'scanning'``, it should be a string identifying a
-        Uniprot sequence (e.g. ``'P17516'``) or a specific site in a sequence
-        (e.g. ``'P17516 135'``). All possible 19 amino acid substitutions at
-        the specified positions on the sequence will be analyzed
+        with the format ``'P17516 135 G E'``. The string could also be just
+        a single Uniprot sequence identifier (e.g. ``'P17516'``), or the
+        coordinate of a specific site in a sequence (e.g. ``'P17516 135'``), in
+        which case all possible 19 amino acid substitutions at the specified
+        positions will be analyzed.
       - if *query_type* = ``'PolyPhen2'``, it should be a filename containing
         the output from PolyPhen-2, usually named :file:`pph2-full.txt`
     :type query: str, list
 
-    :arg query_type: ``'SAVs'``, ``'scanning'`` or ``'PolyPhen2'``
+    :arg query_type: ``'SAVs'`` or ``'PolyPhen2'``
     :type query_type: str
 
     :arg main_classifier: main classifier's filename. If **None**, the default
@@ -64,6 +64,8 @@ def rhapsody(query, query_type='SAVs',
       the functional significance of missense variants. *PNAS* **2018**
       115 (16) 4164-4169.
     """
+
+    assert query_type in ['SAVs', 'PolyPhen2'], 'Invalid query type.'
 
     if log:
         LOGGER.start('rhapsody-log.txt')

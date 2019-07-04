@@ -96,6 +96,7 @@ class Rhapsody:
         self.featSet = None
 
     def _isColSet(self, column):
+        assert self.data is not None, 'Data array not initialized.'
         return self.data[column].count() != 0
 
     def _isSaturationMutagenesis(self):
@@ -486,6 +487,7 @@ class Rhapsody:
         EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
         c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
         EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
+        EVmut_class[np.isnan(EVmut_score)] = '?'
         self.data['EVmutation score'] = EVmut_score
         self.data['EVmutation path. class'] = EVmut_class
 
@@ -517,11 +519,11 @@ class Rhapsody:
             cols.append(
                 ('PDB SAV coords', 'U100')
             )
+        # get Rhapsody predictions
+        self._calcPredictions(refresh=refresh)
         output = np.empty(self.numSAVs, dtype=np.dtype(cols))
         output['SAV coords'] = self.data['SAV coords']
         output['training info'] = self.data['training info']
-        # get Rhapsody predictions
-        self._calcPredictions(refresh=refresh)
         for s in ['score', 'path. prob.', 'path. class']:
             if classifier == 'best':
                 output[s] = np.where(self.data['best classifier'] == 'main',
@@ -636,7 +638,7 @@ class Rhapsody:
                                         EVmutation=EVmutation)
             with open(filename, 'w') as f:
                 if print_header:
-                    header = '{:25} {:16} {:6} {:6} {:14}'.format(
+                    header = '{:25} {:15} {:6} {:6} {:14}'.format(
                         '# SAV coords',
                         'training info',
                         'score',
@@ -649,7 +651,7 @@ class Rhapsody:
                         header += 'EVmutation score/class'
                     f.write(header + '\n')
                 for SAV in preds:
-                    row = '{:25} {:16} {:5.3f}  {:5.3f}  {:14}'.format(
+                    row = '{:25} {:15} {:<5.3f}  {:<5.3f}  {:14}'.format(
                         SAV['SAV coords'],
                         SAV['training info'],
                         SAV['score'],
@@ -657,12 +659,12 @@ class Rhapsody:
                         SAV['path. class']
                     )
                     if PolyPhen2:
-                        row += '{:5.3f}    {:16}'.format(
+                        row += '{:<5.3f}    {:16}'.format(
                             SAV['PolyPhen-2 score'],
                             SAV['PolyPhen-2 path. class']
                         )
                     if EVmutation:
-                        row += '{:6.3f}    {:12}'.format(
+                        row += '{:<7.3f}    {:12}'.format(
                             SAV['EVmutation score'],
                             SAV['EVmutation path. class']
                         )
@@ -673,7 +675,7 @@ class Rhapsody:
                                 EVmutation=EVmutation)
             with open(filename, 'w') as f:
                 if print_header:
-                    header = '{:25} {:16} {:33} {:30}'.format(
+                    header = '{:25} {:15} {:33} {:30}'.format(
                         '# SAV coords',
                         'training info',
                         'main classifier predictions',
@@ -684,7 +686,7 @@ class Rhapsody:
                         header += 'EVmutation score/class'
                     f.write(header + '\n')
                 for SAV in self.data:
-                    row = '{:25} {:16} {:5.3f}  {:5.3f}  {:15}'.format(
+                    row = '{:25} {:15} {:<5.3f}  {:<5.3f}  {:15}'.format(
                         SAV['SAV coords'],
                         SAV['training info'],
                         SAV['main score'],
@@ -696,18 +698,18 @@ class Rhapsody:
                         row += '<--'
                     else:
                         row += 'x--'
-                    row += '  {:5.3f}  {:5.3f}  {:16}'.format(
+                    row += '  {:<5.3f}  {:<5.3f}  {:16}'.format(
                         SAV['aux. score'],
                         SAV['aux. path. prob.'],
                         SAV['aux. path. class']
                     )
                     if PolyPhen2:
-                        row += '{:5.3f}    {:16}'.format(
+                        row += '{:<5.3f}    {:16}'.format(
                             SAV['PolyPhen-2 score'],
                             SAV['PolyPhen-2 path. class']
                         )
                     if EVmutation:
-                        row += '{:6.3f}    {:12}'.format(
+                        row += '{:<7.3f}    {:12}'.format(
                             SAV['EVmutation score'],
                             SAV['EVmutation path. class']
                         )
