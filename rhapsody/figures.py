@@ -402,8 +402,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             f.write('</div>\n')
 
         # populate info table that will be passed as a javascript variable
-        best_preds = rhapsody_obj.getPredictions(classifier='best')
-        best_avg_preds = rhapsody_obj.getPredictions(classifier='best')
+        best_preds = rhapsody_obj.getPredictions()
+        best_avg_preds = rhapsody_obj.getResAvgPredictions()
         PDB_coords = rhapsody_obj.getPDBcoords()
         abbrev = {
             '?': '?',
@@ -433,7 +433,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             ts_j = resid - res_i
             # compose message for table
             pprob = best_preds[i]['path. prob.']
-            pclass = abbrev[best_preds[i]['path. class']]
+            pclass = best_preds[i]['path. class']
             clsf = main_clsf if row['best classifier'] == 'main' else aux_clsf
             m = f'{SAV_code}: Rhapsody-{clsf} = {pprob:<3.2f} ({pclass})'
             if PolyPhen2:
