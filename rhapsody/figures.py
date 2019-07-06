@@ -140,7 +140,8 @@ def _adjust_res_interval(res_interval, upper_lim, min_size=10):
 def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
                              PolyPhen2=True, EVmutation=True, extra_plot=None,
                              fig_height=8, fig_width=None, dpi=300,
-                             min_interval_size=15, html=False):
+                             min_interval_size=15, html=False,
+                             main_clsf='main', aux_clsf='aux.'):
 
     # check inputs
     assert isinstance(filename, str), 'filename must be a string'
@@ -377,6 +378,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             b_html = b_adj*np.array([1, -1]) + np.array([0, d["new_height"]])
             # convert to pixels
             b_px = (d["dpi"]*b_html).astype(int)
+            b_px = np.sort(b_px, axis=0)
             # put in html format
             coords = '{},{},{},{}'.format(*b_px.flatten())
             # output
@@ -400,13 +402,22 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             f.write('</div>\n')
 
         # populate info table that will be passed as a javascript variable
-        arr_best = rhapsody_obj.getPredictions(classifier='best')
+        best_preds = rhapsody_obj.getPredictions(classifier='best')
+        best_avg_preds = rhapsody_obj.getPredictions(classifier='best')
         PDB_coords = rhapsody_obj.getPDBcoords()
+        abbrev = {
+            '?': '?',
+            'deleterious': 'del',
+            'neutral': 'neu',
+            'prob.delet.': 'p.del',
+            'prob.neutral': 'p.neu'
+        }
         info = {}
         for k in ['strip', 'table', 'bplot']:
             n_cols = 20 if k == 'table' else 1
             info[k] = [['']*nres_shown for i in range(n_cols)]
-        for i, SAV in enumerate(rhapsody_obj.data['SAV coords']):
+        for i, row in enumerate(rhapsody_obj.data):
+            SAV = row['SAV coords']
             acc, resid, aa_wt, aa_mut = SAV.split()
             resid = int(resid)
             # consider only residues shown in figure
@@ -420,36 +431,49 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             # coordinates on *shown* table
             ts_i = t_i
             ts_j = resid - res_i
-            # predictions and other info
-            rh_pred = table_best[t_i, t_j]
-            av_rh_pred = avg_p_best[t_j]
-            pclass = arr_best['path. class'][i]
-            alii = {}
-            if extra_plot is not None:
-                alii['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
-            if PolyPhen2:
-                alii['PolyPhen2'] = (table_PP2[t_i, t_j], avg_p_PP2[t_j])
-            if EVmutation:
-                alii['EVmutation'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for table
-            m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
-            for k, t in alii.items():
-                m += f', {k}={t[0]:<4.2f}'
+            pprob = best_preds[i]['path. prob.']
+            pclass = abbrev[best_preds[i]['path. class']]
+            clsf = main_clsf if row['best classifier'] == 'main' else aux_clsf
+            m = f'{SAV_code}: Rhapsody-{clsf} = {pprob:<3.2f} ({pclass})'
+            if PolyPhen2:
+                score = best_preds[i]['PolyPhen-2 score']
+                pclass = abbrev[best_preds[i]['PolyPhen-2 path. class']]
+                m += f', PolyPhen-2 = {score:<3.2f} ({pclass})'
+            if EVmutation:
+                score = best_preds[i]['EVmutation score']
+                pclass = abbrev[best_preds[i]['EVmutation path. class']]
+                m += f', EVmutation = {score:<3.2f} ({pclass})'
+            if extra_plot is not None:
+                score = table_other[t_i, t_j]
+                m += f', other = {score:<3.2f}'
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
-            # compose message for upper strip
-            PDB_SAV = PDB_coords[i]['PDB SAV coords']
-            PDB_size = PDB_coords[i]['PDB size']
-            if PDB_size > 0:
-                m = f'{PDB_SAV} (size: {PDB_size} res)'
-            else:
-                m = 'no PDB'
-            info['strip'][0][ts_j] = m
-            # compose message for bottom plot
-            m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
-            for k, t in alii.items():
-                m += f', {k}={t[1]:<4.2f}'
-            info['bplot'][0][ts_j] = m
+            if info['strip'][0][ts_j] == '':
+                # compose message for upper strip
+                PDBID, ch, resid, aa, size = PDB_coords[i][[
+                    'PDBID', 'chain', 'resid', 'resname', 'PDB size']]
+                if size > 0:
+                    m = f'{PDBID}:{ch}, resid {resid}, aa {aa}, size {size}'
+                else:
+                    m = 'no PDB found'
+                info['strip'][0][ts_j] = m
+                # compose message for bottom plot (residue-averages)
+                pprob = best_avg_preds[t_j]['path. prob.']
+                pcl = best_avg_preds[t_j]['path. class']
+                m = f'{SAV_code[:-1]}: Rhapsody-{clsf} = {pprob:<3.2f} ({pcl})'
+                if PolyPhen2:
+                    score = best_avg_preds[t_j]['PolyPhen-2 score']
+                    pcl = abbrev[best_avg_preds[t_j]['PolyPhen-2 path. class']]
+                    m += f', PolyPhen-2 = {score:<3.2f} ({pcl})'
+                if EVmutation:
+                    score = best_avg_preds[t_j]['EVmutation score']
+                    pcl = abbrev[best_avg_preds[t_j]['EVmutation path. class']]
+                    m += f', EVmutation = {score:<3.2f} ({pcl})'
+                if extra_plot is not None:
+                    score = avg_p_other[t_j]
+                    m += f', other = {score:<3.2f}'
+                info['bplot'][0][ts_j] = m
 
         def create_info_msg(ax_type, d):
             text = '[ \n'
@@ -463,6 +487,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
         area_js = Template(
             '{{map_data}}["{{map_id}}_$areaid"] = { \n'
+            '  "img_id": "{{img_id}}", \n'
+            '  "map_id": "{{map_id}}", \n'
+            '  "coords": [$coords], \n'
             '  "num_rows": $num_rows, \n'
             '  "num_cols": $num_cols, \n'
             '  "info_msg": $info_msg, \n'
@@ -471,9 +498,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
         # dump info in javascript format
         with open(filename + '.js', 'w') as f:
-            f.write('var {{map_data}} = {{map_data}} || {}; \n')
+            f.write('var {{map_data}} = {}; \n')
             for ax_type, d in info.items():
                 vars = {'areaid': ax_type}
+                vars['coords'] = get_area_coords(all_axis[ax_type], html_data)
                 vars['num_rows'] = 20 if ax_type == 'table' else 1
                 vars['num_cols'] = nres_shown
                 vars['info_msg'] = create_info_msg(ax_type, d)
