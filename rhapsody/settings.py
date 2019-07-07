@@ -15,7 +15,7 @@ import rhapsody as rd
 __all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
            'getSettings']
 
-USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME')
+USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
 DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
 DEFAULT_EVMUT_DIR = os.path.join(DEFAULT_WORKING_DIR,
                                  'EVmutation_mutation_effects')
