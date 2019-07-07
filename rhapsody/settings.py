@@ -13,7 +13,7 @@ import prody as pd
 import rhapsody as rd
 
 __all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
-           'getSettings']
+           'delSettings', 'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
 DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
@@ -218,6 +218,11 @@ def getDefaultClassifiers():
     else:
         return def_clsfs
 
+
+def delSettings():
+    for entry in ['rhapsody_local_folder', 'EVmutation_local_folder',
+                  'EVmutation_metrics']:
+        pd.SETTINGS.pop(entry)
 
 def getSettings(print=True):
     """Returns and prints essential information about the current Rhapsody
