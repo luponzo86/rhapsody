@@ -128,7 +128,7 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
                             'feat_importances.png',
                             'trained_classifier.pkl', ]
             for file in output_files:
-                os.rename(file, os.path.join(clsf_folder, file))
+                shutil.move(file, clsf_folder)
             pd.LOGGER.close(logfile)
         pd.LOGGER.info('')
 

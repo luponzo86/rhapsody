@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 import numpy as np
 import prody as pd
 
@@ -41,7 +42,7 @@ rh.setTrueLabels(true_labels)
 
 # compute all features
 m = rh.exportTrainingData()
-os.rename('rhapsody-Uniprot2PDB.txt', 'workspace/rhapsody-Uniprot2PDB.txt')
+shutil.move('rhapsody-Uniprot2PDB.txt', 'workspace/')
 
 # restore previous settings
 if old_rhaps_dir is not None:

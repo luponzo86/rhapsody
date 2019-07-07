@@ -6,7 +6,7 @@ from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
 from Bio.SubsMat   import MatrixInfo as matlist
 import numpy as np
-import os, re, pickle, datetime
+import os, re, pickle, datetime, shutil
 
 __all__ = ['UniprotMapping']
 
@@ -693,7 +693,7 @@ class UniprotMapping:
 #               fullname = os.path.join(folder, fname)
 #               if not os.path.isfile(fullname):
 #                   f = fetchPfamMSA(PF)
-#                   os.rename(f, fullname)
+#                   shutil.move(f, folder)
 #               msa = parseMSA(fullname, **kwargs)
                 # fetch & parse MSA without saving downloaded MSA
                 f = fetchPfamMSA(PF)
