@@ -104,9 +104,15 @@ class Rhapsody:
         if self.saturation_mutagenesis is None:
             self.saturation_mutagenesis = False
             try:
-                SAV_list = list(self.data['SAV coords'])
-                acc = SAV_list[0].split()[0]
-                generated_SAV_list = seqScanning(acc)
+                SAVs = self.getUniqueSAVcoords()
+                SAV_list = list(SAVs['SAV coords'])
+                acc = SAVs[0]['Uniprot ID']
+                pos = list(set(SAVs['position']))
+                if len(pos) == 1:
+                    query = f'{acc} {pos[0]}'
+                else:
+                    query = acc
+                generated_SAV_list = seqScanning(query)
                 if SAV_list == generated_SAV_list:
                     self.saturation_mutagenesis = True
             except Exception as e:
@@ -569,7 +575,7 @@ class Rhapsody:
                 raise RuntimeError('Invalid saturation mutagenesis list')
             return uniq_rows[0]
 
-    def getResAvgPredictions(self, classifier='best',
+    def getResAvgPredictions(self, resid=None, classifier='best',
                              PolyPhen2=True, EVmutation=True,
                              refresh=False):
         if not self._isSaturationMutagenesis():
@@ -625,7 +631,12 @@ class Rhapsody:
                 pc = np.where(np.isnan(ps), '?', pc)
                 output['EVmutation score'] = ps
                 output['EVmutation path. class'] = pc
-        return output
+        if resid is None:
+            return output
+        elif isinstance(resid, int):
+            return output[output['PDB resid'] == resid][0]
+        else:
+            raise ValueError('Invalid resid.')
 
     def printPredictions(self, classifier='best',
                          PolyPhen2=True, EVmutation=True,

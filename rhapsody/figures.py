@@ -432,24 +432,25 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             ts_i = t_i
             ts_j = resid - res_i
             # compose message for table
-            pprob = best_preds[i]['path. prob.']
-            pclass = best_preds[i]['path. class']
+            bp = best_preds[i]
+            pprob = bp['path. prob.']
+            pclass = bp['path. class']
             clsf = main_clsf if row['best classifier'] == 'main' else aux_clsf
             m = f'{SAV_code}: Rhapsody-{clsf} = {pprob:<3.2f} ({pclass})'
             if PolyPhen2:
-                score = best_preds[i]['PolyPhen-2 score']
-                pclass = abbrev[best_preds[i]['PolyPhen-2 path. class']]
+                score = bp['PolyPhen-2 score']
+                pclass = abbrev[bp['PolyPhen-2 path. class']]
                 m += f', PolyPhen-2 = {score:<3.2f} ({pclass})'
             if EVmutation:
-                score = best_preds[i]['EVmutation score']
-                pclass = abbrev[best_preds[i]['EVmutation path. class']]
+                score = bp['EVmutation score']
+                pclass = abbrev[bp['EVmutation path. class']]
                 m += f', EVmutation = {score:<3.2f} ({pclass})'
             if extra_plot is not None:
                 score = table_other[t_i, t_j]
                 m += f', other = {score:<3.2f}'
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
-            if info['strip'][0][ts_j] == '':
+            if i % 19 == 0:
                 # compose message for upper strip
                 PDBID, ch, resid, aa, size = PDB_coords[i][[
                     'PDBID', 'chain', 'resid', 'resname', 'PDB size']]
@@ -459,16 +460,17 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
                     m = 'no PDB found'
                 info['strip'][0][ts_j] = m
                 # compose message for bottom plot (residue-averages)
-                pprob = best_avg_preds[t_j]['path. prob.']
-                pcl = best_avg_preds[t_j]['path. class']
+                bap =  best_avg_preds[int(i/19)]
+                pprob = bap['path. prob.']
+                pcl = bap['path. class']
                 m = f'{SAV_code[:-1]}: Rhapsody-{clsf} = {pprob:<3.2f} ({pcl})'
                 if PolyPhen2:
-                    score = best_avg_preds[t_j]['PolyPhen-2 score']
-                    pcl = abbrev[best_avg_preds[t_j]['PolyPhen-2 path. class']]
+                    score = bap['PolyPhen-2 score']
+                    pcl = abbrev[bap['PolyPhen-2 path. class']]
                     m += f', PolyPhen-2 = {score:<3.2f} ({pcl})'
                 if EVmutation:
-                    score = best_avg_preds[t_j]['EVmutation score']
-                    pcl = abbrev[best_avg_preds[t_j]['EVmutation path. class']]
+                    score = bap['EVmutation score']
+                    pcl = abbrev[bap['EVmutation path. class']]
                     m += f', EVmutation = {score:<3.2f} ({pcl})'
                 if extra_plot is not None:
                     score = avg_p_other[t_j]
