@@ -33,15 +33,10 @@ release = '0.9'
 # ones.
 extensions = [
   'sphinx.ext.autodoc',
-  'sphinx.ext.todo',
-  'sphinx.ext.githubpages',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
-
-# The master toctree document.
-master_doc = 'index'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -50,7 +45,6 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**tar.gz**']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -88,7 +82,7 @@ html_theme_options = {
     # Toc options
     'collapse_navigation': False,
     'sticky_navigation': False,
-    'navigation_depth': -1,
+    'navigation_depth': 2,
     'includehidden': True,
-    'titles_only': False
+    'titles_only': True
 }
