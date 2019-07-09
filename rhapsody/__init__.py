@@ -47,3 +47,7 @@ __all__.extend(interfaces.__all__)
 from . import figures
 from .figures import *
 __all__.extend(figures.__all__)
+
+from . import test_module
+from .test_module import *
+__all__.extend(test_module.__all__)
