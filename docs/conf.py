@@ -62,14 +62,13 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if on_rtd:  
     # if not specified, readthedocs.org uses their theme by default
     import sphinx_theme
-    html_theme = 'neo_rtd_theme'
+    html_theme = 'latest'
 else:  # only import and set the theme if we're building docs locally
     import sphinx_theme
     html_theme = 'stanford_theme' # others: 'neo_rtd_theme', 'alabaster', 'pyramid', 'nature'
     html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
     # html_theme = 'bootstrap'
     # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
-
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
