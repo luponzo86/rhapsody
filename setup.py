@@ -20,7 +20,8 @@ setup(
     install_requires=['requests', 'numpy', 'scikit-learn', 'matplotlib',
                       'biopython', 'pyparsing', 'prody'],
     extras_require={
-        'docs': ['sphinx >= 1.4', 'sphinx_theme', 'sphinx_bootstrap_theme']
+        'docs': ['sphinx >= 1.4', 'sphinx_theme', 'sphinx_rtd_theme', 
+                 'sphinx_bootstrap_theme']
     },
     description="""Python program, based on ProDy, for pathogenicity prediction
     of human missense variants.""",
