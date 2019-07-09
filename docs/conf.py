@@ -33,7 +33,6 @@ release = '0.9'
 # ones.
 extensions = [
   'sphinx.ext.autodoc',
-  'sphinx.ext.autosummary',
   'sphinx.ext.todo',
   'sphinx.ext.githubpages',
 ]
@@ -43,8 +42,6 @@ templates_path = ['_templates']
 
 # The master toctree document.
 master_doc = 'index'
-
-autosummary_generate = True
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -69,6 +66,8 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
     # html_theme = 'bootstrap'
     # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 # otherwise, readthedocs.org uses their theme by default, so no need to specify it
+import sphinx_theme
+html_theme = 'nature'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -88,7 +87,7 @@ html_theme_options = {
     # Toc options
     'collapse_navigation': False,
     'sticky_navigation': False,
-    'navigation_depth': 0,
+    'navigation_depth': -1,
     'includehidden': True,
     'titles_only': False
 }
