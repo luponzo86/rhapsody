@@ -66,7 +66,6 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
     html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
     # html_theme = 'bootstrap'
     # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
-    
 
 # otherwise, readthedocs.org uses their theme by default, so no need to specify it
 
@@ -76,19 +75,19 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 html_static_path = ['_static']
 
 # html_theme = 'sphinx_rtd_theme'
-# html_theme_options = {
-#     'canonical_url': '',
-#     # 'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
-#     'logo_only': False,
-#     'display_version': False,
-#     'prev_next_buttons_location': 'bottom',
-#     'style_external_links': False,
-#     'vcs_pageview_mode': '',
-#     'style_nav_header_background': '#b7270b',
-#     # Toc options
-#     'collapse_navigation': False,
-#     'sticky_navigation': False,
-#     'navigation_depth': 4,
-#     'includehidden': True,
-#     'titles_only': False
-# }
+html_theme_options = {
+    'canonical_url': '',
+    # 'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
+    'logo_only': False,
+    'display_version': False,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': False,
+    'vcs_pageview_mode': '',
+    'style_nav_header_background': '#b7270b',
+    # Toc options
+    'collapse_navigation': False,
+    'sticky_navigation': False,
+    'navigation_depth': 1,
+    'includehidden': True,
+    'titles_only': False
+}
