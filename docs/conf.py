@@ -56,17 +56,14 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-
 # on_rtd is whether we are on readthedocs.org, this line of code grabbed from docs.readthedocs.org
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_theme
     html_theme = 'stanford_theme' # others: 'neo_rtd_theme', 'alabaster', 'pyramid', 'nature'
     html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
     # html_theme = 'bootstrap'
     # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
-
 # otherwise, readthedocs.org uses their theme by default, so no need to specify it
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -87,7 +84,7 @@ html_theme_options = {
     # Toc options
     'collapse_navigation': False,
     'sticky_navigation': False,
-    'navigation_depth': 1,
+    'navigation_depth': 0,
     'includehidden': True,
     'titles_only': False
 }
