@@ -97,9 +97,11 @@ def rhapsody(query, query_type='SAVs',
 
     # print predictions to file
     r.printPredictions()
-    # print both 'full' and 'reduced' predictions in a more detailed format
-    r.printPredictions(classifier="both", PolyPhen2=False, EVmutation=False,
-                       filename='rhapsody-predictions-full_vs_reduced.txt')
+    if aux_classifier is not None:
+        # print both 'full' and 'reduced' predictions in a more detailed format
+        r.printPredictions(classifier="both",
+                           PolyPhen2=False, EVmutation=False,
+                           filename='rhapsody-predictions-full_vs_reduced.txt')
 
     # save pickle
     r.savePickle()
