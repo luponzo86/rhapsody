@@ -13,7 +13,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-import sphinx_bootstrap_theme
 
 
 # -- Project information -----------------------------------------------------
@@ -45,6 +44,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**tar.gz**']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
+
+# The master toctree document.
+master_doc = 'contents'
 
 # -- Options for HTML output -------------------------------------------------
 
