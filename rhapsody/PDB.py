@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""This module defines a class that organizes the calculation of
+PDB-based structural and dynamical features in a single place."""
+
 from prody import Atomic, parsePDB, writePDB, LOGGER, SETTINGS
 from prody import GNM, ANM, calcSqFlucts
 from prody import calcPerturbResponse, calcMechStiff
@@ -9,22 +13,39 @@ import pickle
 import datetime
 import os
 
-MAX_NUM_RESIDUES = 17000
-
 __all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS', 'PDBfeatures']
 
+MAX_NUM_RESIDUES = 17000
+"""Hard-coded maximum size of PDB structures that can be handled by the
+class :class:`PDBfeatures()`."""
+
 STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
+"""List of available structural features."""
+
 DYN_FEATS = ['GNM_MSF', 'ANM_MSF',
              'GNM_effectiveness', 'GNM_sensitivity',
              'ANM_effectiveness', 'ANM_sensitivity',
              'stiffness'] # , 'MBS']
+"""List of available dynamical features."""
+
 PDB_FEATS = STR_FEATS + [f + e for f in DYN_FEATS
                          for e in ['-chain', '-reduced', '-sliced']]
+"""List of available PDB-based structural and dynamical features. The latter
+can be computed by using three different environment models."""
 
 class PDBfeatures:
+    """A class for deriving structural and dynamical properties from a
+    PDB structure.
 
-    def __init__(self, PDB, n_modes='all',
-                 recover_pickle=False, **kwargs):
+    :arg PDB: an object or a PDB code identifying a PDB structure.
+    :type PDB: :class:`Atomic`, str
+    :arg n_modes: number of GNM/ANM modes to be computed.
+    :type n_modes: int, str
+    :arg recover_pickle: whether or not to recover precomputed pickle, if found
+    :type recover_pickle: bool
+    """
+
+    def __init__(self, PDB, n_modes='all', recover_pickle=False, **kwargs):
         assert isinstance(PDB, (str, Atomic)), \
                'PDB must be either a PDBID or an Atomic instance.'
         assert type(recover_pickle) is bool
@@ -53,11 +74,14 @@ class PDBfeatures:
         return
 
     def getPDB(self):
+        """Returns the parsed PDB structure as an :class:`AtomGroup` object."""
         if self._pdb is None:
             self._pdb = parsePDB(self.PDBID, model=1)
         return self._pdb
 
     def refresh(self):
+        """Deletes all precomputed ENM models and features, and resets
+        time stamp."""
         pdb = self.getPDB()
         self.chids = set(pdb.ca.getChids())
         self.resids = {chID: pdb[chID].ca.getResnums()
@@ -72,6 +96,20 @@ class PDBfeatures:
         return
 
     def recoverPickle(self, folder=None, filename=None, days=30, **kwargs):
+        """Looks for precomputed pickle for the current PDB structure.
+
+        :arg folder: path of folder where pickles are stored. If not specified,
+            pickles will be searched for in the local Rhapsody installation
+            folder.
+        :type folder: str
+        :arg filename: name of the pickle. If not specified, the default
+            filename ``'PDBfeatures-[PDBID].pkl'`` will be used. If a PDBID is
+            not found, user must specify a valid filename.
+        :type filename: str
+        :arg days: number of days after which a pickle will be considered too
+            old and won't be recovered.
+        :type days: int
+        """
         if folder is None:
             # define folder where to look for pickles
             folder = SETTINGS.get('rhapsody_local_folder', '.')
@@ -115,6 +153,21 @@ class PDBfeatures:
         return
 
     def savePickle(self, folder=None, filename=None):
+        """Stores a pickle of the current class instance. The pickle will
+        contain all information and precomputed features, but not GNM and ANM
+        models. In case a PDBID is missing, the parsed PDB :class:`AtomGroup`
+        is stored as well.
+
+        :arg folder: path of the folder where the pickle will be saved. If not
+            specified, the local Rhapsody installation folder will be used.
+        :type folder: str
+        :arg filename: name of the pickle. By default, the pickle will be
+            saved as ``'PDBfeatures-[PDBID].pkl'``. If a PDBID is not defined,
+            the user must provide a filename.
+        :type filename: str
+        :return: pickle path
+        :rtype: str
+        """
         if folder is None:
             # define folder where to look for pickles
             folder = SETTINGS.get('rhapsody_local_folder', '.')
@@ -145,8 +198,9 @@ class PDBfeatures:
         return pickle_path
 
     def setNumModes(self, n_modes):
-        """This operation will delete precomputed features.
-        """
+        """Sets the number of ENM modes to be computed. If different from
+        the number provided at instantiation, any precomputed features will
+        be deleted."""
         if n_modes != self.n_modes:
             self.n_modes = n_modes
             self.refresh()
@@ -159,6 +213,16 @@ class PDBfeatures:
             raise RuntimeError(m)
 
     def calcGNM(self, chID, env='chain'):
+        """Builds GNM model for the selected chain.
+
+        :arg chID: chain identifier
+        :type chID: str
+        :arg env: environment model, i.e. ``'chain'``, ``'reduced'`` or
+            ``'sliced'``
+        :type env: str
+        :return: GNM model
+        :rtype: :class:`GNM`
+        """
         assert env in ['chain', 'reduced', 'sliced']
         gnm_e =  self._gnm[env]
         n = self.n_modes
@@ -190,6 +254,16 @@ class PDBfeatures:
         return self._gnm[env][chID]
 
     def calcANM(self, chID, env='chain'):
+        """Builds ANM model for the selected chain.
+
+        :arg chID: chain identifier
+        :type chID: str
+        :arg env: environment model, i.e. ``'chain'``, ``'reduced'`` or
+            ``'sliced'``
+        :type env: str
+        :return: ANM model
+        :rtype: :class:`ANM`
+        """
         assert env in ['chain', 'reduced', 'sliced']
         anm_e = self._anm[env]
         n = self.n_modes
@@ -221,6 +295,17 @@ class PDBfeatures:
         return self._anm[env][chID]
 
     def calcGNMfeatures(self, chain='all', env='chain', GNM_PRS=True):
+        """Computes GNM-based features.
+
+        :arg chain: chain identifier
+        :type chain: str
+        :arg env: environment model, i.e. ``'chain'``, ``'reduced'`` or
+            ``'sliced'``
+        :type env: str
+        :arg GNM_PRS: whether or not to compute features based on Perturbation
+            Response Scanning analysis
+        :type GNM_PRS: bool
+        """
         assert env in ['chain', 'reduced', 'sliced']
         assert type(GNM_PRS) is bool
         # list of features to be computed
@@ -271,6 +356,21 @@ class PDBfeatures:
 
     def calcANMfeatures(self, chain='all', env='chain',
                         ANM_PRS=True, stiffness=True, MBS=False):
+        """Computes ANM-based features.
+
+        :arg chain: chain identifier
+        :type chain: str
+        :arg env: environment model, i.e. ``'chain'``, ``'reduced'`` or
+            ``'sliced'``
+        :type env: str
+        :arg ANM_PRS: whether or not to compute features based on Perturbation
+            Response Scanning analysis
+        :type ANM_PRS: bool
+        :arg stiffness: whether or not to compute stiffness with MechStiff
+        :type stiffness: bool
+        :arg MBS: whether or not to compute Mechanical Bridging Score
+        :type MBS: bool
+        """
         assert env in ['chain', 'reduced', 'sliced']
         for k in ANM_PRS, stiffness, MBS:
             assert type(k) is bool
@@ -361,6 +461,15 @@ class PDBfeatures:
         return ag
 
     def calcDSSP(self, chain='whole'):
+        """Runs DSSP on the PDB structure.
+
+        :arg chain: chain identifier. If ``'whole'``, the whole complex will
+            be considered
+        :type chain: str
+        :return: modified PDB object with DSSP properties added as additional
+            attributes, accessible via method :func:`getData()`
+        :rtype: :class:`AtomGroup`
+        """
         if chain == 'whole':
             # compute DSSP on the whole complex
             ag = self.getPDB()
@@ -374,6 +483,12 @@ class PDBfeatures:
         return ag
 
     def calcSASA(self, chain='all'):
+        """Computes Solvent Accessible Surface Area of single chains
+        with DSSP algorithm.
+
+        :arg chain: chain identifier
+        :type chain: str
+        """
         if chain == 'all':
             chain_list = self.chids
         else:
@@ -392,6 +507,12 @@ class PDBfeatures:
         return
 
     def calcDeltaSASA(self, chain='all'):
+        """Computes the difference between Solvent Accessible Surface Area of
+        an isolated chain and of the same chain seen in the complex.
+
+        :arg chain: chain identifier
+        :type chain: str
+        """
         if chain == 'all':
             chain_list = self.chids
         else:
@@ -441,43 +562,23 @@ class PDBfeatures:
                         .format(len(indices), resid))
         return indices
 
-    def calcAllFeatures(self, chain='all', resid=None, env='chain',
-                        SASA=True, Delta_SASA=True, GNM_PRS=True,
-                        ANM_PRS=True, stiffness=True, MBS=False):
-        if resid is not None and chain == 'all':
-            raise ValueError('Please select a single chain.')
-        assert env in ['chain', 'reduced', 'sliced']
-        for k in SASA, Delta_SASA, GNM_PRS, ANM_PRS, stiffness, MBS:
-            assert type(k) is bool
-        # compute requested features
-        self.calcGNMfeatures(chain, env=env, GNM_PRS=GNM_PRS)
-        self.calcANMfeatures(chain, env=env, ANM_PRS=ANM_PRS,
-                             MBS=MBS, stiffness=stiffness)
-        if Delta_SASA:
-            self.calcDeltaSASA(chain)
-        elif SASA:
-            self.calcSASA(chain)
-        # return different outputs depending on options
-        _feats = {}
-        for c in self.chids:
-            d = self.feats[c]
-            _feats[c] = {k:v for k,v in d.items() if k in sel_feats}
-        if chain == 'all':
-            return _feats
-        elif resid is None:
-            return _feats[chain]
-        else:
-            d = _feats[chain]
-            indices = self._findIndex(chain, resid)
-            output = {}
-            for k in d:
-                if isinstance(d[k], str):
-                    output[k] = np.array([np.nan]*len(indices))
-                else:
-                    output[k] = np.array([d[k][i] for i in indices])
-            return output
-
     def calcSelFeatures(self, chain='all', resid=None, sel_feats=None):
+        """Computes selected PDB-based features for all chains in the PDB
+        structure, for a specific chain or for a single residue. Available
+        features are listed in :func:`PDB_FEATS`.
+
+        :arg chain: chain identifier
+        :type chain: str
+        :arg resid: residue number. If selected, a single chain must be also
+            specified
+        :type resid: int
+        :arg sel_feats: list of feature names. If **None**, all
+            :func:`PDB_FEATS` will be computed
+        :type env: list of str
+        :return: a dictionary, containing names and values (or error messages)
+            of selected features, for each chain or residue.
+        :rtype: dict
+        """
         if resid is not None and chain == 'all':
             raise ValueError('Please select a single chain.')
         if sel_feats is None:
@@ -519,8 +620,11 @@ class PDBfeatures:
             indices = self._findIndex(chain, resid)
             output = {}
             for k in d:
-                if isinstance(d[k], str):
-                    output[k] = np.array([np.nan]*len(indices))
+                feat_array = d[k]
+                if isinstance(feat_array, str):
+                    # return error message instead of array
+                    output[k] = feat_array
                 else:
-                    output[k] = np.array([d[k][i] for i in indices])
+                    # return 2-D array 
+                    output[k] = np.array([feat_array[i] for i in indices])
             return output

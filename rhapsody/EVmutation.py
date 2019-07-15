@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""This module defines a function for deriving coevolutionary features
+from precomputed EVmutation scores."""
+
 import numpy as np
 from glob import glob
 from os.path import splitext, join, basename
@@ -14,9 +18,19 @@ __all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
 EVMUT_FEATS = ['EVmut-DeltaE_epist', 'EVmut-DeltaE_indep',
                'EVmut-mut_aa_freq', 'EVmut-wt_aa_cons']
-
+"""List of available EVmutation features returned by
+:func:`recoverEVmutFeatures()`."""
 
 def recoverEVmutFeatures(SAVs):
+    """Compute EVmutation features by fetching precomputed scores from the
+    downloaded local folder. If multiple values are found for a given variant,
+    the average will be taken.
+
+    :arg SAVs: list of SAV coordinates, e.g. ``'P17516 135 G E'``.
+    :type SAVs: list or tuple of strings
+    :return: an array of EVmutation features for each SAV
+    :rtype: NumPy structured array
+    """
     LOGGER.timeit('_EVmut')
     LOGGER.info('Recovering EVmutation data...')
 

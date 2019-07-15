@@ -64,7 +64,9 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
         if SAV['PDB size'] == 0:
             # SAV could not be mapped to PDB
             _features = np.nan
-#           LOGGER.info(f"[{count}/{num_SAVs}] Skipped SAV with no PDB info")
+            SAV_coords = SAV['SAV coords']
+            LOGGER.info(f"[{count}/{num_SAVs}] SAV '{SAV_coords}' "
+                        "couldn't be mapped to PDB")
         else:
             parsed_PDB_coords = SAV['PDB SAV coords'].split()
             PDBID, chID = parsed_PDB_coords[:2]
@@ -101,12 +103,15 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
                 # check for error messages
                 _features = []
                 for name in feat_dtype.names:
-                    _f = feat_dict[name][0]
-                    if type(_f) is np.float64:
-                        _features.append(_f)
-                    else:
-                        LOGGER.warn('{}: {}'.format(name, _f))
+                    feat_array = feat_dict[name]
+                    if isinstance(feat_array, str):
+                        # print error message
+                        LOGGER.warn('{}: {}'.format(name, feat_array))
                         _features.append(np.nan)
+                    else:
+                        # sometimes resid maps to multiple indices:
+                        # we will only consider the first one
+                        _features.append(feat_array[0])
                 _features = tuple(_features)
         # store computed features
         features[indx] = _features
