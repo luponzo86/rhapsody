@@ -32,7 +32,11 @@ release = '0.9'
 # ones.
 extensions = [
   'sphinx.ext.autodoc',
+  'sphinx.ext.autosummary',
 ]
+
+autodoc_default_flags = ['members']
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -53,9 +57,10 @@ master_doc = 'index'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-# on_rtd is whether we are on readthedocs.org, this line of code grabbed from docs.readthedocs.org
+# on_rtd is whether we are on readthedocs.org, this line of code grabbed
+# from docs.readthedocs.org
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-if on_rtd:  
+if on_rtd:
     # if not specified, readthedocs.org uses their theme by default
     html_theme = "sphinx_rtd_theme"
     html_theme_path = ["_themes", ]
