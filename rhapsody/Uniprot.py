@@ -57,7 +57,7 @@ class UniprotMapping:
         return
 
     def getFullRecord(self):
-        """Returns the output from :method:`.queryUniprot`"""
+        """Returns the output from :func:`.queryUniprot`"""
         return self.fullRecord
 
     def getPDBrecords(self):

@@ -576,7 +576,7 @@ class PDBfeatures:
             :func:`PDB_FEATS` will be computed
         :type env: list of str
         :return: a dictionary, containing names and values (or error messages)
-            of selected features, for each chain or residue.
+            of selected features, for each chain or residue
         :rtype: dict
         """
         if resid is not None and chain == 'all':
@@ -625,6 +625,6 @@ class PDBfeatures:
                     # return error message instead of array
                     output[k] = feat_array
                 else:
-                    # return 2-D array 
+                    # return 2-D array
                     output[k] = np.array([feat_array[i] for i in indices])
             return output
