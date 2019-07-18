@@ -5,17 +5,18 @@
 
 Welcome to rhapsody's documentation!
 ====================================
-
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-   :toctree: stubs
-  
-   rhapsody
-
+ 
+.. automodule:: rhapsody
+ 
+.. autoclass:: rhapsody
+    :members:
+ 
 Indices and tables
 ==================
-
+ 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
