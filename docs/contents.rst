@@ -6,14 +6,13 @@
 Welcome to rhapsody's documentation!
 ====================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+.. autosummary::
+     :toctree: stubs
 
-   modules
-   setup
-   rhapsody.test_module
-   rhapsody
+     modules
+     setup
+     rhapsody.test_module
+     rhapsody
 
 
 Indices and tables
