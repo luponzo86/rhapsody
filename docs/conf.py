@@ -46,7 +46,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**tar.gz**']
 pygments_style = 'sphinx'
 
 # The master toctree document.
-master_doc = 'contents'
+master_doc = 'index'
 
 # -- Options for HTML output -------------------------------------------------
 
