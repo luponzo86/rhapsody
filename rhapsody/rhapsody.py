@@ -849,7 +849,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
     if isinstance(cache['obj'], UniprotMapping):
         cache['obj'].savePickle()
     n = sum(mapped_SAVs['PDB size'] != 0)
-    LOGGER.report(f'{n} SAVs out of {nSAVs} have been mapped to PDB in %.1fs.',
+    LOGGER.report(f'{n} out of {nSAVs} SAVs have been mapped to PDB in %.1fs.',
                   '_map2PDB')
     return mapped_SAVs
 
