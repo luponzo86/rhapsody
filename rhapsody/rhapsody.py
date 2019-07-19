@@ -785,8 +785,8 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
                              ('unique SAV coords', 'U25'),
                              ('PDB SAV coords', 'U100'),
                              ('PDB size', 'i')])
-    num_SAVs = len(SAV_coords)
-    mapped_SAVs = np.zeros(num_SAVs, dtype=PDBmap_dtype)
+    nSAVs = len(SAV_coords)
+    mapped_SAVs = np.zeros(nSAVs, dtype=PDBmap_dtype)
     # map to PDB using Uniprot class
     cache = {'acc': None, 'obj': None}
     count = 0
@@ -794,7 +794,7 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
         count += 1
         acc, pos, aa1, aa2 = SAV.split()
         pos = int(pos)
-        LOGGER.info(f"[{count}/{num_SAVs}] Mapping SAV '{SAV}' to PDB...")
+        LOGGER.info(f"[{count}/{nSAVs}] Mapping SAV '{SAV}' to PDB...")
         # map Uniprot to PDB chains
         if acc == cache['acc']:
             # use mapping from previous iteration
@@ -848,7 +848,9 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
     # save last pickle
     if isinstance(cache['obj'], UniprotMapping):
         cache['obj'].savePickle()
-    LOGGER.report('SAVs have been mapped to PDB in %.1fs.', '_map2PDB')
+    n = sum(mapped_SAVs['PDB size'] != 0)
+    LOGGER.report(f'{n} SAVs out of {nSAVs} have been mapped to PDB in %.1fs.',
+                  '_map2PDB')
     return mapped_SAVs
 
 
