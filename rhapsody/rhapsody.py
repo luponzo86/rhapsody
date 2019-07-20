@@ -270,7 +270,7 @@ class Rhapsody:
         dt = np.dtype([
             ('SAV coords', 'U50'),
             ('PDB SAV coords', 'U100'),
-            ('PDBID', 'U4'),
+            ('PDBID', 'U12'),
             ('chain', 'U1'),
             ('resid', 'i4'),
             ('resname', 'U1'),
