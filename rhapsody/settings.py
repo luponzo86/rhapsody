@@ -16,7 +16,7 @@ __all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
            'delSettings', 'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
-DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
+DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody_data')
 DEFAULT_EVMUT_DIR = os.path.join(DEFAULT_WORKING_DIR,
                                  'EVmutation_mutation_effects')
 EVMUT_URL = 'https://marks.hms.harvard.edu/evmutation/data/effects.tar.gz'
