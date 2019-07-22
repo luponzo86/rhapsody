@@ -11,12 +11,12 @@ missense variants.
 Rhapsody is published on [PyPI](https://pypi.org/). To install Rhapsody,
 please use pip in the terminal:
 ```console
-pip install -U prody-rhapsody
+$ pip install -U prody-rhapsody
 ```
 It might be necessary to manually install the DSSP program, for instance
 by typing on Linux:
 ```console
-sudo apt install dssp
+$ sudo apt install dssp
 ```
 
 ## Install from source
@@ -25,20 +25,16 @@ Rhapsody is written in pure Python so no local compilation is needed.
 To install all needed dependencies, we strongly suggest to use Conda and create
 a new environment with:
 ```console
-conda create -n rhapsody python=3 numpy scikit-learn requests pyparsing
-matplotlib biopython
-
-conda activate rhapsody
-
-pip install prody
-
-conda install -c salilab dssp
+$ conda create -n rhapsody python=3 numpy scikit-learn requests pyparsing matplotlib biopython
+$ conda activate rhapsody
+$ pip install prody
+$ conda install -c salilab dssp
 ```
 
 After cloning/forking the Rhapsody repository, you can permanently add the
 repository path to the conda environment with:
 ```console
-conda develop path/to/local/repository
+$ conda develop path/to/local/repository
 ```
 
 If not using Conda, you can manually install all dependencies and then add
@@ -56,6 +52,5 @@ If you are running on Windows, please follow this
 After installation, please run:
 ```console
 import rhapsody as rd
-
 rd.initialSetup()
 ```
