@@ -13,7 +13,7 @@ $ pip install -U prody-rhapsody
 ```
 It might be necessary to manually install the DSSP program, for instance by typing on Linux:
 ```console
-$ sudo apt get dssp
+$ sudo apt install dssp
 ```
 
 ## Install from source
