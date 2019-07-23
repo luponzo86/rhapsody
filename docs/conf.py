@@ -58,6 +58,7 @@ autodoc_default_options = {
 }
 # autosummary_generate = True
 
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -96,7 +97,6 @@ html_theme_options = {
     'display_version': False,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
-    'vcs_pageview_mode': '',
     'style_nav_header_background': '#b7270b',
     # Toc options
     'collapse_navigation': True,
