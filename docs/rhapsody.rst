@@ -67,10 +67,10 @@ rhapsody.figures module
     :undoc-members:
     :show-inheritance:
 
-rhapsody.interfaces module
---------------------------
+rhapsody.main module
+--------------------
 
-.. automodule:: rhapsody.interfaces
+.. automodule:: rhapsody.main
     :members:
     :undoc-members:
     :show-inheritance:

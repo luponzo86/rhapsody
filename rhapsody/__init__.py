@@ -40,9 +40,9 @@ from . import rhapsody
 from .rhapsody import *
 __all__.extend(rhapsody.__all__)
 
-from . import interfaces
-from .interfaces import *
-__all__.extend(interfaces.__all__)
+from . import main
+from .main import *
+__all__.extend(main.__all__)
 
 from . import figures
 from .figures import *

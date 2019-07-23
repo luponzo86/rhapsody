@@ -5,4 +5,3 @@ rhapsody
    :maxdepth: 4
 
    rhapsody
-   setup

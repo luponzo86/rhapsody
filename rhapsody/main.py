@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This module defines standard interfaces and functions for running Rhapsody
+"""This module defines the standard interface for running Rhapsody
 prediction algorithm."""
 
 from prody import LOGGER
