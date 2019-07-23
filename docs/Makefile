@@ -20,5 +20,5 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 rst:
-	sphinx-apidoc -fMeT -o . ../rhapsody 
+	sphinx-apidoc -fM -o . ../rhapsody 
 

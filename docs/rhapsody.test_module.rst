@@ -9,7 +9,12 @@ rhapsody.test\_module package
 Submodules
 ----------
 
-.. toctree::
+rhapsody.test\_module.test\_submodule module
+--------------------------------------------
 
-   rhapsody.test_module.test_submodule
+.. automodule:: rhapsody.test_module.test_submodule
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
