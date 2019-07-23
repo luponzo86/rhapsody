@@ -33,6 +33,7 @@ release = '0.9'
 extensions = [
   'sphinx.ext.autodoc',
   'sphinx.ext.autosummary',
+  'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -70,12 +71,12 @@ if on_rtd:
     # if not specified, readthedocs.org uses their theme by default
     html_theme = "sphinx_rtd_theme"
     html_theme_path = ["_themes", ]
-else: 
+else:
     html_theme = "sphinx_rtd_theme"
     html_theme_path = ["_themes", ]
-    
+
     # import sphinx_theme
-    # html_theme = 'stanford_theme' 
+    # html_theme = 'stanford_theme'
     # html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
 
     # html_theme = 'bootstrap'
@@ -99,9 +100,9 @@ html_theme_options = {
     'style_external_links': False,
     'style_nav_header_background': '#b7270b',
     # Toc options
-    'collapse_navigation': True,
+    'collapse_navigation': False,
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': True
+    'titles_only': False
 }
