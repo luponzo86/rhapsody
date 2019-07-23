@@ -1,22 +1,15 @@
 rhapsody.test\_module package
 =============================
 
+.. automodule:: rhapsody.test_module
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Submodules
 ----------
 
-rhapsody.test\_module.test\_submodule module
---------------------------------------------
+.. toctree::
 
-.. automodule:: rhapsody.test_module.test_submodule
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   rhapsody.test_module.test_submodule
 
-
-Module contents
----------------
-
-.. automodule:: rhapsody.test_module
-   :members:
-   :undoc-members:
-   :show-inheritance:
