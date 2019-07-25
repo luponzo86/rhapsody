@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 import pickle
 from os.path import isfile
-from prody import LOGGER, SETTINGS, Atomic, queryUniprot
+from prody import LOGGER, SETTINGS, Atomic, queryUniprot, parsePDB, writePDB
 from .settings import DEFAULT_FEATSETS
 from .Uniprot import *
 from .PolyPhen2 import queryPolyPhen2, parsePolyPhen2output, getSAVcoords
@@ -270,7 +270,7 @@ class Rhapsody:
         dt = np.dtype([
             ('SAV coords', 'U50'),
             ('PDB SAV coords', 'U100'),
-            ('PDBID', 'U12'),
+            ('PDBID', 'U100'),
             ('chain', 'U1'),
             ('resid', 'i4'),
             ('resname', 'U1'),
@@ -563,11 +563,10 @@ class Rhapsody:
         else:
             raise ValueError('Invalid SAV.')
 
-    def _calcResAvg(self, array, dtype='float'):
-        assert dtype in ['float', 'int', 'str']
+    def _calcResAvg(self, array):
         array = array.copy()
         m = array.reshape((-1, 19)).T
-        if dtype == 'float':
+        if array.dtype.name.startswith('float'):
             return np.nanmean(m, axis=0)
         else:
             uniq_rows = np.unique(m, axis=0)
@@ -576,15 +575,18 @@ class Rhapsody:
             return uniq_rows[0]
 
     def getResAvgPredictions(self, resid=None, classifier='best',
-                             PolyPhen2=True, EVmutation=True,
-                             refresh=False):
+                             PolyPhen2=True, EVmutation=True, refresh=False):
         if not self._isSaturationMutagenesis():
             return None
         # initialize output array
         cols = [
             ('sequence index', 'i4'),
-            ('PDB resid', 'i4'),
-            ('wt. aa', 'U1'),
+            ('PDB SAV coords', 'U100'),
+            ('PDBID', 'U100'),
+            ('chain', 'U1'),
+            ('resid', 'i4'),
+            ('resname', 'U1'),
+            ('PDB size', 'i4'),
             ('score', 'f4'),
             ('path. prob.', 'f4'),
             ('path. class', 'U12')
@@ -606,9 +608,10 @@ class Rhapsody:
         preds = self.getPredictions(classifier=classifier, PolyPhen2=PolyPhen2,
                                     EVmutation=EVmutation, refresh=refresh)
         # compute residue-averaged quantities
-        output['sequence index'] = self._calcResAvg(uSAVc['position'], 'int')
-        output['PDB resid'] = self._calcResAvg(PDBc['resid'], 'int')
-        output['wt. aa'] = self._calcResAvg(uSAVc['wt. aa'], 'str')
+        output['sequence index'] = self._calcResAvg(uSAVc['position'])
+        for field in ['PDB SAV coords', 'PDBID', 'chain',
+                      'resid', 'resname', 'PDB size']:
+            output[field] = self._calcResAvg(PDBc[field])
         # NB: I expect to see RuntimeWarnings in this block
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -634,7 +637,7 @@ class Rhapsody:
         if resid is None:
             return output
         elif isinstance(resid, int):
-            return output[output['PDB resid'] == resid][0]
+            return output[output['resid'] == resid][0]
         else:
             raise ValueError('Invalid resid.')
 
@@ -725,6 +728,85 @@ class Rhapsody:
                             SAV['EVmutation path. class']
                         )
                     f.write(row + '\n')
+
+    def writePDBs(self, PDBID=None, predictions='best', path_prob=True,
+                  filename_prefix='rhapsody-PDB', refresh=False):
+        assert predictions in ['best', 'main', 'aux',
+                               'PolyPhen-2', 'EVmutation']
+        if not self._isSaturationMutagenesis():
+            LOGGER.warn('This function is available only when performing ',
+                        'saturation mutagenesis analysis')
+            return None
+        # select prediction set to be printed on PDB file
+        kwargs = {'classifier': 'main', 'PolyPhen2': False,
+                  'EVmutation': False, 'refresh': refresh}
+        if predictions in ['best', 'main', 'aux']:
+            kwargs['classifier'] = predictions
+            array = self.getResAvgPredictions(**kwargs)
+            if path_prob:
+                sel_preds = 'path. prob.'
+            else:
+                sel_preds = 'score'
+        elif predictions == 'PolyPhen-2':
+            kwargs['PolyPhen2'] = True
+            array = self.getResAvgPredictions(**kwargs)
+            sel_preds = 'PolyPhen-2 score'
+        else:
+            kwargs['EVmutation'] = True
+            array = self.getResAvgPredictions(**kwargs)
+            sel_preds = 'EVmutation score'
+        # select PDB structures to be printed
+        PDBIDs = set(array[array['PDB size'] > 0]['PDBID'])
+        if PDBID is None:
+            PDBIDs = list(PDBIDs)
+        elif PDBID in PDBIDs:
+            PDBIDs = [PDBID, ]
+        else:
+            raise ValueError('Invalid PDBID')
+        # write residue-averaged predictions on B-factor column of PDB file
+        output_dict = {}
+        for id in PDBIDs:
+            # import PDB structure
+            if self.customPDB is not None:
+                if isinstance(self.customPDB, Atomic):
+                    pdb = self.customPDB
+                else:
+                    pdb = parsePDB(self.customPDB, model=1)
+                fname = f'{filename_prefix}_custom.pdb'
+            else:
+                pdb = parsePDB(id, model=1)
+                fname = f'{filename_prefix}_{id}.pdb'
+            # find chains in PDB
+            PDBchids = set(pdb.getChids())
+            # find chains used for predictions
+            array_id = array[array['PDBID'] == id]
+            chids = set(array_id['chain'])
+            # replace B-factor column in each chain
+            for chid in PDBchids:
+                PDBresids = pdb[chid].getResnums()
+                new_betas = np.array([np.nan]*len(PDBresids))
+                if chid in chids:
+                    array_ch = array_id[array_id['chain'] == chid]
+                    for l in array_ch:
+                        new_betas[PDBresids == l['resid']] = l[sel_preds]
+                pdb[chid].setBetas(new_betas)
+            # write PDB to file
+            f = writePDB(fname, pdb)
+            self.__replaceNanInPDBBetaColumn(fname)
+            output_dict[f] = pdb
+            LOGGER.info(f'Predictions written to PDB file {fname}')
+        return output_dict
+
+    def __replaceNanInPDBBetaColumn(self, filename):
+        # In the current implementation of Prody, you cannot set an empty
+        # string in the B-factor column...
+        with open(filename, 'r') as file:
+            filedata = file.readlines()
+        with open(filename, 'w') as file:
+            for line in filedata:
+                if line.startswith('ATOM'):
+                    line = line.replace(' nan', '    ')
+                file.write(line)
 
     def savePickle(self, filename='rhapsody-pickle.pkl'):
         f = pickle.dump(self, open(filename, "wb"))
