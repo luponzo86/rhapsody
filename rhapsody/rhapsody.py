@@ -804,7 +804,7 @@ class Rhapsody:
             filedata = file.readlines()
         with open(filename, 'w') as file:
             for line in filedata:
-                if line.startswith('ATOM'):
+                if line.startswith('ATOM') or line.startswith('HETATM'):
                     line = line.replace(' nan', '    ')
                 file.write(line)
 
