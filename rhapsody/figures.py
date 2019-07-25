@@ -460,7 +460,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
                     m = 'no PDB found'
                 info['strip'][0][ts_j] = m
                 # compose message for bottom plot (residue-averages)
-                bap =  best_avg_preds[int(i/19)]
+                bap = best_avg_preds[int(i/19)]
                 pprob = bap['path. prob.']
                 pcl = bap['path. class']
                 m = f'{SAV_code[:-1]}: Rhapsody-{clsf} = {pprob:<3.2f} ({pcl})'
