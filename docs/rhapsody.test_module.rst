@@ -1,6 +1,11 @@
 rhapsody.test\_module package
 =============================
 
+.. automodule:: rhapsody.test_module
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Submodules
 ----------
 
@@ -13,10 +18,3 @@ rhapsody.test\_module.test\_submodule module
     :show-inheritance:
 
 
-Module contents
----------------
-
-.. automodule:: rhapsody.test_module
-    :members:
-    :undoc-members:
-    :show-inheritance:

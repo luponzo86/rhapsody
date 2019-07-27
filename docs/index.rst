@@ -3,19 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Rhapsody's main interface 
-=========================
+Welcome to Rhapsody's documentation!
+====================================
 
-.. automodule:: rhapsody.main 
-   :members:
-   
 .. toctree::
-   :maxdepth: 4 
-   :caption: Contents:
+   :maxdepth: 4
+   :caption: Contents
+
+   rhapsody
 
 Indices and tables
 ==================
- 
+
 * :ref:`genindex`
 * :ref:`modindex`
-

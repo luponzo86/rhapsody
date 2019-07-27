@@ -1,6 +1,11 @@
 rhapsody package
 ================
 
+.. automodule:: rhapsody
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Subpackages
 -----------
 
@@ -67,6 +72,14 @@ rhapsody.figures module
     :undoc-members:
     :show-inheritance:
 
+rhapsody.interfaces module
+--------------------------
+
+.. automodule:: rhapsody.interfaces
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 rhapsody.main module
 --------------------
 
@@ -92,10 +105,3 @@ rhapsody.settings module
     :show-inheritance:
 
 
-Module contents
----------------
-
-.. automodule:: rhapsody
-    :members:
-    :undoc-members:
-    :show-inheritance:
