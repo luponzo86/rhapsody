@@ -11,6 +11,8 @@ import rhapsody as rd
 # temporarily switch to new set of folders
 if not os.path.isdir('workspace'):
     os.mkdir('workspace')
+if not os.path.isdir('workspace/pickles'):
+    os.mkdir('workspace/pickles')
 old_rhaps_dir = pd.SETTINGS.get('rhapsody_local_folder')
 old_EVmut_dir = pd.SETTINGS.get('EVmutation_local_folder')
 old_prody_dir = pd.SETTINGS.get('pdb_local_folder')
