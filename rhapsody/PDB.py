@@ -112,7 +112,11 @@ class PDBfeatures:
         """
         if folder is None:
             # define folder where to look for pickles
-            folder = SETTINGS.get('rhapsody_local_folder', '.')
+            folder = SETTINGS.get('rhapsody_local_folder')
+            if folder is None:
+                folder = '.'
+            else:
+                folder = os.path.join(folder, 'pickles')
         if filename is None:
             # use the default filename, if possible
             if self.PDBID is not None:
@@ -170,7 +174,11 @@ class PDBfeatures:
         """
         if folder is None:
             # define folder where to look for pickles
-            folder = SETTINGS.get('rhapsody_local_folder', '.')
+            folder = SETTINGS.get('rhapsody_local_folder')
+            if folder is None:
+                folder = '.'
+            else:
+                folder = os.path.join(folder, 'pickles')
         if filename is None:
             # use the default filename, if possible
             if self.PDBID is None:

@@ -3,7 +3,6 @@
 a function for the initial setup and training of Rhapsody."""
 
 import os
-import glob
 import tarfile
 import urllib.request
 import shutil
@@ -16,7 +15,7 @@ __all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
            'delSettings', 'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
-DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody_data')
+DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
 DEFAULT_EVMUT_DIR = os.path.join(DEFAULT_WORKING_DIR,
                                  'EVmutation_mutation_effects')
 EVMUT_URL = 'https://marks.hms.harvard.edu/evmutation/data/effects.tar.gz'
@@ -71,8 +70,9 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             # use default location and create folder if needed
             working_dir = DEFAULT_WORKING_DIR
             if os.path.isdir(working_dir):
-                pd.LOGGER.info('Pre-existing working directory detected: '
-                               f'{working_dir}')
+                raise EnvironmentError(
+                    f"A folder named '{working_dir}' already exists. "
+                    "Please specify another name.")
             else:
                 os.mkdir(working_dir)
                 pd.LOGGER.info(f'Default working directory set: {working_dir}')
@@ -83,6 +83,11 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
         else:
             raise EnvironmentError(f'Invalid working directory: {working_dir}')
     pd.SETTINGS['rhapsody_local_folder'] = working_dir
+
+    # create pickles folder
+    folder = os.path.join(working_dir, 'pickles')
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
 
     # check for pre-existing folder containing trained classifiers
     folder = os.path.join(working_dir, DEFAULT_CLSF_DIR)
@@ -199,7 +204,7 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
     pd.SETTINGS.save()
     pd.LOGGER.info('Setup complete.')
 
-    return getSettings(print=False)
+    return
 
 
 def getDefaultClassifiers():
@@ -214,7 +219,7 @@ def getDefaultClassifiers():
 
     if any([not os.path.isfile(c) for c in def_clsfs.values()]):
         raise IOError('One or more default classifiers are missing. '
-                      'Please rerun initialSetup()')
+                      'Please rerun setup with initialSetup(refresh=True)')
     else:
         return def_clsfs
 
@@ -223,6 +228,7 @@ def delSettings():
     for entry in ['rhapsody_local_folder', 'EVmutation_local_folder',
                   'EVmutation_metrics']:
         pd.SETTINGS.pop(entry)
+
 
 def getSettings(print=True):
     """Returns and prints essential information about the current Rhapsody

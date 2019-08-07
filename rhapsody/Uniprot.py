@@ -339,9 +339,13 @@ class UniprotMapping:
 
     def savePickle(self, filename=None, folder=None, store_custom_PDBs=False):
         if folder is None:
-            folder = SETTINGS.get('rhapsody_local_folder', '.')
+            folder = SETTINGS.get('rhapsody_local_folder')
+            if folder is None:
+                folder = '.'
+            else:
+                folder = os.path.join(folder, 'pickles')
         if filename is None:
-            filename = 'UniprotMap-'  + self.uniq_acc + '.pkl'
+            filename = 'UniprotMap-' + self.uniq_acc + '.pkl'
         pickle_path = os.path.join(folder, filename)
         cache = self.customPDBmappings
         if store_custom_PDBs is not True:
@@ -359,7 +363,11 @@ class UniprotMapping:
             # assume acc is equal to uniq_acc
             acc = self.acc
         if folder is None:
-            folder = SETTINGS.get('rhapsody_local_folder', '.')
+            folder = SETTINGS.get('rhapsody_local_folder')
+            if folder is None:
+                folder = '.'
+            else:
+                folder = os.path.join(folder, 'pickles')
         if filename is None:
             # assume acc is equal to uniq_acc
             acc = self.acc
@@ -665,16 +673,22 @@ class UniprotMapping:
         else:
             # get list of Pfam domains containing resid
             PF_list = [k for k in self.Pfam if any([
-                       resid >= int(segment['start']) and
-                       resid <= int(segment['end'])
-                       for segment in self.Pfam[k]['locations'] ]) ]
+                    resid >= int(segment['start']) and
+                    resid <= int(segment['end'])
+                    for segment in self.Pfam[k]['locations']
+                ])
+            ]
             if len(PF_list) == 0:
-                raise RuntimeError('No Pfam domain for resid {}.'.format(resid))
+                raise RuntimeError(f'No Pfam domain for resid {resid}.')
             if len(PF_list) > 1:
-                LOGGER.warn('Residue {} is found in multiple '.format(resid) + \
+                LOGGER.warn(f'Residue {resid} is found in multiple '
                             '({}) Pfam domains.'.format(len(PF_list)))
         if folder is None:
-            folder = SETTINGS.get('rhapsody_local_folder', './')
+            folder = SETTINGS.get('rhapsody_local_folder')
+            if folder is None:
+                folder = '.'
+            else:
+                folder = os.path.join(folder, 'pickles')
         # iterate over Pfam families
         for PF in PF_list:
             d = self.Pfam[PF]
