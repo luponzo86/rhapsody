@@ -233,9 +233,9 @@ def buildFeatMatrix(featset, all_features):
         # find structured array containing a specific feature
         arrays = [a for a in all_features if featname in a.dtype.names]
         if len(arrays) == 0:
-            raise RuntimeError('Invalid feature name: {}'.format(name))
-        if len(arrays) >  1:
-            LOGGER.warn('Multiple values for feature {}'.format(name))
+            raise RuntimeError('Invalid feature name: {}'.format(featname))
+        if len(arrays) > 1:
+            LOGGER.warn('Multiple values for feature {}'.format(featname))
         array = arrays[0]
         feat_matrix[:, j] = array[featname]
     return feat_matrix

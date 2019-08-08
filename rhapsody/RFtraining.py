@@ -1,5 +1,6 @@
-import numpy as np
 import pickle
+import numpy as np
+import numpy.lib.recfunctions as rfn
 from prody import LOGGER
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
@@ -7,10 +8,11 @@ from sklearn.metrics import roc_curve, roc_auc_score, auc
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from .figures import print_pred_distrib_figure, print_path_prob_figure
 from .figures import print_ROC_figure, print_feat_imp_figure
+from .settings import DEFAULT_FEATSETS, getDefaultTrainingDataset
 
 
-__all__ = ['calcMetrics', 'calcPathogenicityProbs',
-           'RandomForestCV', 'trainRFclassifier']
+__all__ = ['calcMetrics', 'calcPathogenicityProbs', 'RandomForestCV',
+           'trainRFclassifier', 'extendDefaultTrainingDataset']
 
 
 def calcMetrics(y_test, y_pred):
@@ -81,6 +83,7 @@ def _running_average(curve):
     ext_pprob = np.concatenate([[0], curve, [1]])
     return np.convolve(ext_pprob, np.ones((3,))/3, mode='valid')
 
+
 def _calcSmoothCurve(curve, smooth_window):
     # smooth pathogenicity probability profile
     n = len(curve)
@@ -102,10 +105,9 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
                ROC_fig='ROC.png', feature_names=None, **kwargs):
 
     # set classifier
-    classifier = RandomForestClassifier(n_estimators=n_estimators,
-                                        max_features=max_features,
-                                        oob_score=True, n_jobs=-1,
-                                        class_weight='balanced')
+    classifier = RandomForestClassifier(
+        n_estimators=n_estimators, max_features=max_features,
+        oob_score=True, n_jobs=-1, class_weight='balanced')
 
     # set cross-validation procedure
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=666)
@@ -200,13 +202,13 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
 
 def _importFeatMatrix(fm):
     assert fm.dtype.names is not None, \
-           "feat. matrix must be a NumPy structured array."
-    assert 'true_label' in fm.dtype.names,  \
-           "feat. matrix must have a 'true_label' field."
-    assert 'SAV_coords' in fm.dtype.names,  \
-           "feat. matrix must have a 'SAV_coords' field."
+        "feat. matrix must be a NumPy structured array."
+    assert 'true_label' in fm.dtype.names, \
+        "feat. matrix must have a 'true_label' field."
+    assert 'SAV_coords' in fm.dtype.names, \
+        "feat. matrix must have a 'SAV_coords' field."
     assert set(fm['true_label']) == {0, 1}, \
-           'Invalid true labels in feat. matrix.'
+        'Invalid true labels in feat. matrix.'
 
     # check for ambiguous cases in training dataset
     del_SAVs = set(fm[fm['true_label'] == 1]['SAV_coords'])
@@ -237,9 +239,9 @@ def _importFeatMatrix(fm):
 def RandomForestCV(feat_matrix, n_estimators=1500, max_features=2, **kwargs):
 
     X, y, featset = _importFeatMatrix(feat_matrix)
-    CV_summary = _performCV(X, y, n_estimators=n_estimators,
-                            max_features=max_features, feature_names=featset,
-                            **kwargs)
+    CV_summary = _performCV(
+        X, y, n_estimators=n_estimators, max_features=max_features,
+        feature_names=featset, **kwargs)
     return CV_summary
 
 
@@ -250,14 +252,14 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
     X, y, featset = _importFeatMatrix(feat_matrix)
 
     # calculate optimal Youden cutoff through CV
-    CV_summary = _performCV(X, y, n_estimators=n_estimators,
-                            max_features=max_features, feature_names=featset,
-                            **kwargs)
+    CV_summary = _performCV(
+        X, y, n_estimators=n_estimators, max_features=max_features,
+        feature_names=featset, **kwargs)
 
     # train a classifier on the whole dataset
-    clsf = RandomForestClassifier(n_estimators=n_estimators,
-                                  max_features=max_features, oob_score=True,
-                                  class_weight='balanced', n_jobs=-1)
+    clsf = RandomForestClassifier(
+        n_estimators=n_estimators, max_features=max_features,
+        oob_score=True, class_weight='balanced', n_jobs=-1)
     clsf.fit(X, y)
 
     fimp = clsf.feature_importances_
@@ -289,3 +291,32 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
         pickle.dump(clsf_dict, open(pickle_name, 'wb'))
 
     return clsf_dict
+
+
+def extendDefaultTrainingDataset(names, arrays, base_default_featset='full'):
+    """base : array
+    Input array to extend.
+
+    names : string, sequence
+    String or sequence of strings corresponding to the names of the new fields.
+
+    data : array or sequence of arrays
+    Array or sequence of arrays storing the fields to add to the base.
+    """
+
+    training_dataset = getDefaultTrainingDataset()
+
+    # select features from integrated dataset
+    if base_default_featset is None:
+        base_featset = []
+    if base_default_featset in DEFAULT_FEATSETS:
+        base_featset = DEFAULT_FEATSETS[base_default_featset]
+    else:
+        base_featset = list(base_default_featset)
+    featset = ['SAV_coords', 'true_label'] + base_featset
+    base_dataset = training_dataset[featset]
+
+    # extend base training dataset
+    fm = rfn.rec_append_fields(base_dataset, names, arrays, dtypes='float32')
+
+    return fm

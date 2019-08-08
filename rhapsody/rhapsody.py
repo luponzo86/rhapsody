@@ -28,25 +28,6 @@ class Rhapsody:
         assert query_type in ('SAVs', 'PolyPhen2')
         assert isinstance(queryPolyPhen2, bool)
 
-        if query is None:
-            # a SAV list can be uploaded later with setSAVs()
-            # (useful when PolyPhen-2 features are not needed)
-            self.query = None
-            self.saturation_mutagenesis = None
-        elif query_type == 'PolyPhen2':
-            # 'query' must be a filename containing PolyPhen-2's output
-            self.importPolyPhen2output(query)
-        elif queryPolyPhen2:
-            # 'query' can be a filename, list, tuple or string
-            # containing SAV coordinates, or just a single string with
-            # the Uniprot accession number of a sequence (with or without
-            # a specified position) for which a complete scanning of all
-            # mutations will be computed
-            self.queryPolyPhen2(query)
-        else:
-            # as above, but without querying PolyPhen-2
-            self.setSAVs(query)
-
         # masked NumPy array that will contain all info abut SAVs
         self.data = None
         self.data_dtype = np.dtype([
@@ -88,12 +69,33 @@ class Rhapsody:
         self.PolyPhen2output = None
         # custom PDB structure used for PDB features calculation
         self.customPDB = None
+        # structured array containing additional precomputed features
+        self.extra_features = None
         # NumPy array (num_SAVs)x(num_features)
         self.featMatrix = None
         # classifiers and main feature set
         self.classifier = None
         self.aux_classifier = None
         self.featSet = None
+
+        if query is None:
+            # a SAV list can be uploaded later with setSAVs()
+            # (useful when PolyPhen-2 features are not needed)
+            self.query = None
+            self.saturation_mutagenesis = None
+        elif query_type == 'PolyPhen2':
+            # 'query' must be a filename containing PolyPhen-2's output
+            self.importPolyPhen2output(query)
+        elif queryPolyPhen2:
+            # 'query' can be a filename, list, tuple or string
+            # containing SAV coordinates, or just a single string with
+            # the Uniprot accession number of a sequence (with or without
+            # a specified position) for which a complete scanning of all
+            # mutations will be computed
+            self.queryPolyPhen2(query)
+        else:
+            # as above, but without querying PolyPhen-2
+            self.setSAVs(query)
 
     def _isColSet(self, column):
         assert self.data is not None, 'Data array not initialized.'
@@ -205,8 +207,13 @@ class Rhapsody:
                 featset = sorted(list(RHAPSODY_FEATS['all']))
             else:
                 featset == DEFAULT_FEATSETS[featset]
-        if any([f not in RHAPSODY_FEATS['all'] for f in featset]):
-            raise RuntimeError('Invalid list of features.')
+        # check for unrecognized features
+        known_feats = RHAPSODY_FEATS['all']
+        if self.extra_features is not None:
+            known_feats = known_feats.union(self.extra_features.dtype.names)
+        for f in featset:
+            if f not in known_feats:
+                raise RuntimeError(f"Unknown feature: '{f}'")
         if len(set(featset)) != len(featset):
             raise RuntimeError('Duplicate features in feature set.')
         self.featSet = tuple(featset)
@@ -359,6 +366,8 @@ class Rhapsody:
             # recover EVmutation data
             f = recoverEVmutFeatures(self.data['SAV coords'])
             all_feats.append(f)
+        if self.extra_features is not None:
+            all_feats.append(self.extra_features)
         # build matrix of selected features
         return buildFeatMatrix(self.featSet, all_feats)
 
@@ -381,11 +390,28 @@ class Rhapsody:
             trainData[f] = self.featMatrix[:, i]
         return trainData
 
+    def importPrecomputedFeatures(self, features_dict):
+        assert isinstance(features_dict, dict)
+        # import additional precomputed features
+        default_feats = RHAPSODY_FEATS['all']
+        if any([f in default_feats for f in features_dict]):
+            ff = default_feats.intersection(set(features_dict))
+            raise ValueError('Cannot import precomputed features already '
+                             f"in Rhapsody's default list of features: {ff}")
+        # store precomputed features in a structured array
+        if self.numSAVs is None:
+            raise RuntimeError('SAVs need to be imported first')
+        dt = [(f, 'f4') for f in features_dict]
+        extra_feats = np.empty(self.numSAVs, dtype=np.dtype(dt))
+        for feat, array in features_dict.items():
+            extra_feats[feat] = array
+        self.extra_features = extra_feats
+
     def importClassifiers(self, classifier, aux_classifier=None,
                           force_env=None):
         assert self.classifier is None, 'Classifiers already set.'
         assert force_env in [None, 'chain', 'reduced', 'sliced'], \
-               "Invalid 'force_env' value"
+            "Invalid 'force_env' value"
         # import main classifier
         p = pickle.load(open(classifier, 'rb'))
         featset = p['features']

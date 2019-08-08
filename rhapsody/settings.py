@@ -11,7 +11,8 @@ import numpy as np
 import prody as pd
 import rhapsody as rd
 
-__all__ = ['DEFAULT_FEATSETS', 'initialSetup', 'getDefaultClassifiers',
+__all__ = ['DEFAULT_FEATSETS', 'initialSetup',
+           'getDefaultTrainingDataset', 'getDefaultClassifiers',
            'delSettings', 'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
@@ -109,12 +110,12 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
         # delete EVmutation metrics as well, that must be updated
         pd.SETTINGS.pop('EVmutation_metrics')
         # import training dataset included with package
-        tar = tarfile.open(PACKAGE_DATA, "r:gz")
-        tar.extractall(path=working_dir)
-        tar.close()
-        fname = os.path.join(working_dir, TRAINING_DATASET)
-        training_dataset = np.load(fname)
-        os.remove(fname)
+        training_dataset = getDefaultTrainingDataset()
+        info = {
+            'size': len(training_dataset),
+            'fields': training_dataset.dtype.names
+        }
+        pd.SETTINGS['rhapsody_training_dataset'] = info
         # train new default classifiers
         pd.LOGGER.info('')
         for name, featset in DEFAULT_FEATSETS.items():
@@ -144,15 +145,10 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
     else:
         # compute EVmutation metrics from included training dataset
         if training_dataset is None:
-            tar = tarfile.open(PACKAGE_DATA, "r:gz")
-            tar.extractall(path=working_dir)
-            tar.close()
-            fname = os.path.join(working_dir, TRAINING_DATASET)
-            training_dataset = np.load(fname)
-            os.remove(fname)
+            training_dataset = getDefaultTrainingDataset()
         if 'EVmut-DeltaE_epist' not in training_dataset.dtype.names:
-            pd.SETTINGS['EVmutation_metrics'] = np.nan
-            pd.LOGGER.warn('Unable to compute EVmutation cutoff: '
+            pd.SETTINGS['EVmutation_metrics'] = {}
+            pd.LOGGER.warn('Unable to compute EVmutation metrics: '
                            'precomputed scores not found.')
         else:
             sel = ~np.isnan(training_dataset['EVmut-DeltaE_epist'])
@@ -207,6 +203,18 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
     return
 
 
+def getDefaultTrainingDataset():
+    # import training dataset included with package
+    working_dir = pd.SETTINGS.get('rhapsody_local_folder')
+    tar = tarfile.open(PACKAGE_DATA, "r:gz")
+    tar.extractall(path=working_dir)
+    tar.close()
+    fname = os.path.join(working_dir, TRAINING_DATASET)
+    training_dataset = np.load(fname)
+    os.remove(fname)
+    return training_dataset
+
+
 def getDefaultClassifiers():
     """Returns a dictionary with the paths to the three default classifiers
     (``'full'``, ``'reduced'`` and ``'EVmut'``)
@@ -225,8 +233,8 @@ def getDefaultClassifiers():
 
 
 def delSettings():
-    for entry in ['rhapsody_local_folder', 'EVmutation_local_folder',
-                  'EVmutation_metrics']:
+    for entry in ['rhapsody_local_folder', 'rhapsody_training_dataset',
+                  'EVmutation_local_folder', 'EVmutation_metrics']:
         pd.SETTINGS.pop(entry)
 
 
@@ -238,11 +246,9 @@ def getSettings(print=True):
 
     config_dict = {}
 
-    for entry in ['rhapsody_local_folder', 'EVmutation_local_folder']:
+    for entry in ['rhapsody_local_folder', 'rhapsody_training_dataset',
+                  'EVmutation_local_folder', 'EVmutation_metrics']:
         config_dict[entry] = pd.SETTINGS.get(entry)
-
-    EVmut_metrics = pd.SETTINGS.get('EVmutation_metrics', default={})
-    config_dict['EVmutation_metrics'] = EVmut_metrics
 
     def_clsfs = getDefaultClassifiers()
     for fs, path in def_clsfs.items():
@@ -254,7 +260,9 @@ def getSettings(print=True):
                   + [f'{c} classifier' for c in def_clsfs]
         for entry in entries:
             pd.LOGGER.info(f'{entry:24}: {config_dict[entry]}')
-        if 'AUROC' in EVmut_metrics:
+        d = pd.SETTINGS['rhapsody_training_dataset']
+        pd.LOGGER.info('training dataset size   : {}'.format(d['size']))
+        if 'AUROC' in pd.SETTINGS.get('EVmutation_metrics', {}):
             pd.LOGGER.info('EVmutation_metrics      : <computed>')
         else:
             pd.LOGGER.info('EVmutation_metrics      : <missing>')
