@@ -1,16 +1,18 @@
-import numpy as np
+# -*- coding: utf-8 -*-
+"""This module defines functions for generating figures that help
+inspect the predictions obtained from the main class."""
+
 import os
 import warnings
+import numpy as np
 from string import Template
-from prody import LOGGER
-from .rhapsody import Rhapsody
+from prody import LOGGER, SETTINGS
+from .core import Rhapsody
 
-__all__ = ['print_pred_distrib_figure', 'print_path_prob_figure',
-           'print_ROC_figure', 'print_feat_imp_figure',
-           'print_sat_mutagen_figure']
+__all__ = ['print_sat_mutagen_figure']
 
 
-def try_import_matplotlib():
+def _try_import_matplotlib():
     try:
         import matplotlib as plt
         plt.rcParams.update({'font.size': 20, 'font.family': 'Arial'})
@@ -20,107 +22,7 @@ def try_import_matplotlib():
     return plt
 
 
-def print_pred_distrib_figure(filename, bins, histo, dx, J_opt):
-    assert isinstance(filename, str), 'filename must be a string'
-    filename = os.path.splitext(filename)[0] + '.png'
-
-    matplotlib = try_import_matplotlib()
-    if matplotlib is None:
-        return
-    else:
-        from matplotlib import pyplot as plt
-
-    figure = plt.figure(figsize=(7, 7))
-    plt.bar(bins[:-1], histo[0], width=dx, align='edge',
-            color='blue', alpha=0.7, label='neutral')
-    plt.bar(bins[:-1], histo[1], width=dx, align='edge',
-            color='red',  alpha=0.7, label='deleterious')
-    plt.axvline(x=J_opt, color='k', ls='--', lw=1)
-    plt.ylabel('distribution')
-    plt.xlabel('predicted score')
-    plt.legend()
-    figure.savefig(filename, format='png', bbox_inches='tight')
-    plt.close()
-    plt.rcParams.update(plt.rcParamsDefault)
-    LOGGER.info(f'Predictions distribution saved to {filename}')
-
-
-def print_path_prob_figure(filename, bins, histo, dx, path_prob,
-                           smooth_path_prob, cutoff=200):
-    assert isinstance(filename, str), 'filename must be a string'
-    filename = os.path.splitext(filename)[0] + '.png'
-
-    matplotlib = try_import_matplotlib()
-    if matplotlib is None:
-        return
-    else:
-        from matplotlib import pyplot as plt
-
-    figure = plt.figure(figsize=(7, 7))
-    s = np.sum(histo, axis=0)
-    v1 = np.where(s>=cutoff, path_prob, 0)
-    v2 = np.where(s< cutoff, path_prob, 0)
-    v3 = np.where(s>=cutoff, smooth_path_prob, 0.)
-    plt.bar(bins[:-1], v1, width=dx, align='edge', color='red', alpha=1  )
-    plt.bar(bins[:-1], v2, width=dx, align='edge', color='red', alpha=0.7)
-    plt.plot(bins[:-1]+dx/2, v3, color='orange')
-    plt.ylabel('pathogenicity prob.')
-    plt.xlabel('predicted score')
-    plt.ylim((0, 1))
-    figure.savefig(filename, format='png', bbox_inches='tight')
-    plt.close()
-    plt.rcParams.update(plt.rcParamsDefault)
-    LOGGER.info(f'Pathogenicity plot saved to {filename}')
-
-
-def print_ROC_figure(filename, fpr, tpr, mean_auc):
-    assert isinstance(filename, str), 'filename must be a string'
-    filename = os.path.splitext(filename)[0] + '.png'
-
-    matplotlib = try_import_matplotlib()
-    if matplotlib is None:
-        return
-    else:
-        from matplotlib import pyplot as plt
-
-    fig = plt.figure(figsize=(7, 7))
-    plt.plot([0, 1], [0, 1], linestyle='--', lw=1, color='k')
-    plt.plot(fpr, tpr,       linestyle='-',  lw=2, color='r',
-             label = f'Mean AUROC = {mean_auc:.3f}')
-    plt.xlim([-0.05, 1.05])
-    plt.ylim([-0.05, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic')
-    plt.legend(loc="lower right")
-    fig.savefig(filename, format='png', bbox_inches='tight')
-    plt.close()
-    plt.rcParams.update(plt.rcParamsDefault)
-    LOGGER.info(f'ROC plot saved to {filename}')
-
-
-def print_feat_imp_figure(filename, feat_imp, featset):
-    assert isinstance(filename, str), 'filename must be a string'
-    filename = os.path.splitext(filename)[0] + '.png'
-
-    matplotlib = try_import_matplotlib()
-    if matplotlib is None:
-        return
-    else:
-        from matplotlib import pyplot as plt
-
-    fig = plt.figure(figsize=(7, 7))
-    n = len(feat_imp)
-    plt.bar(range(n), feat_imp, align='center', tick_label=featset)
-    plt.xticks(rotation='vertical')
-    plt.ylabel('feat. importance')
-    fig.savefig(filename, format='png', bbox_inches='tight')
-    plt.close()
-    plt.rcParams.update(plt.rcParamsDefault)
-    LOGGER.info(f'Feat. importance plot saved to {filename}')
-
-
-def adjust_res_interval(res_interval, upper_lim, min_size=10):
+def _adjust_res_interval(res_interval, upper_lim, min_size=10):
     res_i = max(1, res_interval[0])
     res_f = max(1, res_interval[1])
     n = min_size - 1
@@ -135,25 +37,26 @@ def adjust_res_interval(res_interval, upper_lim, min_size=10):
 
 
 def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
-                             min_interval_size=15, extra_plot=None, html=False,
-                             PP2=True, EVmutation=True, EVmut_cutoff=-4.551,
-                             fig_height=8, fig_width=None, dpi=300):
+                             PolyPhen2=True, EVmutation=True, extra_plot=None,
+                             fig_height=8, fig_width=None, dpi=300,
+                             min_interval_size=15, html=False,
+                             main_clsf='main', aux_clsf='aux.'):
 
     # check inputs
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
-    assert rhapsody_obj.predictions is not None, 'predictions not found'
+    assert rhapsody_obj._isColSet('main score'), 'predictions not found'
     if res_interval is not None:
         assert isinstance(res_interval, tuple) and len(res_interval) == 2, \
                'res_interval must be a tuple of 2 values'
         assert res_interval[1] >= res_interval[0], 'invalid res_interval'
     if extra_plot is not None:
-        assert len(extra_plot) == len(rhapsody_obj.predictions), \
+        assert len(extra_plot) == rhapsody_obj.numSAVs, \
                'length of additional predictions array is incorrect'
     assert isinstance(fig_height, (int, float))
     assert isinstance(dpi, int)
 
-    matplotlib = try_import_matplotlib()
+    matplotlib = _try_import_matplotlib()
     if matplotlib is None:
         return
 
@@ -161,37 +64,39 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     filename = os.path.splitext(filename)[0]
 
     # make sure that all variants belong to the same Uniprot sequence
-    s = rhapsody_obj.SAVcoords['acc']
-    if len(set(s)) != 1:
+    accs = [s.split()[0] for s in rhapsody_obj.data['SAV coords']]
+    if len(set(accs)) != 1:
         m = 'Only variants from a single Uniprot sequence can be accepted'
         raise ValueError(m)
 
-    if rhapsody_obj.auxPreds is not None:
-        aux_preds_found = True
-    else:
-        aux_preds_found = False
-
-    # import pathogenicity probability from Rhapsody object
-    p_full = rhapsody_obj.predictions['path. probability']
-    p_mix = None
-    if aux_preds_found:
-        p_mix = rhapsody_obj.mixPreds['path. probability']
-
     # select an appropriate interval, based on available predictions
-    res_min = np.min(rhapsody_obj.SAVcoords['pos'])
-    res_max = np.max(rhapsody_obj.SAVcoords['pos'])
+    seq_pos = [int(s.split()[1]) for s in rhapsody_obj.data['SAV coords']]
+    res_min = np.min(seq_pos)
+    res_max = np.max(seq_pos)
     upper_lim = res_max + min_interval_size
 
     # create empty (20 x num_res) mutagenesis tables
-    table_full = np.zeros((20, upper_lim), dtype=float)
-    table_full[:] = 'nan'
-    table_mix = table_full.copy()
+    table_best = np.zeros((20, upper_lim), dtype=float)
+    table_best[:] = 'nan'
+    table_main = table_best.copy()
     if extra_plot is not None:
-        table_other = table_full.copy()
-    if PP2:
-        table_PP2 = table_full.copy()
+        table_other = table_best.copy()
+    if PolyPhen2:
+        table_PP2 = table_best.copy()
     if EVmutation:
-        table_EVmut = table_full.copy()
+        table_EVmut = table_best.copy()
+
+    # import pathogenicity probabilities from Rhapsody object
+    p_best = rhapsody_obj.getPredictions(classifier='best')['path. prob.']
+    p_main = rhapsody_obj.data['main path. prob.']
+    if PolyPhen2:
+        rhapsody_obj._calcPolyPhen2Predictions()
+        p_PP2 = rhapsody_obj.data['PolyPhen-2 score']
+    if EVmutation:
+        rhapsody_obj._calcEVmutationPredictions()
+        EVmut_score = np.array(rhapsody_obj.data['EVmutation score'])
+        EVmut_cutoff = SETTINGS.get('EVmutation_metrics')['optimal cutoff']
+        p_EVmut = -EVmut_score/EVmut_cutoff*0.5
 
     # fill tables with predicted probability
     #  1:    deleterious
@@ -199,32 +104,29 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # 'nan': no prediction/wt
     aa_list = 'ACDEFGHIKLMNPQRSTVWY'
     aa_map = {aa: i for i, aa in enumerate(aa_list)}
-    for i, SAV in enumerate(rhapsody_obj.SAVcoords):
-        aa_mut = SAV['aa_mut']
-        index = SAV['pos']-1
-        table_full[aa_map[aa_mut], index] = p_full[i]
-        if aux_preds_found:
-            table_mix[aa_map[aa_mut], index] = p_mix[i]
+    for i, SAV in enumerate(rhapsody_obj.data['SAV coords']):
+        aa_mut = SAV.split()[3]
+        index = int(SAV.split()[1]) - 1
+        table_best[aa_map[aa_mut], index] = p_best[i]
+        table_main[aa_map[aa_mut], index] = p_main[i]
         if extra_plot is not None:
             table_other[aa_map[aa_mut], index] = extra_plot[i]
-        if PP2:
-            s = float(rhapsody_obj.PP2output['pph2_prob'][i])
-            table_PP2[aa_map[aa_mut], index] = s
+        if PolyPhen2:
+            table_PP2[aa_map[aa_mut], index] = p_PP2[i]
         if EVmutation:
-            s = rhapsody_obj.calcEVmutationFeats()['EVmut-DeltaE_epist'][i]
-            table_EVmut[aa_map[aa_mut], index] = s/EVmut_cutoff*0.5
+            table_EVmut[aa_map[aa_mut], index] = p_EVmut[i]
 
     # compute average pathogenicity profiles
     # NB: I expect to see RuntimeWarnings in this block
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        avg_p_full = np.nanmean(table_full, axis=0)
-        avg_p_mix = np.nanmean(table_mix, axis=0)
-        min_p = np.nanmin(table_mix, axis=0)
-        max_p = np.nanmax(table_mix, axis=0)
+        avg_p_best = np.nanmean(table_best, axis=0)
+        avg_p_main = np.nanmean(table_main, axis=0)
+        min_p = np.nanmin(table_best, axis=0)
+        max_p = np.nanmax(table_best, axis=0)
         if extra_plot is not None:
             avg_p_other = np.nanmean(table_other, axis=0)
-        if PP2:
+        if PolyPhen2:
             avg_p_PP2 = np.nanmean(table_PP2, axis=0)
         if EVmutation:
             avg_p_EVmut = np.nanmean(table_EVmut, axis=0)
@@ -234,28 +136,17 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     upper_strip[:] = 'nan'
     PDB_sizes = np.zeros(upper_lim, dtype=int)
     PDB_coords = ['']*upper_lim
-    for a, b in zip(rhapsody_obj.SAVcoords, rhapsody_obj.Uniprot2PDBmap):
-        index = a['pos'] - 1
-        if b['PDB size'] != 0:
-            PDB_length = int(b['PDB size'])
-            PDBID_chain = ':'.join(b['PDB SAV coords'][0].split()[:2])
+    for s in rhapsody_obj.data:
+        index = int(s['SAV coords'].split()[1]) - 1
+        if s['PDB size'] != 0:
+            PDB_length = int(s['PDB size'])
+            PDBID_chain = ':'.join(s['PDB SAV coords'][0].split()[:2])
             upper_strip[0, index] = PDB_length
             PDB_sizes[index] = PDB_length
             PDB_coords[index] = PDBID_chain
     max_PDB_size = max(PDB_sizes)
     if max_PDB_size != 0:
         upper_strip[0, :] /= max_PDB_size
-
-    # final data to show on figure
-    if aux_preds_found:
-        table_final = table_mix
-        avg_p_final = avg_p_mix
-        pclass_final = rhapsody_obj.mixPreds['path. class']
-    else:
-        table_final = table_full
-        avg_p_final = avg_p_full
-        pclass_final = rhapsody_obj.predictions['path. class']
-    # avg_p_final = np.where(np.isnan(avg_p_full), avg_p_mix, avg_p_full)
 
     # PLOT FIGURE
 
@@ -266,8 +157,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     if res_interval is None:
         res_interval = (res_min, res_max)
     # adjust interval
-    res_i, res_f = adjust_res_interval(res_interval, upper_lim,
-                                       min_interval_size)
+    res_i, res_f = _adjust_res_interval(res_interval, upper_lim,
+                                        min_interval_size)
     nres_shown = res_f - res_i + 1
 
     # figure proportions
@@ -290,24 +181,35 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     pad = 0.2/fig_width
 
     # top strip
+    matplotlib.cm.YlGn.set_bad(color='antiquewhite')
     ax0.imshow(upper_strip[0:1, res_i-1:res_f], aspect='auto',
                cmap='YlGn', vmin=0, vmax=1)
     ax0.set_ylim((-0.45, .45))
     ax0.set_yticks([])
     ax0.set_ylabel(f'PDB size \n[0-{max_PDB_size} res] ', fontsize=14,
                    ha='right', va='center', rotation=0)
-    ax0.set_xticks([])
+    ax0.set_xticks(np.arange(5-res_i % 5, res_f-res_i+1, 5))
+    ax0.set_xticklabels([])
+    # add white grid
+    ax0.set_xticks(np.arange(-.5, res_f-res_i+1, 1), minor=True)
+    ax0.tick_params(axis='both', which='minor', length=0)
+    ax0.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # mutagenesis table (heatmap)
-    matplotlib.cm.coolwarm.set_bad(color='white')
-    im = ax1.imshow(table_final[:, res_i-1:res_f], aspect='auto',
+    matplotlib.cm.coolwarm.set_bad(color='antiquewhite')
+    im = ax1.imshow(table_best[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
     ax1.set_yticks(np.arange(len(aa_list)))
     ax1.set_yticklabels(aa_list, ha='center', position=(-pad, 0), fontsize=14)
-    ax1.set_xticks(np.arange(5-res_i%5, res_f-res_i+1, 5))
+    ax1.set_xticks(np.arange(5-res_i % 5, res_f-res_i+1, 5))
     ax1.set_xticklabels([])
     ax1.set_ylabel('pathog. probability', labelpad=10)
+    # add white grid
+    ax1.set_xticks(np.arange(-.5, res_f-res_i+1, 1), minor=True)
+    ax1.set_yticks(np.arange(-.5, 20, 1), minor=True)
+    ax1.tick_params(axis='both', which='minor', length=0)
+    ax1.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # average pathogenicity profile
     x_resids = np.arange(1, upper_lim+1)
@@ -317,14 +219,14 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # plot average profile for other predictions, if available
     if extra_plot is not None:
         ax2.plot(x_resids, avg_p_other, color='gray', lw=1)
-    if PP2:
+    if PolyPhen2:
         ax2.plot(x_resids, avg_p_PP2, color='blue', lw=1)
     if EVmutation:
         ax2.plot(x_resids, avg_p_EVmut, color='green', lw=1)
     # solid line for predictions obtained with full classifier
-    ax2.plot(x_resids, avg_p_full, 'ro-')
+    ax2.plot(x_resids, avg_p_main, 'ro-')
     # dotted line for predictions obtained with auxiliary classifier
-    ax2.plot(x_resids, avg_p_final, 'ro-', markerfacecolor='none', ls='dotted')
+    ax2.plot(x_resids, avg_p_best, 'ro-', markerfacecolor='none', ls='dotted')
     # cutoff line
     ax2.axhline(y=0.5, color='grey', lw=.8, linestyle='dashed')
 
@@ -359,8 +261,9 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
         # tight bbox as used by fig.savefig()
         html_data["tight_bbox"] = fig.get_tightbbox(fig.canvas.get_renderer())
         # compute new origin and height, based on tight box and padding
-        html_data["new_orig"]   = html_data["tight_bbox"].min - tight_padding
-        html_data["new_height"] = html_data["tight_bbox"].height + 2*tight_padding
+        html_data["new_orig"] = html_data["tight_bbox"].min - tight_padding
+        html_data["new_height"] = (html_data["tight_bbox"].height
+                                   + 2*tight_padding)
 
         def get_area_coords(ax, d):
             assert ax_type in ("strip", "table", "bplot")
@@ -371,9 +274,10 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             # adjust bbox coordinates based on tight bbox
             b_adj = b_inch - d["new_orig"]
             # use html reference system (y = 1 - y)
-            b_html = b_adj*np.array([1,-1]) + np.array([0, d["new_height"]])
+            b_html = b_adj*np.array([1, -1]) + np.array([0, d["new_height"]])
             # convert to pixels
             b_px = (d["dpi"]*b_html).astype(int)
+            b_px = np.sort(b_px, axis=0)
             # put in html format
             coords = '{},{},{},{}'.format(*b_px.flatten())
             # output
@@ -381,8 +285,8 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
 
         # html templates
         area_html = Template(
-        '<area shape="rect" coords="$coords" ' + \
-        'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
+            '<area shape="rect" coords="$coords" '
+            'id="{{map_id}}_$areaid" {{area_attrs}}> \n'
         )
 
         # write html
@@ -397,53 +301,80 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             f.write('</div>\n')
 
         # populate info table that will be passed as a javascript variable
+        best_preds = rhapsody_obj.getPredictions()
+        best_avg_preds = rhapsody_obj.getResAvgPredictions()
+        PDB_coords = rhapsody_obj.getPDBcoords()
+        abbrev = {
+            '?': '?',
+            'deleterious': 'del',
+            'neutral': 'neu',
+            'prob.delet.': 'p.del',
+            'prob.neutral': 'p.neu'
+        }
         info = {}
         for k in ['strip', 'table', 'bplot']:
-            n_cols = 20 if k=='table' else 1
+            n_cols = 20 if k == 'table' else 1
             info[k] = [['']*nres_shown for i in range(n_cols)]
-        for i, SAV in enumerate(rhapsody_obj.SAVcoords):
-            resid = SAV['pos']
-            aa_wt = SAV['aa_wt']
-            aa_mut = SAV['aa_mut']
+        for i, row in enumerate(rhapsody_obj.data):
+            SAV = row['SAV coords']
+            acc, resid, aa_wt, aa_mut = SAV.split()
+            resid = int(resid)
             # consider only residues shown in figure
             if not (res_i <= resid <= res_f):
                 continue
-            # SAV & PDB coordinates
+            # SAV coordinates
             SAV_code = f'{aa_wt}{resid}{aa_mut}'
-            PDB_code = PDB_coords[resid - 1]
             # coordinates on table
             t_i = aa_map[aa_mut]
             t_j = resid - 1
             # coordinates on *shown* table
             ts_i = t_i
             ts_j = resid - res_i
-            # predictions and other info
-            rh_pred = table_final[t_i, t_j]
-            av_rh_pred = avg_p_final[t_j]
-            pclass = pclass_final[i]
-            others = {}
-            if extra_plot is not None:
-                others['other'] = (table_other[t_i, t_j], avg_p_other[t_j])
-            if PP2:
-                others['PP2']   = (table_PP2[t_i, t_j],   avg_p_PP2[t_j])
-            if EVmutation:
-                others['EVmut'] = (table_EVmut[t_i, t_j], avg_p_EVmut[t_j])
             # compose message for table
-            m = f'{SAV_code}: {rh_pred:4.2f} ({pclass})'
-            for k,t in others.items():
-                m += f', {k}={t[0]:<4.2f}'
+            bp = best_preds[i]
+            pprob = bp['path. prob.']
+            pclass = bp['path. class']
+            clsf = main_clsf if row['best classifier'] == 'main' else aux_clsf
+            m = f'{SAV_code}: Rhapsody-{clsf} = {pprob:<3.2f} ({pclass})'
+            if PolyPhen2:
+                score = bp['PolyPhen-2 score']
+                pclass = abbrev[bp['PolyPhen-2 path. class']]
+                m += f', PolyPhen-2 = {score:<3.2f} ({pclass})'
+            if EVmutation:
+                score = bp['EVmutation score']
+                pclass = abbrev[bp['EVmutation path. class']]
+                m += f', EVmutation = {score:<3.2f} ({pclass})'
+            if extra_plot is not None:
+                score = table_other[t_i, t_j]
+                m += f', other = {score:<3.2f}'
             info['table'][ts_i][ts_j] = m
             info['table'][aa_map[aa_wt]][ts_j] = f'{SAV_code[:-1]}: wild-type'
-            # compose message for upper strip
-            m = f'{PDB_code}'
-            if PDB_code != '':
-                m += f' (size: {PDB_sizes[t_j]} res)'
-            info['strip'][0][ts_j] = m
-            # compose message for bottom plot
-            m = f'{SAV_code[:-1]}: {av_rh_pred:4.2f}'
-            for k,t in others.items():
-                m += f', {k}={t[1]:<4.2f}'
-            info['bplot'][0][ts_j] = m
+            if i % 19 == 0:
+                # compose message for upper strip
+                PDBID, ch, resid, aa, size = PDB_coords[i][[
+                    'PDBID', 'chain', 'resid', 'resname', 'PDB size']]
+                if size > 0:
+                    m = f'{PDBID}:{ch}, resid {resid}, aa {aa}, size {size}'
+                else:
+                    m = 'no PDB found'
+                info['strip'][0][ts_j] = m
+                # compose message for bottom plot (residue-averages)
+                bap = best_avg_preds[int(i/19)]
+                pprob = bap['path. prob.']
+                pcl = bap['path. class']
+                m = f'{SAV_code[:-1]}: Rhapsody-{clsf} = {pprob:<3.2f} ({pcl})'
+                if PolyPhen2:
+                    score = bap['PolyPhen-2 score']
+                    pcl = abbrev[bap['PolyPhen-2 path. class']]
+                    m += f', PolyPhen-2 = {score:<3.2f} ({pcl})'
+                if EVmutation:
+                    score = bap['EVmutation score']
+                    pcl = abbrev[bap['EVmutation path. class']]
+                    m += f', EVmutation = {score:<3.2f} ({pcl})'
+                if extra_plot is not None:
+                    score = avg_p_other[t_j]
+                    m += f', other = {score:<3.2f}'
+                info['bplot'][0][ts_j] = m
 
         def create_info_msg(ax_type, d):
             text = '[ \n'
@@ -456,19 +387,23 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
             return text
 
         area_js = Template(
-        '{{map_data}}["{{map_id}}_$areaid"] = { \n' + \
-        '  "num_rows": $num_rows, \n' + \
-        '  "num_cols": $num_cols, \n' + \
-        '  "info_msg": $info_msg, \n' + \
-        '}; \n'
+            '{{map_data}}["{{map_id}}_$areaid"] = { \n'
+            '  "img_id": "{{img_id}}", \n'
+            '  "map_id": "{{map_id}}", \n'
+            '  "coords": [$coords], \n'
+            '  "num_rows": $num_rows, \n'
+            '  "num_cols": $num_cols, \n'
+            '  "info_msg": $info_msg, \n'
+            '}; \n'
         )
 
         # dump info in javascript format
         with open(filename + '.js', 'w') as f:
-            f.write('var {{map_data}} = {{map_data}} || {}; \n')
+            f.write('var {{map_data}} = {}; \n')
             for ax_type, d in info.items():
                 vars = {'areaid': ax_type}
-                vars['num_rows'] = 20 if ax_type=='table' else 1
+                vars['coords'] = get_area_coords(all_axis[ax_type], html_data)
+                vars['num_rows'] = 20 if ax_type == 'table' else 1
                 vars['num_cols'] = nres_shown
                 vars['info_msg'] = create_info_msg(ax_type, d)
                 f.write(area_js.substitute(vars))

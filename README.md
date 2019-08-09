@@ -1,23 +1,56 @@
 [![Build Status](https://travis-ci.com/prody/rhapsody.svg?branch=master)](https://travis-ci.com/prody/rhapsody)
 [![PyPI](https://img.shields.io/pypi/v/prody-rhapsody.svg)](https://pypi.org/project/prody-rhapsody/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/prody-rhapsody.svg)](http://rhapsody.csb.pitt.edu/download.php)
+[![Documentation Status](https://readthedocs.org/projects/rhapsody/badge/?version=latest)](https://rhapsody.readthedocs.io/en/latest/?badge=latest)
 
 # Rhapsody
-Python program, based on ProDy, for pathogenicity prediction of human missense variants.
+Python program, based on ProDy, for pathogenicity prediction of human
+missense variants.
 
-## Install using pip
-Rhapsody is published on [PyPI](https://pypi.org/). To install Rhapsody, please use pip in the terminal:
+## Install latest published version using pip
+Rhapsody is published on [PyPI](https://pypi.org/). To install Rhapsody,
+please use pip in the terminal:
 ```console
 $ pip install -U prody-rhapsody
 ```
+It might be necessary to manually install the DSSP program, for instance
+by typing on Linux:
+```console
+$ sudo apt install dssp
+```
 
 ## Install from source
-Rhapsody is written in pure Python so no local compilation is needed. To install from the source, you can download or clone Rhapsody to your prefered location (e.g. `path/to/rhapsody/`), and then add that location to `PYTHONPATH` environmental variable. For example, on Linux you can add the following line to your `~/.bashrc`:
+Rhapsody is written in pure Python so no local compilation is needed.
+
+To install all needed dependencies, we strongly suggest to use Conda and create
+a new environment with:
+```console
+$ conda create -n rhapsody python=3 numpy scikit-learn requests pyparsing matplotlib biopython
+$ conda activate rhapsody
+$ pip install prody
+$ conda install -c salilab dssp
 ```
-EXPORT PYTHONPATH="path/to/rhapsody/:$PYTHONPATH"
+
+After cloning/forking the Rhapsody repository, you can permanently add the
+repository path to the conda environment with:
+```console
+$ conda develop path/to/local/repository
 ```
 
-If you are running on Windows, please follow this tutorial:
+If not using Conda, you can manually install all dependencies and then add
+the repository location to the `PYTHONPATH` environmental variable. For
+example, on Linux simply add the following line to your `~/.bashrc`:
+```console
+export PYTHONPATH="path/to/local/repository/:$PYTHONPATH"
+```
 
-[How to add to the PYTHONPATH in Windows, so it finds my modules/packages? - stackoverflow](https://stackoverflow.com/a/4855685)
+If you are running on Windows, please follow this
+[tutorial](https://stackoverflow.com/a/4855685).
 
+## Running initial setup
+
+After installation, please run:
+```console
+import rhapsody as rd
+rd.initialSetup()
+```
