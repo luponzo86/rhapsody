@@ -18,8 +18,9 @@ __all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
 EVMUT_FEATS = ['EVmut-DeltaE_epist', 'EVmut-DeltaE_indep',
                'EVmut-mut_aa_freq', 'EVmut-wt_aa_cons']
-"""List of available EVmutation features returned by
-:func:`recoverEVmutFeatures()`."""
+"""List of features derived from EVmutation database of precomputed
+coevolution-based scores."""
+
 
 def recoverEVmutFeatures(SAVs):
     """Compute EVmutation features by fetching precomputed scores from the
@@ -74,12 +75,10 @@ def recoverEVmutFeatures(SAVs):
                         break
         data = np.array(data, dtype=float)
         if len(data) == 0:
-#           LOGGER.warn(f"EVmutation data not found for '{SAV}'")
+            # LOGGER.warn(f"EVmutation data not found for '{SAV}'")
             continue
         else:
             features[i] = tuple(np.mean(data, axis=0))
 
     LOGGER.report('EVmutation scores recovered in %.1fs.', '_EVmut')
     return features
-
-

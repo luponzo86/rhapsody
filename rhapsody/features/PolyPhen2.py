@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""This module defines functions for querying the PolyPhen-2 online tool,
+parsing its output and deriving features that will be used by the Rhapsody
+classifiers.
+"""
+
 from prody import LOGGER
 import numpy as np
 import requests
@@ -5,7 +11,11 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
 
-__all__ = ['queryPolyPhen2', 'parsePolyPhen2output', 'getSAVcoords']
+__all__ = ['PP2_FEATS', 'queryPolyPhen2', 'parsePolyPhen2output',
+           'getSAVcoords', 'calcPolyPhen2features']
+
+PP2_FEATS = ['wt_PSIC', 'Delta_PSIC']
+"""List of features derived from PolyPhen-2's output."""
 
 pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
                 'acc', 'pos', 'aa1', 'aa2', 'nt1', 'nt2',
@@ -165,3 +175,18 @@ def getSAVcoords(parsed_lines):
             SAV_str = '{} {} {} {}'.format(acc, pos, aa1, aa2)
         SAV_coords[i] = (acc, pos, aa1, aa2, SAV_str)
     return SAV_coords
+
+
+def calcPolyPhen2features(PolyPhen2output):
+    # define a datatype for sequence-conservation features
+    # extracted from the output of PolyPhen-2
+    feat_dtype = np.dtype([('wt_PSIC', 'f'),
+                           ('Delta_PSIC', 'f')])
+    # import selected quantities from PolyPhen-2's output
+    # into a structured array
+    f_l = PolyPhen2output[['Score1', 'dScore']]
+    f_t = [tuple(np.nan if x == '?' else x for x in l) for l in f_l]
+    features = np.array(f_t, dtype=feat_dtype)
+    LOGGER.info("Sequence-conservation features have been "
+                "retrieved from PolyPhen-2's output.")
+    return features

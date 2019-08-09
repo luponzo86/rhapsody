@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""This module defines standard interfaces and functions for running Rhapsody
+"""This module defines the standard interface for running Rhapsody
 prediction algorithm."""
 
 from prody import LOGGER
-from .settings import getDefaultClassifiers
-from .rhapsody import Rhapsody
+from ..utils.settings import getDefaultClassifiers
+from .core import Rhapsody
 
 __all__ = ['rhapsody']
 

@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""This module defines functions for training Random Forest classifiers
+implementing Rhapsody's classification schemes."""
+
 import pickle
 import numpy as np
 import numpy.lib.recfunctions as rfn
@@ -6,9 +10,9 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_curve, roc_auc_score, auc
 from sklearn.metrics import precision_recall_curve, average_precision_score
+from ..utils.settings import DEFAULT_FEATSETS, getDefaultTrainingDataset
 from .figures import print_pred_distrib_figure, print_path_prob_figure
 from .figures import print_ROC_figure, print_feat_imp_figure
-from .settings import DEFAULT_FEATSETS, getDefaultTrainingDataset
 
 
 __all__ = ['calcMetrics', 'calcPathogenicityProbs', 'RandomForestCV',

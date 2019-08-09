@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""Rhapsody: a program for pathogenicity prediction of human missense
+variants based on sequence, structure and dynamics of proteins
+"""
+
 from os import path
 
 here = path.abspath(path.dirname(__file__))
@@ -8,46 +13,22 @@ __release__ = __version__
 
 __all__ = []
 
-from . import settings
-from .settings import *
-__all__.extend(settings.__all__)
+from . import utils
+from .utils import *
+__all__.extend(utils.__all__)
+__all__.append('utils')
 
-from . import PolyPhen2
-from .PolyPhen2 import *
-__all__.extend(PolyPhen2.__all__)
+from . import train
+from .train import *
+__all__.extend(train.__all__)
+__all__.append('train')
 
-from . import Uniprot
-from .Uniprot import *
-__all__.extend(Uniprot.__all__)
+from . import features
+from .features import *
+__all__.extend(features.__all__)
+__all__.append('features')
 
-from . import PDB
-from .PDB import *
-__all__.extend(PDB.__all__)
-
-from . import EVmutation
-from .EVmutation import *
-__all__.extend(EVmutation.__all__)
-
-from . import calcFeatures
-from .calcFeatures import *
-__all__.extend(calcFeatures.__all__)
-
-from . import RFtraining
-from .RFtraining import *
-__all__.extend(RFtraining.__all__)
-
-from . import rhapsody
-from .rhapsody import *
-__all__.extend(rhapsody.__all__)
-
-from . import main
-from .main import *
-__all__.extend(main.__all__)
-
-from . import figures
-from .figures import *
-__all__.extend(figures.__all__)
-
-from . import test_module
-from .test_module import *
-__all__.extend(test_module.__all__)
+from . import predict
+from .predict import *
+__all__.extend(predict.__all__)
+__all__.append('predict')

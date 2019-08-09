@@ -33,10 +33,8 @@ release = '0.9'
 extensions = [
   'sphinx.ext.autodoc',
   'sphinx.ext.autosummary',
+  'sphinx.ext.viewcode'
 ]
-
-autodoc_default_flags = ['members']
-autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -52,24 +50,40 @@ pygments_style = 'sphinx'
 # The master toctree document.
 master_doc = 'index'
 
+# autodoc
+autodoc_default_options = {
+    'member-order': 'bysource',
+    'undoc-members': True,
+    'show-inheritance': False,
+    'imported-members': False,
+}
+# autosummary_generate = True
+
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-# on_rtd is whether we are on readthedocs.org, this line of code grabbed
-# from docs.readthedocs.org
+
+# on_rtd is whether we are on readthedocs.org
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if on_rtd:
     # if not specified, readthedocs.org uses their theme by default
     html_theme = "sphinx_rtd_theme"
     html_theme_path = ["_themes", ]
-else:  # only import and set the theme if we're building docs locally
-    import sphinx_theme
-    html_theme = 'stanford_theme' # others: 'neo_rtd_theme', 'alabaster', 'pyramid', 'nature'
-    html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
+else:
+    html_theme = "sphinx_rtd_theme"
+    html_theme_path = ["_themes", ]
+
+    # import sphinx_theme
+    # html_theme = 'stanford_theme'
+    # html_theme_path = [sphinx_theme.get_html_theme_path('stanford_theme')]
+
     # html_theme = 'bootstrap'
     # html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+
+    # others: 'neo_rtd_theme', 'alabaster', 'pyramid', 'nature'
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -84,7 +98,6 @@ html_theme_options = {
     'display_version': False,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
-    'vcs_pageview_mode': '',
     'style_nav_header_background': '#b7270b',
     # Toc options
     'collapse_navigation': False,

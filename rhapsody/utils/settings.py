@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This module defines a few default configuration parameters and
+"""This module defines default configuration parameters and
 a function for the initial setup and training of Rhapsody."""
 
 import os

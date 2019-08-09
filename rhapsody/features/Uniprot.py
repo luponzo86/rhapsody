@@ -1,26 +1,32 @@
-from prody import Atomic, queryUniprot, parsePDB, LOGGER, SETTINGS, \
-                  searchPfam, fetchPfamMSA, parseMSA, refineMSA, MSA,\
-                  calcShannonEntropy, buildMutinfoMatrix, \
-                  buildDirectInfoMatrix
+# -*- coding: utf-8 -*-
+"""This module defines a class and relative functions for mapping Uniprot
+sequences to PDB and Pfam databases."""
+
+import os
+import re
+import pickle
+import datetime
+import numpy as np
+import prody as pd
+from prody import LOGGER, SETTINGS
 from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
-from Bio.SubsMat   import MatrixInfo as matlist
-import numpy as np
-import os, re, pickle, datetime, shutil
+from Bio.SubsMat import MatrixInfo as matlist
 
-__all__ = ['UniprotMapping']
+__all__ = ['UniprotMapping', 'mapSAVs2PDB', 'seqScanning', 'printSAVlist']
+
 
 class UniprotMapping:
 
     def __init__(self, acc, recover_pickle=False, **kwargs):
         self.acc = self._checkAccessionNumber(acc)
-        self.uniq_acc    = None
-        self.fullRecord  = None
-        self.sequence    = None
-        self.PDBrecords  = None
+        self.uniq_acc = None
+        self.fullRecord = None
+        self.sequence = None
+        self.PDBrecords = None
         self.PDBmappings = None
-        self.customPDBmappings  = None
-        self._align_algo_args   = None
+        self.customPDBmappings = None
+        self._align_algo_args = None
         self._align_algo_kwargs = None
         self._timestamp = None
         self.Pfam = None
@@ -29,7 +35,7 @@ class UniprotMapping:
             try:
                 self.recoverPickle(**kwargs)
             except Exception as e:
-                LOGGER.warn('Unable to recover pickle: %s' %e)
+                LOGGER.warn(f'Unable to recover pickle: {e}')
                 self.refresh()
         else:
             self.refresh()
@@ -39,13 +45,13 @@ class UniprotMapping:
         delete precomputed alignments.
         """
         # import Uniprot record and official accession number
-        self.fullRecord = queryUniprot(self.acc)
+        self.fullRecord = pd.queryUniprot(self.acc)
         self.uniq_acc = self.fullRecord['accession   0']
         # import main sequence and PDB records
         rec = self.fullRecord
-        self.sequence = rec['sequence   0'].replace("\n","")
+        self.sequence = rec['sequence   0'].replace("\n", "")
         self.PDBrecords = [rec[key] for key in rec.keys()
-                if key.startswith('dbRef') and 'PDB' in rec[key]]
+                           if key.startswith('dbRef') and 'PDB' in rec[key]]
         # parse PDB records into PDB mappings, easier to access
         self._initiatePDBmappings()
         # set remaining attributes
@@ -67,11 +73,12 @@ class UniprotMapping:
         return self.PDBrecords
 
     def getPDBmappings(self, PDBID=None):
-        """Returns a list of dictionaries, with mappings of the Uniprot sequence onto
-        single PDB chains. For each PDB chain, the residue intervals retrieved from the
-        Uniprot database are parsed into a list of tuples ('chain_sel') corresponding
-        to endpoints of individual segments. NB: '@' stands for 'all chains', following
-        Uniprot naming convention.
+        """Returns a list of dictionaries, with mappings of the Uniprot
+        sequence onto single PDB chains. For each PDB chain, the residue
+        intervals retrieved from the Uniprot database are parsed into a list
+        of tuples ('chain_sel') corresponding to endpoints of individual
+        segments. NB: '@' stands for 'all chains', following Uniprot naming
+        convention.
         """
         if PDBID is None:
             return self.PDBmappings
@@ -80,15 +87,16 @@ class UniprotMapping:
         recs = [d for d in self.PDBmappings if d['PDB'] == PDBID]
         # there should be only one record for a given PDBID
         if len(recs) == 0:
-            raise ValueError('PDBID %s not found in Uniprot record.' %PDBID)
+            raise ValueError(f'PDBID {PDBID} not found in Uniprot record.')
         if len(recs) > 1:
-            m  = "Multiple entries in Uniprot record for PDBID %s. ".format(PDBID)
+            m = f"Multiple entries in Uniprot record for PDBID {PDBID}. "
             m += "Only the first one will be considered."
-            LOGGER.warn(msg)
+            LOGGER.warn(m)
         return recs[0]
 
     def alignSinglePDB(self, PDBID, chain='longest'):
-        """Aligns the Uniprot sequence with the sequence from the given PDB entry.
+        """Aligns the Uniprot sequence with the sequence from the given
+        PDB entry.
         """
         PDBrecord = self.getPDBmappings(PDBID)
         if PDBrecord['chain_seq'] is None:
@@ -116,7 +124,7 @@ class UniprotMapping:
             # align only the requested chain
             chains_to_align = [chain]
         else:
-            raise ValueError('chain %s not found in Uniprot record.' %chain)
+            raise ValueError(f'chain {chain} not found in Uniprot record.')
         # align selected chains with BioPython module pairwise2
         self._calcAlignments(PDBID, chains_to_align)
         # return alignments and maps of selected chains
@@ -128,14 +136,15 @@ class UniprotMapping:
     def alignCustomPDB(self, PDB, chain='all', title=None, recover=False):
         """Aligns the Uniprot sequence with the sequence from the given PDB.
         """
-        assert isinstance(PDB, (str, Atomic)), \
-               'PDB must be a PDBID or an Atomic instance (e.g. AtomGroup).'
-        assert isinstance(chain,str) or all(isinstance(s,str) for s in chain), \
-               "'chain' must be a string or a list of strings."
+        assert isinstance(PDB, (str, pd.Atomic)), \
+            'PDB must be a PDBID or an Atomic instance (e.g. AtomGroup).'
+        assert isinstance(chain, str) or all(
+            isinstance(s, str) for s in chain), \
+            "'chain' must be a string or a list of strings."
         assert isinstance(title, str) or title is None
         # parse/import pdb and assign title
         if isinstance(PDB, str):
-            pdb = parsePDB(PDB, subset='calpha')
+            pdb = pd.parsePDB(PDB, subset='calpha')
             if title is None:
                 title = os.path.basename(PDB.strip())
                 title = title.replace(' ', '_')
@@ -144,17 +153,19 @@ class UniprotMapping:
             if title is None:
                 title = PDB.getTitle()
         # check if a record is already present
-        rec = [d for d in self.customPDBmappings if d['PDB']==title]
+        rec = [d for d in self.customPDBmappings if d['PDB'] == title]
         if recover and len(rec) > 1:
             raise RuntimeError('Multiple records found with same ID.')
         elif recover and len(rec) == 1:
             customPDBrecord = rec[0]
         else:
             # create record for custom PDB
-            customPDBrecord = {'PDB'      : title,
-                               'chain_res': {},
-                               'chain_seq': {},
-                               'warnings' : [],}
+            customPDBrecord = {
+                'PDB': title,
+                'chain_res': {},
+                'chain_seq': {},
+                'warnings': []
+            }
             self.customPDBmappings.append(customPDBrecord)
         # check given chain list
         all_chains = set(pdb.getChids())
@@ -163,7 +174,7 @@ class UniprotMapping:
         elif type(chain) is list:
             chains_to_align = chain
         else:
-            chains_to_align = [chain,]
+            chains_to_align = [chain, ]
         invalid_chIDs = [c for c in chains_to_align if c not in all_chains]
         if invalid_chIDs != []:
             raise ValueError('Invalid chain: {}.'.format(invalid_chIDs))
@@ -203,7 +214,7 @@ class UniprotMapping:
         to the identity of the relative chain with the Uniprot sequence.
         """
         assert 1 <= resid <= len(self.sequence), \
-              'Index out of range: sequence length is {}.'.format(len(self.sequence))
+            'Index out of range: sequence length is {}.'.format(len(self.sequence))
         assert type(check_aa) is bool
         if check_aa:
             aa = self.sequence[resid-1]
@@ -231,7 +242,7 @@ class UniprotMapping:
                         if None in intervals:
                             # range is undefined, add it anyway
                             matches.append((PDBID, chainID, -999))
-                        elif np.any([i[0]<= resid <= i[1] for i in intervals]):
+                        elif np.any([i[0] <= resid <= i[1] for i in intervals]):
                             length = sum([i[1]-i[0]+1 for i in intervals])
                             matches.append((PDBID, chainID, length))
                 # sort first by length, then by PDBID and chainID
@@ -264,7 +275,7 @@ class UniprotMapping:
                     continue
                 else:
                     identity = sum([1 for a1, a2 in zip(als[c][0], als[c][1])
-                                    if a1==a2])
+                                    if a1 == a2])
                     hits.append((PDBID, c, hit[0], hit[1], identity))
             if depth == 'best' and len(hits) > 0:
                 # stop after finding first hit
@@ -281,7 +292,7 @@ class UniprotMapping:
         wild-type amino acid.
         """
         assert 1 <= resid <= len(self.sequence), \
-              'Index out of range: sequence length is {}.'.format(len(self.sequence))
+            'Index out of range: sequence length is {}.'.format(len(self.sequence))
         assert type(check_aa) is bool
         if check_aa:
             aa = self.sequence[resid-1]
@@ -290,8 +301,8 @@ class UniprotMapping:
         hits = []
         for rec in self.customPDBmappings:
             title = rec['PDB']
-            als   = rec['alignments']
-            maps  = rec['maps']
+            als = rec['alignments']
+            maps = rec['maps']
             for c in maps.keys():
                 hit = maps[c].get(resid)
                 if hit is None:
@@ -299,13 +310,13 @@ class UniprotMapping:
                     continue
                 elif aa is not None and hit[1] != aa:
                     # resid is in the chain but has wrong aa type
-                    msg  = 'Residue was found in chain {} '.format(c)
+                    msg = 'Residue was found in chain {} '.format(c)
                     msg += 'of PDB {} but has wrong aa ({})'.format(title, hit[1])
                     LOGGER.info(msg)
                     continue
                 else:
                     identity = sum([1 for a1, a2 in zip(als[c][0], als[c][1])
-                                    if a1==a2])
+                                    if a1 == a2])
                     hits.append((title, c, hit[0], hit[1], identity))
         # sort hits first by identity, then by title and chainID
         hits.sort(key=lambda x: (-x[4], x[0], x[1]))
@@ -318,7 +329,7 @@ class UniprotMapping:
         Uniprot sequence to PDB sequences. All precomputed alignments
         will be deleted.
         """
-        assert align_algorithm in [0,1,2]
+        assert align_algorithm in [0, 1, 2]
         # delete old alignments
         if refresh:
             self.refresh()
@@ -375,7 +386,7 @@ class UniprotMapping:
             pickle_path = os.path.join(folder, filename)
             if not os.path.isfile(pickle_path):
                 # import unique accession number
-                acc = queryUniprot(self.acc)['accession   0']
+                acc = pd.queryUniprot(self.acc)['accession   0']
                 filename = 'UniprotMap-' + acc + '.pkl'
                 pickle_path = os.path.join(folder, filename)
         else:
@@ -387,21 +398,23 @@ class UniprotMapping:
         recovered_self = pickle.load(open(pickle_path, "rb"))
         if acc not in [recovered_self.acc, recovered_self.uniq_acc]:
             raise ValueError('Accession number in recovered pickle (%s) '
-                             %recovered_self.uniq_acc + 'does not match.')
+                             % recovered_self.uniq_acc + 'does not match.')
         # check timestamp and ignore pickles that are too old
         date_format = "%Y-%m-%d %H:%M:%S.%f"
-        t_old = datetime.datetime.strptime(recovered_self._timestamp, date_format)
+        t_old = datetime.datetime.strptime(recovered_self._timestamp,
+                                           date_format)
         t_now = datetime.datetime.utcnow()
         Delta_t = datetime.timedelta(days=days)
         if t_old + Delta_t < t_now:
-            raise RuntimeError('Pickle {} was too old and was ignored.'.format(filename))
-        self.fullRecord  = recovered_self.fullRecord
-        self.uniq_acc    = recovered_self.uniq_acc
-        self.sequence    = recovered_self.sequence
-        self.PDBrecords  = recovered_self.PDBrecords
+            raise RuntimeError(
+                'Pickle {} was too old and was ignored.'.format(filename))
+        self.fullRecord = recovered_self.fullRecord
+        self.uniq_acc = recovered_self.uniq_acc
+        self.sequence = recovered_self.sequence
+        self.PDBrecords = recovered_self.PDBrecords
         self.PDBmappings = recovered_self.PDBmappings
-        self.customPDBmappings  = recovered_self.customPDBmappings
-        self._align_algo_args   = recovered_self._align_algo_args
+        self.customPDBmappings = recovered_self.customPDBmappings
+        self._align_algo_args = recovered_self._align_algo_args
         self._align_algo_kwargs = recovered_self._align_algo_kwargs
         self._timestamp = recovered_self._timestamp
         self.Pfam = recovered_self.Pfam
@@ -420,7 +433,7 @@ class UniprotMapping:
         # example: "A/B/C=15-100, D=30-200"
         # or: "@=10-200"
         parsedSelStr = {}
-        for segment in sel_str.replace(' ','').split(','):
+        for segment in sel_str.replace(' ', '').split(','):
             fields = segment.split('=')
             chains = fields[0].split('/')
             resids = fields[1].split('-')
@@ -461,7 +474,7 @@ class UniprotMapping:
                     mapping['chain_sel'] = parsed_sel_str
             # store resids and sequence of PDB chains
             try:
-                pdb = parsePDB(PDBID, subset='calpha')
+                pdb = pd.parsePDB(PDBID, subset='calpha')
                 mapping['chain_res'] = {}
                 mapping['chain_seq'] = {}
                 for c in set(pdb.getChids()):
@@ -476,7 +489,7 @@ class UniprotMapping:
             PDBmappings.append(mapping)
         self.PDBmappings = PDBmappings
         if PDBmappings == []:
-            LOGGER.warn('No PDB entries have been found ' +\
+            LOGGER.warn('No PDB entries have been found '
                         'that map to given sequence.')
         return
 
@@ -495,7 +508,7 @@ class UniprotMapping:
         if print_info is True:
             info = format_alignment(*al[0])
             LOGGER.info(info[:-1])
-            idnt = sum([1 for a1, a2 in zip(al[0][0], al[0][1]) if a1==a2])
+            idnt = sum([1 for a1, a2 in zip(al[0][0], al[0][1]) if a1 == a2])
             frac = idnt/len(seqC)
             m = "{} out of {} ({:.1%}) residues".format(idnt, len(seqC), frac)
             m += " in the chain are identical to Uniprot amino acids."
@@ -513,9 +526,8 @@ class UniprotMapping:
                 resid_U += 1
                 if aaC != '-':
                     mp[resid_U] = (PDBresids[resindx_PDB], aaC)
-                    r = PDBresids[resindx_PDB]
             if aaC != '-':
-                    resindx_PDB += 1
+                resindx_PDB += 1
         return al[0][:2], mp
 
     def _quickAlign(self, seqU, seqC, PDBresids):
@@ -550,7 +562,7 @@ class UniprotMapping:
                 continue
             # otherwise, align and map to PDB resids
             PDBresids = PDBrecord['chain_res'][c]
-            seqChain  = PDBrecord['chain_seq'][c]
+            seqChain = PDBrecord['chain_seq'][c]
             LOGGER.timeit('_align')
             try:
                 a, m = self._quickAlign(seqUniprot, seqChain, PDBresids)
@@ -576,7 +588,7 @@ class UniprotMapping:
                 continue
             # otherwise, align and map to PDB resids
             PDBresids = PDBrecord['chain_res'][c]
-            seqChain  = PDBrecord['chain_seq'][c]
+            seqChain = PDBrecord['chain_seq'][c]
             LOGGER.timeit('_align')
             try:
                 a, m = self._quickAlign(seqUniprot, seqChain, PDBresids)
@@ -598,7 +610,7 @@ class UniprotMapping:
         assert type(refresh) is bool
         if refresh is True or self.Pfam is None:
             try:
-                self.Pfam = searchPfam(self.uniq_acc, **kwargs)
+                self.Pfam = pd.searchPfam(self.uniq_acc, **kwargs)
             except:
                 self.Pfam = {}
                 raise
@@ -619,16 +631,16 @@ class UniprotMapping:
             cols = np.append(cols, np.char.isalpha(arr[i]).nonzero()[0])
         cols = np.unique(cols)
         arr = arr.take(cols, 1)
-        sliced_msa = MSA(arr, title='refined', labels=msa._labels)
-        LOGGER.info('Number of columns in MSA reduced to {}.'.format( \
-                    sliced_msa.numResidues()))
+        sliced_msa = pd.MSA(arr, title='refined', labels=msa._labels)
+        LOGGER.info('Number of columns in MSA reduced to {}.'.format(
+            sliced_msa.numResidues()))
         return sliced_msa, indexes
 
     def _mapUniprot2Pfam(self, PF_ID, msa, indexes):
         def compareSeqs(s1, s2, tol=0.01):
             if len(s1) != len(s2):
                 return None
-            seqid = sum( np.array(list(s1)) == np.array(list(s2)) )
+            seqid = sum(np.array(list(s1)) == np.array(list(s2)))
             seqid = seqid/len(s1)
             if (1 - seqid) > tol:
                 return None
@@ -646,7 +658,7 @@ class UniprotMapping:
         for l in self.Pfam[PF_ID]['locations']:
             r_i = int(l['start']) - 1
             r_f = int(l['end']) - 1
-            sU = self.sequence[r_i : r_f+1]
+            sU = self.sequence[r_i:r_f+1]
             max_seqid = 0.
             for sP, cols in sP_list:
                 seqid = compareSeqs(sU, sP)
@@ -654,10 +666,10 @@ class UniprotMapping:
                     continue
                 if seqid > max_seqid:
                     max_seqid = seqid
-                    m[r_i : r_f+1] = cols
+                    m[r_i:r_f+1] = cols
                 if np.allclose(seqid, 1):
                     break
-        return {k:v for k,v in enumerate(m) if v is not None}
+        return {k: v for k, v in enumerate(m) if v is not None}
 
     def calcEvolProperties(self, resid='all', refresh=False, folder=None,
                            max_cols=None, max_seqs=25000, **kwargs):
@@ -710,8 +722,8 @@ class UniprotMapping:
 #                   shutil.move(f, folder)
 #               msa = parseMSA(fullname, **kwargs)
                 # fetch & parse MSA without saving downloaded MSA
-                f = fetchPfamMSA(PF)
-                msa = parseMSA(f, **kwargs)
+                f = pd.fetchPfamMSA(PF)
+                msa = pd.parseMSA(f, **kwargs)
                 os.remove(f)
                 # slice MSA to match all segments of the Uniprot sequence
                 sliced_msa, indexes = self._sliceMSA(msa)
@@ -727,23 +739,137 @@ class UniprotMapping:
             try:
                 # refine MSA ('seqid' param. is set as in PolyPhen-2)
                 rowocc = 0.6
-                while True :
-                    sliced_msa = refineMSA(sliced_msa, rowocc=rowocc)
+                while True:
+                    sliced_msa = pd.refineMSA(sliced_msa, rowocc=rowocc)
                     rowocc += 0.02
                     if sliced_msa.numSequences() <= max_seqs or rowocc >= 1:
                         break
-                ref_msa = refineMSA(sliced_msa, seqid=0.94, **kwargs)
+                ref_msa = pd.refineMSA(sliced_msa, seqid=0.94, **kwargs)
                 d['ref_MSA'] = ref_msa
                 # compute evolutionary properties
-                d['entropy'] = calcShannonEntropy(ref_msa)
-                d['MutInfo'] = buildMutinfoMatrix(ref_msa)
+                d['entropy'] = pd.calcShannonEntropy(ref_msa)
+                d['MutInfo'] = pd.buildMutinfoMatrix(ref_msa)
                 # d['DirInfo'] = buildDirectInfoMatrix(ref_msa)
             except Exception as e:
                 LOGGER.warn('{}: {}'.format(PF, e))
         return {k: self.Pfam[k] for k in PF_list}
 
 
+def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
+    LOGGER.info('Mapping SAVs to PDB structures...')
+    LOGGER.timeit('_map2PDB')
+    # sort SAVs, so to group together those
+    # with identical accession number
+    accs = [s.split()[0] for s in SAV_coords]
+    sorting_map = np.argsort(accs)
+    # define a structured array
+    PDBmap_dtype = np.dtype([('orig. SAV coords', 'U25'),
+                             ('unique SAV coords', 'U25'),
+                             ('PDB SAV coords', 'U100'),
+                             ('PDB size', 'i')])
+    nSAVs = len(SAV_coords)
+    mapped_SAVs = np.zeros(nSAVs, dtype=PDBmap_dtype)
+    # map to PDB using Uniprot class
+    cache = {'acc': None, 'obj': None}
+    count = 0
+    for indx, SAV in [(i, SAV_coords[i]) for i in sorting_map]:
+        count += 1
+        acc, pos, aa1, aa2 = SAV.split()
+        pos = int(pos)
+        LOGGER.info(f"[{count}/{nSAVs}] Mapping SAV '{SAV}' to PDB...")
+        # map Uniprot to PDB chains
+        if acc == cache['acc']:
+            # use mapping from previous iteration
+            U2P_map = cache['obj']
+        else:
+            # save previous mapping
+            if isinstance(cache['obj'], UniprotMapping):
+                cache['obj'].savePickle()
+            cache['acc'] = acc
+            # compute the new mapping
+            try:
+                U2P_map = UniprotMapping(acc, recover_pickle=not(refresh))
+                if custom_PDB is not None:
+                    LOGGER.info('Aligning Uniprot sequence to custom PDB...')
+                    U2P_map.alignCustomPDB(custom_PDB, 'all')
+            except Exception as e:
+                U2P_map = str(e)
+            cache['obj'] = U2P_map
+        # map specific SAV
+        try:
+            if isinstance(U2P_map, str):
+                raise RuntimeError(U2P_map)
+            # check wt aa
+            if not 0 < pos <= len(U2P_map.sequence):
+                raise ValueError('Index out of range')
+            wt_aa = U2P_map.sequence[pos-1]
+            if aa1 != wt_aa:
+                raise ValueError(f'Incorrect wt aa: {aa1} instead of {wt_aa}')
+            # map to PDB. Format: [('2DZF', 'A', 150, 'N', 335)]
+            if custom_PDB is None:
+                r = U2P_map.mapSingleResidue(pos, check_aa=True)
+            else:
+                r = U2P_map.mapSingleRes2CustomPDBs(pos, check_aa=True)
+            if len(r) == 0:
+                raise RuntimeError('Unable to map SAV to PDB')
+            else:
+                PDBID, chID, resid, aa, PDB_size = r[0]
+                # NB: check for blank "chain" field
+                if chID.strip() == '':
+                    chID = '?'
+                res_map = f'{PDBID} {chID} {resid} {aa}'
+        except Exception as e:
+            res_map = str(e)
+            PDB_size = 0
+        # store SAVs mapped on PDB chains and unique Uniprot coordinates
+        if isinstance(U2P_map, str):
+            uniq_coords = U2P_map
+        else:
+            uniq_coords = f'{U2P_map.uniq_acc} {pos} {aa1} {aa2}'
+        mapped_SAVs[indx] = (SAV, uniq_coords, res_map, PDB_size)
+    # save last pickle
+    if isinstance(cache['obj'], UniprotMapping):
+        cache['obj'].savePickle()
+    n = sum(mapped_SAVs['PDB size'] != 0)
+    LOGGER.report(f'{n} out of {nSAVs} SAVs have been mapped to PDB in %.1fs.',
+                  '_map2PDB')
+    return mapped_SAVs
 
 
+def seqScanning(Uniprot_coord):
+    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a Uniprot ID,
+    the list will contain all possible amino acid substitutions at all positions
+    in the sequence. If 'Uniprot_coord' also includes a specific position, the list
+    will only contain all possible amino acid variants at that position.
+    '''
+    assert isinstance(Uniprot_coord, str), "Must be a string."
+    coord = Uniprot_coord.strip().split()
+    assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
+    Uniprot_record = pd.queryUniprot(coord[0])
+    sequence = Uniprot_record['sequence   0'].replace("\n", "")
+    if len(coord) == 1:
+        positions = range(len(sequence))
+    else:
+        positions = [int(coord[1]) - 1]
+    SAV_list = []
+    acc = coord[0]
+    for i in positions:
+        wt_aa = sequence[i]
+        for aa in 'ACDEFGHIKLMNPQRSTVWY':
+            if aa == wt_aa:
+                continue
+            s = ' '.join([acc, str(i+1), wt_aa, aa])
+            SAV_list.append(s)
+    return SAV_list
 
 
+def printSAVlist(input_SAVs, filename):
+    if isinstance(input_SAVs, str):
+        input_SAVs = [input_SAVs]
+    with open(filename, 'w', 1) as f:
+        for i, line in enumerate(input_SAVs):
+            m = f'error in SAV {i}: '
+            assert isinstance(line, str), f'{m} not a string'
+            assert len(line) < 25, f'{m} too many characters'
+            print(line, file=f)
+    return filename

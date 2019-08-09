@@ -1,19 +1,18 @@
+# -*- coding: utf-8 -*-
+"""This module defines the main class used for running the pre-trained
+classifiers and organizing its predictions."""
+
 import numpy as np
 import warnings
 import pickle
+import prody as pd
 from os.path import isfile
-from prody import LOGGER, SETTINGS, Atomic, queryUniprot, parsePDB, writePDB
-from .settings import DEFAULT_FEATSETS
-from .Uniprot import *
-from .PolyPhen2 import queryPolyPhen2, parsePolyPhen2output, getSAVcoords
-from .EVmutation import recoverEVmutFeatures
-from .calcFeatures import RHAPSODY_FEATS
-from .calcFeatures import calcPolyPhen2features, calcPfamFeatures
-from .calcFeatures import calcPDBfeatures, calcBLOSUMfeatures
-from .calcFeatures import buildFeatMatrix
+from prody import LOGGER, SETTINGS
+from ..features import Uniprot, PDB, PolyPhen2, EVmutation, Pfam, BLOSUM
+from ..features import RHAPSODY_FEATS
+from ..utils.settings import DEFAULT_FEATSETS
 
-__all__ = ['Rhapsody', 'seqScanning', 'printSAVlist', 'mapSAVs2PDB',
-           'calcPredictions']
+__all__ = ['Rhapsody', 'calcPredictions']
 
 
 class Rhapsody:
@@ -114,7 +113,7 @@ class Rhapsody:
                     query = f'{acc} {pos[0]}'
                 else:
                     query = acc
-                generated_SAV_list = seqScanning(query)
+                generated_SAV_list = Uniprot.seqScanning(query)
                 if SAV_list == generated_SAV_list:
                     self.saturation_mutagenesis = True
             except Exception as e:
@@ -141,7 +140,7 @@ class Rhapsody:
                 SAV_list = ['{} {} {} {}'.format(*s) for s in SAVs]
             elif len(query.split()) < 3:
                 # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
-                SAV_list = seqScanning(query)
+                SAV_list = Uniprot.seqScanning(query)
                 self.saturation_mutagenesis = True
             else:
                 # single SAV
@@ -167,14 +166,14 @@ class Rhapsody:
             SAV_file = query
         elif isinstance(query, str) and len(query.split()) < 3:
             # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
-            SAV_list = seqScanning(query)
-            SAV_file = printSAVlist(SAV_list, filename)
+            SAV_list = Uniprot.seqScanning(query)
+            SAV_file = Uniprot.printSAVlist(SAV_list, filename)
         else:
             # 'query' is a list, tuple or single string of SAV coordinates
-            SAV_file = printSAVlist(query, filename)
+            SAV_file = Uniprot.printSAVlist(query, filename)
         # submit query to PolyPhen-2
         try:
-            PolyPhen2_output = queryPolyPhen2(SAV_file)
+            PolyPhen2_output = PolyPhen2.queryPolyPhen2(SAV_file)
         except Exception as e:
             err = (f'Unable to get a response from PolyPhen-2: {e} \n'
                    'Please click "Check Status" on the server homepage \n'
@@ -189,9 +188,10 @@ class Rhapsody:
         assert self.data is None, 'SAV list already set.'
         assert self.PolyPhen2output is None, ("PolyPhen-2 output "
                                               "already imported.")
-        self.PolyPhen2output = parsePolyPhen2output(filename)
+        pp2_output = PolyPhen2.parsePolyPhen2output(filename)
         # store SAV coords
-        self.setSAVs(getSAVcoords(self.PolyPhen2output)['text'])
+        self.setSAVs(PolyPhen2.getSAVcoords(pp2_output)['text'])
+        self.PolyPhen2output = pp2_output
         return self.PolyPhen2output
 
     def getSAVcoords(self):
@@ -225,7 +225,7 @@ class Rhapsody:
                             'a PDB structure.')
                 return
         assert self.customPDB is None, 'Custom PDB structure already set.'
-        assert isinstance(custom_PDB, (str, Atomic)), (
+        assert isinstance(custom_PDB, (str, pd.Atomic)), (
             'Please provide a PDBID, a filename or an Atomic instance.')
         self.customPDB = custom_PDB
 
@@ -247,8 +247,9 @@ class Rhapsody:
         assert self.data is not None, "SAVs not set."
         if not self._isColSet('PDB SAV coords'):
             # compute mapping
-            m = mapSAVs2PDB(self.data['SAV coords'], custom_PDB=self.customPDB,
-                            refresh=refresh)
+            m = Uniprot.mapSAVs2PDB(
+                self.data['SAV coords'], custom_PDB=self.customPDB,
+                refresh=refresh)
             self.data['unique SAV coords'] = m['unique SAV coords']
             self.data['PDB SAV coords'] = m['PDB SAV coords']
             self.data['PDB size'] = m['PDB size']
@@ -335,6 +336,21 @@ class Rhapsody:
             np.savetxt(filename, self.featMatrix, fmt='%15.3e', header=h)
         return self.featMatrix
 
+    def _buildFeatMatrix(self, featset, all_features):
+        n_rows = len(all_features[0])
+        n_cols = len(featset)
+        feat_matrix = np.zeros((n_rows, n_cols))
+        for j, featname in enumerate(featset):
+            # find structured array containing a specific feature
+            arrays = [a for a in all_features if featname in a.dtype.names]
+            if len(arrays) == 0:
+                raise RuntimeError(f'Invalid feature name: {featname}')
+            if len(arrays) > 1:
+                LOGGER.warn(f'Multiple values for feature {featname}')
+            array = arrays[0]
+            feat_matrix[:, j] = array[featname]
+        return feat_matrix
+
     def _calcFeatMatrix(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
         assert self.featSet is not None, 'Feature set not set.'
@@ -344,32 +360,34 @@ class Rhapsody:
             # retrieve sequence-conservation features from PolyPhen-2's output
             assert self.PolyPhen2output is not None, \
                    "Please import PolyPhen-2's output first."
-            f = calcPolyPhen2features(self.PolyPhen2output)
+            f = PolyPhen2.calcPolyPhen2features(self.PolyPhen2output)
             all_feats.append(f)
         sel_PDBfeats = RHAPSODY_FEATS['PDB'].intersection(self.featSet)
         if sel_PDBfeats:
             # map SAVs to PDB structures
             Uniprot2PDBmap = self.getUniprot2PDBmap(refresh=refresh)
             # compute structural and dynamical features from a PDB structure
-            f = calcPDBfeatures(Uniprot2PDBmap, sel_feats=sel_PDBfeats,
-                                custom_PDB=self.customPDB, refresh=refresh)
+            f = PDB.calcPDBfeatures(
+                Uniprot2PDBmap, sel_feats=sel_PDBfeats,
+                custom_PDB=self.customPDB, refresh=refresh)
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
             # retrieve BLOSUM values
-            f = calcBLOSUMfeatures(self.data['SAV coords'])
+            f = BLOSUM.calcBLOSUMfeatures(self.data['SAV coords'])
             all_feats.append(f)
         if RHAPSODY_FEATS['Pfam'].intersection(self.featSet):
             # compute sequence properties from Pfam domains
-            f = calcPfamFeatures(self.data['SAV coords'])
+            f = Pfam.calcPfamFeatures(self.data['SAV coords'])
             all_feats.append(f)
         if RHAPSODY_FEATS['EVmut'].intersection(self.featSet):
             # recover EVmutation data
-            f = recoverEVmutFeatures(self.data['SAV coords'])
+            f = EVmutation.recoverEVmutFeatures(self.data['SAV coords'])
             all_feats.append(f)
         if self.extra_features is not None:
             all_feats.append(self.extra_features)
         # build matrix of selected features
-        return buildFeatMatrix(self.featSet, all_feats)
+        featm = self._buildFeatMatrix(self.featSet, all_feats)
+        return featm
 
     def exportTrainingData(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
@@ -515,7 +533,7 @@ class Rhapsody:
     def _calcEVmutationPredictions(self):
         if self._isColSet('EVmutation score'):
             return
-        EVmut_feats = recoverEVmutFeatures(self.data['SAV coords'])
+        EVmut_feats = EVmutation.recoverEVmutFeatures(self.data['SAV coords'])
         EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
         c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
         EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
@@ -794,13 +812,13 @@ class Rhapsody:
         for id in PDBIDs:
             # import PDB structure
             if self.customPDB is not None:
-                if isinstance(self.customPDB, Atomic):
+                if isinstance(self.customPDB, pd.Atomic):
                     pdb = self.customPDB
                 else:
-                    pdb = parsePDB(self.customPDB, model=1)
+                    pdb = pd.parsePDB(self.customPDB, model=1)
                 fname = f'{filename_prefix}_custom.pdb'
             else:
-                pdb = parsePDB(id, model=1)
+                pdb = pd.parsePDB(id, model=1)
                 fname = f'{filename_prefix}_{id}.pdb'
             # find chains in PDB
             PDBchids = set(pdb.getChids())
@@ -817,7 +835,7 @@ class Rhapsody:
                         new_betas[PDBresids == l['resid']] = l[sel_preds]
                 pdb[chid].setBetas(new_betas)
             # write PDB to file
-            f = writePDB(fname, pdb)
+            f = pd.writePDB(fname, pdb)
             self.__replaceNanInPDBBetaColumn(fname)
             output_dict[f] = pdb
             LOGGER.info(f'Predictions written to PDB file {fname}')
@@ -837,129 +855,6 @@ class Rhapsody:
     def savePickle(self, filename='rhapsody-pickle.pkl'):
         f = pickle.dump(self, open(filename, "wb"))
         return f
-
-
-#############################################################################
-
-
-def seqScanning(Uniprot_coord):
-    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a Uniprot ID,
-    the list will contain all possible amino acid substitutions at all positions
-    in the sequence. If 'Uniprot_coord' also includes a specific position, the list
-    will only contain all possible amino acid variants at that position.
-    '''
-    assert isinstance(Uniprot_coord, str), "Must be a string."
-    coord = Uniprot_coord.strip().split()
-    assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
-    Uniprot_record = queryUniprot(coord[0])
-    sequence = Uniprot_record['sequence   0'].replace("\n", "")
-    if len(coord) == 1:
-        positions = range(len(sequence))
-    else:
-        positions = [int(coord[1]) - 1]
-    SAV_list = []
-    acc = coord[0]
-    for i in positions:
-        wt_aa = sequence[i]
-        for aa in 'ACDEFGHIKLMNPQRSTVWY':
-            if aa == wt_aa:
-                continue
-            s = ' '.join([acc, str(i+1), wt_aa, aa])
-            SAV_list.append(s)
-    return SAV_list
-
-
-def printSAVlist(input_SAVs, filename):
-    if isinstance(input_SAVs, str):
-        input_SAVs = [input_SAVs]
-    with open(filename, 'w', 1) as f:
-        for i, line in enumerate(input_SAVs):
-            m = f'error in SAV {i}: '
-            assert isinstance(line, str), f'{m} not a string'
-            assert len(line) < 25, f'{m} too many characters'
-            print(line, file=f)
-    return filename
-
-
-def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
-    LOGGER.info('Mapping SAVs to PDB structures...')
-    LOGGER.timeit('_map2PDB')
-    # sort SAVs, so to group together those
-    # with identical accession number
-    accs = [s.split()[0] for s in SAV_coords]
-    sorting_map = np.argsort(accs)
-    # define a structured array
-    PDBmap_dtype = np.dtype([('orig. SAV coords', 'U25'),
-                             ('unique SAV coords', 'U25'),
-                             ('PDB SAV coords', 'U100'),
-                             ('PDB size', 'i')])
-    nSAVs = len(SAV_coords)
-    mapped_SAVs = np.zeros(nSAVs, dtype=PDBmap_dtype)
-    # map to PDB using Uniprot class
-    cache = {'acc': None, 'obj': None}
-    count = 0
-    for indx, SAV in [(i, SAV_coords[i]) for i in sorting_map]:
-        count += 1
-        acc, pos, aa1, aa2 = SAV.split()
-        pos = int(pos)
-        LOGGER.info(f"[{count}/{nSAVs}] Mapping SAV '{SAV}' to PDB...")
-        # map Uniprot to PDB chains
-        if acc == cache['acc']:
-            # use mapping from previous iteration
-            U2P_map = cache['obj']
-        else:
-            # save previous mapping
-            if isinstance(cache['obj'], UniprotMapping):
-                cache['obj'].savePickle()
-            cache['acc'] = acc
-            # compute the new mapping
-            try:
-                U2P_map = UniprotMapping(acc, recover_pickle=not(refresh))
-                if custom_PDB is not None:
-                    LOGGER.info('Aligning Uniprot sequence to custom PDB...')
-                    U2P_map.alignCustomPDB(custom_PDB, 'all')
-            except Exception as e:
-                U2P_map = str(e)
-            cache['obj'] = U2P_map
-        # map specific SAV
-        try:
-            if isinstance(U2P_map, str):
-                raise RuntimeError(U2P_map)
-            # check wt aa
-            if not 0 < pos <= len(U2P_map.sequence):
-                raise ValueError('Index out of range')
-            wt_aa = U2P_map.sequence[pos-1]
-            if aa1 != wt_aa:
-                raise ValueError(f'Incorrect wt aa: {aa1} instead of {wt_aa}')
-            # map to PDB. Format: [('2DZF', 'A', 150, 'N', 335)]
-            if custom_PDB is None:
-                r = U2P_map.mapSingleResidue(pos, check_aa=True)
-            else:
-                r = U2P_map.mapSingleRes2CustomPDBs(pos, check_aa=True)
-            if len(r) == 0:
-                raise RuntimeError('Unable to map SAV to PDB')
-            else:
-                PDBID, chID, resid, aa, PDB_size = r[0]
-                # NB: check for blank "chain" field
-                if chID.strip() == '':
-                    chID = '?'
-                res_map = f'{PDBID} {chID} {resid} {aa}'
-        except Exception as e:
-            res_map = str(e)
-            PDB_size = 0
-        # store SAVs mapped on PDB chains and unique Uniprot coordinates
-        if isinstance(U2P_map, str):
-            uniq_coords = U2P_map
-        else:
-            uniq_coords = f'{U2P_map.uniq_acc} {pos} {aa1} {aa2}'
-        mapped_SAVs[indx] = (SAV, uniq_coords, res_map, PDB_size)
-    # save last pickle
-    if isinstance(cache['obj'], UniprotMapping):
-        cache['obj'].savePickle()
-    n = sum(mapped_SAVs['PDB size'] != 0)
-    LOGGER.report(f'{n} out of {nSAVs} SAVs have been mapped to PDB in %.1fs.',
-                  '_map2PDB')
-    return mapped_SAVs
 
 
 def calcPredictions(feat_matrix, clsf, SAV_coords=None):

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """This module defines a class that organizes the calculation of
-PDB-based structural and dynamical features in a single place."""
+PDB-based structural and dynamical features in a single place, and a
+function for using the latter on a list of PDB SAV coordinates."""
 
 from prody import Atomic, parsePDB, writePDB, LOGGER, SETTINGS
 from prody import GNM, ANM, calcSqFlucts
@@ -13,7 +14,8 @@ import pickle
 import datetime
 import os
 
-__all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS', 'PDBfeatures']
+__all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS',
+           'PDBfeatures', 'calcPDBfeatures']
 
 MAX_NUM_RESIDUES = 17000
 """Hard-coded maximum size of PDB structures that can be handled by the
@@ -25,13 +27,14 @@ STR_FEATS = ['SASA', 'SASA_in_complex', 'Delta_SASA']
 DYN_FEATS = ['GNM_MSF', 'ANM_MSF',
              'GNM_effectiveness', 'GNM_sensitivity',
              'ANM_effectiveness', 'ANM_sensitivity',
-             'stiffness'] # , 'MBS']
+             'stiffness']  # , 'MBS']
 """List of available dynamical features."""
 
 PDB_FEATS = STR_FEATS + [f + e for f in DYN_FEATS
                          for e in ['-chain', '-reduced', '-sliced']]
 """List of available PDB-based structural and dynamical features. The latter
 can be computed by using three different environment models."""
+
 
 class PDBfeatures:
     """A class for deriving structural and dynamical properties from a
@@ -52,22 +55,22 @@ class PDBfeatures:
         # definition and initialization of variables
         if isinstance(PDB, str):
             self.PDBID = PDB
-            self._pdb  = None
+            self._pdb = None
         else:
             self.PDBID = None
-            self._pdb  = PDB.copy()
+            self._pdb = PDB.copy()
         self.n_modes = n_modes
-        self.chids   = None
-        self.resids  = None
-        self.feats   = None
-        self._gnm    = None
-        self._anm    = None
+        self.chids = None
+        self.resids = None
+        self.feats = None
+        self._gnm = None
+        self._anm = None
         self.timestamp = None
         if recover_pickle:
             try:
                 self.recoverPickle(**kwargs)
             except Exception as e:
-                LOGGER.warn('Unable to recover pickle: %s' %e)
+                LOGGER.warn(f'Unable to recover pickle: {e}')
                 self.refresh()
         else:
             self.refresh()
@@ -86,11 +89,11 @@ class PDBfeatures:
         self.chids = set(pdb.ca.getChids())
         self.resids = {chID: pdb[chID].ca.getResnums()
                        for chID in self.chids}
-        self._gnm  = {}
-        self._anm  = {}
+        self._gnm = {}
+        self._anm = {}
         for env in ['chain', 'reduced', 'sliced']:
-            self._gnm[env]  = {chID: None for chID in self.chids}
-            self._anm[env]  = {chID: None for chID in self.chids}
+            self._gnm[env] = {chID: None for chID in self.chids}
+            self._anm[env] = {chID: None for chID in self.chids}
         self.feats = {chID: {} for chID in self.chids}
         self.timestamp = str(datetime.datetime.utcnow())
         return
@@ -120,7 +123,7 @@ class PDBfeatures:
         if filename is None:
             # use the default filename, if possible
             if self.PDBID is not None:
-                filename = 'PDBfeatures-'+ self.PDBID +'.pkl'
+                filename = 'PDBfeatures-' + self.PDBID + '.pkl'
             else:
                 # when a custom structure is used, there is no
                 # default filename: the user should provide it
@@ -141,17 +144,18 @@ class PDBfeatures:
                              .format(recovered_self.n_modes))
         # check timestamp and ignore pickles that are too old
         date_format = "%Y-%m-%d %H:%M:%S.%f"
-        t_old = datetime.datetime.strptime(recovered_self.timestamp, date_format)
+        t_old = datetime.datetime.strptime(
+            recovered_self.timestamp, date_format)
         t_now = datetime.datetime.utcnow()
         Delta_t = datetime.timedelta(days=days)
         if t_old + Delta_t < t_now:
             raise RuntimeError('Pickle was too old and was ignored.')
         # import recovered data
-        self.chids  = recovered_self.chids
+        self.chids = recovered_self.chids
         self.resids = recovered_self.resids
-        self.feats  = recovered_self.feats
-        self._gnm   = recovered_self._gnm
-        self._anm   = recovered_self._anm
+        self.feats = recovered_self.feats
+        self._gnm = recovered_self._gnm
+        self._anm = recovered_self._anm
         self.timestamp = recovered_self.timestamp
         LOGGER.info("Pickle '{}' recovered.".format(filename))
         return
@@ -185,7 +189,7 @@ class PDBfeatures:
                 # when a custom structure is used, there is no
                 # default filename: the user should provide it
                 raise ValueError('Please provide a filename.')
-            filename = 'PDBfeatures-'+ self.PDBID +'.pkl'
+            filename = 'PDBfeatures-' + self.PDBID + '.pkl'
         pickle_path = os.path.join(folder, filename)
         # do not store GNM and ANM instances.
         # If a valid PDBID is present, do not store parsed PDB
@@ -193,8 +197,8 @@ class PDBfeatures:
         cache = (self._pdb, self._gnm, self._anm)
         if self.PDBID is not None:
             self._pdb = None
-        self._gnm  = {}
-        self._anm  = {}
+        self._gnm = {}
+        self._anm = {}
         for env in ['chain', 'reduced', 'sliced']:
             self._gnm[env] = {chID: None for chID in self.chids}
             self._anm[env] = {chID: None for chID in self.chids}
@@ -232,7 +236,7 @@ class PDBfeatures:
         :rtype: :class:`GNM`
         """
         assert env in ['chain', 'reduced', 'sliced']
-        gnm_e =  self._gnm[env]
+        gnm_e = self._gnm[env]
         n = self.n_modes
         if gnm_e[chID] is None:
             pdb = self.getPDB()
@@ -249,14 +253,14 @@ class PDBfeatures:
                 gnm_full = GNM()
                 gnm_full.buildKirchhoff(ca)
                 if env == 'reduced':
-                    sel = 'chain '+ chID
+                    sel = 'chain ' + chID
                     gnm, _ = reduceModel(gnm_full, ca, sel)
                     gnm.calcModes(n_modes=n)
                     gnm_e[chID] = gnm
                 else:
                     gnm_full.calcModes(n_modes=n)
                     for c in self.chids:
-                        sel = 'chain '+ c
+                        sel = 'chain ' + c
                         gnm, _ = sliceModel(gnm_full, ca, sel)
                         gnm_e[c] = gnm
         return self._gnm[env][chID]
@@ -290,14 +294,14 @@ class PDBfeatures:
                 anm_full = ANM()
                 anm_full.buildHessian(ca)
                 if env == 'reduced':
-                    sel = 'chain '+ chID
+                    sel = 'chain ' + chID
                     anm, _ = reduceModel(anm_full, ca, sel)
                     anm.calcModes(n_modes=n)
                     anm_e[chID] = anm
                 else:
                     anm_full.calcModes(n_modes=n)
                     for c in self.chids:
-                        sel = 'chain '+ c
+                        sel = 'chain ' + c
                         anm, _ = sliceModel(anm_full, ca, sel)
                         anm_e[c] = anm
         return self._anm[env][chID]
@@ -324,7 +328,7 @@ class PDBfeatures:
         if chain == 'all':
             chain_list = self.chids
         else:
-            chain_list = [chain,]
+            chain_list = [chain, ]
         for chID in chain_list:
             d = self.feats[chID]
             if all([f in d for f in features]):
@@ -394,7 +398,7 @@ class PDBfeatures:
         if chain == 'all':
             chain_list = self.chids
         else:
-            chain_list = [chain,]
+            chain_list = [chain, ]
         for chID in chain_list:
             d = self.feats[chID]
             if all([f in d for f in features]):
@@ -500,7 +504,7 @@ class PDBfeatures:
         if chain == 'all':
             chain_list = self.chids
         else:
-            chain_list = [chain,]
+            chain_list = [chain, ]
         for chID in chain_list:
             d = self.feats[chID]
             if 'SASA' not in d:
@@ -524,7 +528,7 @@ class PDBfeatures:
         if chain == 'all':
             chain_list = self.chids
         else:
-            chain_list = [chain,]
+            chain_list = [chain, ]
         if any(['SASA_in_complex' not in self.feats[c] for c in self.chids]):
             try:
                 # compute SASA for chains in the complex
@@ -599,7 +603,7 @@ class PDBfeatures:
             self.calcSASA(chain)
         for env in ['chain', 'reduced', 'sliced']:
             s = '-' + env
-            l = [f.replace(s,'') for f in sel_feats if f.endswith(s)]
+            l = [f.replace(s, '') for f in sel_feats if f.endswith(s)]
             if l == []:
                 continue
             GNM_PRS, ANM_PRS, stiffness, MBS = (False,)*4
@@ -618,7 +622,7 @@ class PDBfeatures:
         _feats = {}
         for c in self.chids:
             d = self.feats[c]
-            _feats[c] = {k:v for k,v in d.items() if k in sel_feats}
+            _feats[c] = {k: v for k, v in d.items() if k in sel_feats}
         if chain == 'all':
             return _feats
         elif resid is None:
@@ -636,3 +640,89 @@ class PDBfeatures:
                     # return 2-D array
                     output[k] = np.array([feat_array[i] for i in indices])
             return output
+
+
+def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
+                    refresh=False):
+    LOGGER.info('Computing structural and dynamical features '
+                'from PDB structures...')
+    LOGGER.timeit('_calcPDBFeats')
+    if sel_feats is None:
+        sel_feats = PDB_FEATS
+    # define a structured array for features computed from PDBs
+    num_SAVs = len(mapped_SAVs)
+    feat_dtype = np.dtype([(f, 'f') for f in sel_feats])
+    features = np.zeros(num_SAVs, dtype=feat_dtype)
+    # compute PDB features using PDBfeatures class
+    if custom_PDB is None:
+        # sort SAVs, so to group together those
+        # belonging to the same PDB
+        PDBID_list = [r[2][:4] if r[3] != 0 else '' for r in mapped_SAVs]
+        sorting_map = np.argsort(PDBID_list)
+    else:
+        # no need to sort when using a custom PDB or PDBID
+        sorting_map = range(num_SAVs)
+    cache = {'PDBID': None, 'chain': None, 'obj': None}
+    count = 0
+    for indx, SAV in [(i, mapped_SAVs[i]) for i in sorting_map]:
+        count += 1
+        if SAV['PDB size'] == 0:
+            # SAV could not be mapped to PDB
+            _features = np.nan
+            SAV_coords = SAV['SAV coords']
+            LOGGER.info(f"[{count}/{num_SAVs}] SAV '{SAV_coords}' "
+                        "couldn't be mapped to PDB")
+        else:
+            parsed_PDB_coords = SAV['PDB SAV coords'].split()
+            PDBID, chID = parsed_PDB_coords[:2]
+            resid = int(parsed_PDB_coords[2])
+            LOGGER.info("[{}/{}] Analizing mutation site {}:{} {}..."
+                        .format(count, num_SAVs, PDBID, chID, resid))
+            # chID == "?" stands for "empty space"
+            chID = " " if chID == "?" else chID
+            if PDBID == cache['PDBID']:
+                # use PDBfeatures instance from previous iteration
+                obj = cache['obj']
+            else:
+                # save previous mapping to pickle
+                if cache['obj'] is not None and custom_PDB is None:
+                    cache['obj'].savePickle()
+                cache['PDBID'] = PDBID
+                cache['chain'] = chID
+                try:
+                    # instantiate new PDBfeatures object
+                    if custom_PDB is None:
+                        obj = PDBfeatures(PDBID, recover_pickle=not(refresh))
+                    else:
+                        obj = PDBfeatures(custom_PDB, recover_pickle=False)
+                except Exception as e:
+                    obj = None
+                    LOGGER.warn(str(e))
+                cache['obj'] = obj
+            # compute PDB features
+            if obj is None:
+                _features = np.nan
+            else:
+                feat_dict = obj.calcSelFeatures(chID, resid=resid,
+                                                sel_feats=sel_feats)
+                # check for error messages
+                _features = []
+                for name in feat_dtype.names:
+                    feat_array = feat_dict[name]
+                    if isinstance(feat_array, str):
+                        # print error message
+                        LOGGER.warn('{}: {}'.format(name, feat_array))
+                        _features.append(np.nan)
+                    else:
+                        # sometimes resid maps to multiple indices:
+                        # we will only consider the first one
+                        _features.append(feat_array[0])
+                _features = tuple(_features)
+        # store computed features
+        features[indx] = _features
+        # in the final iteration of the loop, save last pickle
+        if count == num_SAVs and cache['obj'] is not None \
+           and custom_PDB is None:
+            cache['obj'].savePickle()
+    LOGGER.report('PDB features have been computed in %.1fs.', '_calcPDBFeats')
+    return features
