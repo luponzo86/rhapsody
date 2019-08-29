@@ -42,7 +42,8 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', '_backup', 'Thumbs.db', '.DS_Store', '**tar.gz**']
+exclude_patterns = ['_build', '_backup', 'Thumbs.db', '.DS_Store',
+                    '**tar.gz**']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -58,6 +59,17 @@ autodoc_default_options = {
     'imported-members': False,
 }
 # autosummary_generate = True
+
+
+# functions for including __init__ documentation
+def skip(app, what, name, obj, would_skip, options):
+    if name == "__init__":
+        return False
+    return would_skip
+
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip)
 
 
 # -- Options for HTML output -------------------------------------------------

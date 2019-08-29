@@ -23,6 +23,33 @@ class Rhapsody:
     """
 
     def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True):
+        """ Initialize a Rhapsody object with a list of SAVs (optional).
+
+        :arg query: Single Amino Acid Variants (SAVs) in Uniprot coordinates.
+
+          - If **None**, the SAV list can be imported at a later moment, by
+            using ``.importPolyPhen2output()``, ``.queryPolyPhen2()`` or
+            ``.setSAVs()``
+
+          - if *query_type* = ``'SAVs'`` (default), *query* should be a
+            filename, a string or a list/tuple of strings, containing Uniprot
+            SAV coordinates, with the format ``'P17516 135 G E'``. The string
+            could also be just a single Uniprot sequence identifier (e.g.
+            ``'P17516'``), or the coordinate of a specific site in a sequence
+            (e.g. ``'P17516 135'``), in which case all possible 19 amino acid
+            substitutions at the specified positions will be analyzed.
+          - if *query_type* = ``'PolyPhen2'``, *query* should be a filename
+            containing the output from PolyPhen-2, usually named
+            :file:`pph2-full.txt`
+        :type query: str, list
+
+        :arg query_type: ``'SAVs'`` or ``'PolyPhen2'``
+        :type query_type: str
+
+        :arg queryPolyPhen2: if ``True``, the PolyPhen-2 online tool will be
+            queryied with the list of SAVs
+        :type queryPolyPhen2: bool
+        """
 
         assert query_type in ('SAVs', 'PolyPhen2')
         assert isinstance(queryPolyPhen2, bool)

@@ -1,0 +1,26 @@
+Example of documentation string:
+
+function(arg, kwarg=None):
+""" General description. Please use this syntax rules:
+
+- :class:`~numpy.ndarray`
+- :meth:`setSomething` or :meth:`.setSomething`
+- :func:`someFunction` or :func:`.someFunction`
+- **None**
+You can insert refs too ([ref]_).
+
+:arg arg: detailed description.
+  This is how you make a bullet list in an argument's description:
+
+  - if *arg* = **None** (default), blah blah
+  - if *arg* = ``'something else'``, blah blah
+:type arg: str, list, bool, whatever
+:arg kwarg: blah blah
+:type kwarg: str
+:return: something
+:rtype: str
+
+.. [ref] Ponzoni L, Bahar I. Structural dynamics is a determinant of
+  the functional significance of missense variants. *PNAS* **2018**
+  115 (16) 4164-4169.
+"""
