@@ -46,6 +46,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     assert isinstance(filename, str), 'filename must be a string'
     assert isinstance(rhapsody_obj, Rhapsody), 'not a Rhapsody object'
     assert rhapsody_obj._isColSet('main score'), 'predictions not found'
+    assert rhapsody_obj._isSaturationMutagenesis(), 'unable to create figure'
     if res_interval is not None:
         assert isinstance(res_interval, tuple) and len(res_interval) == 2, \
                'res_interval must be a tuple of 2 values'

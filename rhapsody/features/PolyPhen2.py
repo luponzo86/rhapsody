@@ -4,7 +4,7 @@ parsing its output and deriving features that will be used by the Rhapsody
 classifiers.
 """
 
-from prody import LOGGER
+from prody import LOGGER, queryUniprot
 import numpy as np
 import requests
 from requests.adapters import HTTPAdapter
@@ -44,7 +44,36 @@ def _requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
     return session
 
 
-def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
+def _check_log_errors(text):
+    error_strings = [
+        'ERROR: Neither AA1',
+        'ERROR: Invalid variation position',
+        'WARNING: Swapped input residues AA1'
+    ]
+    accs = []
+    for line in text.split('\n'):
+        if any([s in line for s in error_strings]):
+            acc = line.split(':')[0][1:]
+            accs.append(acc)
+    Uniprot_accs = set(accs)
+    if Uniprot_accs:
+        LOGGER.warn('Wrong SAV coordinates detected for '
+                    f'the following Uniprot sequences: {Uniprot_accs}')
+    return Uniprot_accs
+
+
+def _print_fasta_file(Uniprot_accs, filename='custom_sequences.fasta'):
+    with open(filename, 'w', 1) as f:
+        for acc in Uniprot_accs:
+            f.write(f">{acc}")
+            record = queryUniprot(acc)
+            sequence = record['sequence   0']
+            f.write(sequence)
+    return filename
+
+
+def queryPolyPhen2(filename, dump=True, prefix='pph2',
+                   fasta_file=None, fix_isoforms=False, **kwargs):
     # original PolyPhen-2 curl command (see:
     # http://genetics.bwh.harvard.edu/pph2/dokuwiki/faq ):
     #
@@ -62,13 +91,19 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
     input_file = open(filename, 'rb')
     # submit query
     address = 'http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi'
-    files = {'_ggi_project': (None, 'PPHWeb2'),
-             '_ggi_origin': (None, 'query'),
-             '_ggi_target_pipeline': (None, '1'),
-             '_ggi_batch_file': ('query.txt', input_file),
-             'MODELNAME': (None, kwargs.get('MODELNAME', 'HumDiv')),
-             'UCSCDB':    (None, kwargs.get('UCSCDB', 'hg19')),
-             'SNPFUNC':   (None, kwargs.get('SNPFUNC', 'm'))}
+    files = {
+        '_ggi_project': (None, 'PPHWeb2'),
+        '_ggi_origin': (None, 'query'),
+        '_ggi_target_pipeline': (None, '1'),
+        '_ggi_batch_file': ('query.txt', input_file),
+        'MODELNAME': (None, kwargs.get('MODELNAME', 'HumDiv')),
+        'UCSCDB': (None, kwargs.get('UCSCDB', 'hg19')),
+        'SNPFUNC': (None, kwargs.get('SNPFUNC', 'm'))
+    }
+    if fasta_file is not None:
+        # upload custom sequences
+        custom_fasta = open(fasta_file, 'rb')
+        files['uploaded_sequences_1'] = ('sequences.fa', custom_fasta)
     response = requests.post(address, files=files)
     # parse job ID from response page
     jobID = response.cookies['polyphenweb2']
@@ -105,6 +140,21 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2', **kwargs):
         if dump:
             with open(prefix + '-' + k + '.txt', 'w', 1) as f:
                 print(r.text, file=f)
+
+    # check for conflicts between Uniprot sequences and isoforms used
+    # by Polyhen-2 (which could be outdated)
+    Uniprot_accs = _check_log_errors(output['log'].text)
+    if Uniprot_accs:
+        if fix_isoforms:
+            LOGGER.info('PolyPhen-2 may have picked the wrong isoforms. '
+                        'Resubmitting query with correct isoforms...')
+            # resubmit query by manually uploading fasta sequences
+            fasta_fname = _print_fasta_file(Uniprot_accs)
+            output = queryPolyPhen2(
+                filename, dump=dump, prefix=prefix,
+                fasta_file=fasta_fname, fix_isoforms=False, **kwargs)
+        else:
+            LOGGER.error('Please check PolyPhen-2 log file')
 
     return output
 

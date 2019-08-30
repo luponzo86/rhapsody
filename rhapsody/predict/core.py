@@ -143,6 +143,8 @@ class Rhapsody:
                 generated_SAV_list = Uniprot.seqScanning(query)
                 if SAV_list == generated_SAV_list:
                     self.saturation_mutagenesis = True
+                else:
+                    raise RuntimeError('Missing SAVs detected.')
             except Exception as e:
                 LOGGER.warn(f'Not a saturation mutagenesis list: {e}')
         return self.saturation_mutagenesis
@@ -188,6 +190,7 @@ class Rhapsody:
         assert self.data is None, 'SAV list already set.'
         assert self.PolyPhen2output is None, "PolyPhen-2 output " \
                                              "already imported."
+        fix_isoforms = False
         if isinstance(query, str) and isfile(query):
             # 'query' is a filename
             SAV_file = query
@@ -195,12 +198,16 @@ class Rhapsody:
             # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
             SAV_list = Uniprot.seqScanning(query)
             SAV_file = Uniprot.printSAVlist(SAV_list, filename)
+            # only when submitting a saturation mutagenesis list, try and
+            # fix possible wrong isoforms used by PolyPhen-2
+            fix_isoforms = True
         else:
             # 'query' is a list, tuple or single string of SAV coordinates
             SAV_file = Uniprot.printSAVlist(query, filename)
         # submit query to PolyPhen-2
         try:
-            PolyPhen2_output = PolyPhen2.queryPolyPhen2(SAV_file)
+            PolyPhen2_output = PolyPhen2.queryPolyPhen2(
+                SAV_file, fix_isoforms=fix_isoforms)
         except Exception as e:
             err = (f'Unable to get a response from PolyPhen-2: {e} \n'
                    'Please click "Check Status" on the server homepage \n'
@@ -805,7 +812,7 @@ class Rhapsody:
         assert predictions in ['best', 'main', 'aux',
                                'PolyPhen-2', 'EVmutation']
         if not self._isSaturationMutagenesis():
-            LOGGER.warn('This function is available only when performing ',
+            LOGGER.warn('This function is available only when performing '
                         'saturation mutagenesis analysis')
             return None
         # select prediction set to be printed on PDB file
