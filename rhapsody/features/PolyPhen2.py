@@ -4,10 +4,11 @@ parsing its output and deriving features that will be used by the Rhapsody
 classifiers.
 """
 
-from prody import LOGGER, queryUniprot
-import numpy as np
+import os
 import requests
 import datetime
+import numpy as np
+from prody import LOGGER, queryUniprot
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
@@ -35,6 +36,14 @@ pph2_columns = ['o_acc', 'o_pos', 'o_aa1', 'o_aa2', 'rsid',
 def _requests_retry_session(retries=10, timeout=1, backoff_factor=0.3,
                             status_forcelist=(404,), session=None):
     # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+    # time intervals (in minutes) between retry can be found with:
+    # [min((backoff_factor*(2**(retries - 1))), 120) / 60 for i in range(30)]
+    # total time after 12 retries --> ~6 minutes
+    # total time after 16 retries --> ~14 minutes
+    # total time after 30 retries --> ~42 minutes
+    # total time after 60 retries --> ~102 minutes
+    # total time after 100 retries --> ~182 minutes
+    # total time after 200 retries --> ~6 hours
     session = session or requests.Session()
     retry = Retry(total=retries, read=retries, connect=retries,
                   backoff_factor=backoff_factor,
@@ -64,18 +73,28 @@ def _check_log_errors(text):
 
 
 def _print_fasta_file(Uniprot_accs, filename='custom_sequences.fasta'):
-    date = datetime.date.today()
-    date = date.replace('-', '')
-    ### save new names to dict and return it
-    ### replace new names in input_SAV
-    ### restore original names in pph2-full
+    date = datetime.date.today().strftime('%Y%m%d')
+    new_accs = {}
     with open(filename, 'w', 1) as f:
         for acc in Uniprot_accs:
-            f.write(f">{acc}-{date}")
+            new_acc = f"{acc}-{date}"
+            f.write(f">{new_acc}")
             record = queryUniprot(acc)
             sequence = record['sequence   0']
             f.write(sequence)
-    return filename
+            # store new temporary accession numbers
+            new_accs[acc] = new_acc
+    return filename, new_accs
+
+
+def _replace_strings(fname, new_fname, dict_substitutions):
+    with open(fname, 'r') as f:
+        text = f.read()
+    for old_str, new_str in dict_substitutions.items():
+        text = text.replace(old_str, new_str)
+    with open(new_fname, 'w') as f:
+        f.write(text)
+    return new_fname
 
 
 def queryPolyPhen2(filename, dump=True, prefix='pph2',
@@ -128,19 +147,17 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
         # delay = timeout + backoff_factor*[2^(total_retries - 1)]
         if k == 'started':
             LOGGER.timeit('_started')
-            r = _requests_retry_session(retries=16, timeout=0,
-                                        backoff_factor=0.1).get(files[k])
+            r = _requests_retry_session(retries=16).get(files[k])
             LOGGER.report('Query to PolyPhen-2 started in %.1fs.', '_started')
             LOGGER.info('PolyPhen-2 is running...')
         elif k == 'completed':
             LOGGER.timeit('_queryPP2')
-            r = _requests_retry_session(retries=12, timeout=log(num_lines)/2,
-                                        backoff_factor=0.2).get(files[k])
+            r = _requests_retry_session(
+                retries=200, timeout=log(num_lines)/2).get(files[k])
             LOGGER.report('Query to PolyPhen-2 completed in %.1fs.',
                           '_queryPP2')
         else:
-            r = _requests_retry_session(retries=12, timeout=0,
-                                        backoff_factor=0.01).get(files[k])
+            r = _requests_retry_session(retries=12).get(files[k])
         output[k] = r
         # print to file, if requested
         if dump:
@@ -148,17 +165,28 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
                 print(r.text, file=f)
 
     # check for conflicts between Uniprot sequences and isoforms used
-    # by Polyhen-2 (which could be outdated)
+    # by Polyhen-2 (which are sometimes outdated)
     Uniprot_accs = _check_log_errors(output['log'].text)
     if Uniprot_accs:
         if fix_isoforms:
-            LOGGER.info('PolyPhen-2 may have picked the wrong isoforms. '
-                        'Resubmitting query with correct isoforms...')
+            LOGGER.info('PolyPhen-2 may have picked the wrong isoforms.')
+            LOGGER.info('Resubmitting query with correct isoforms --- '
+                        'it may take up to a few hours to complete...')
+            # print file with freshly downloaded Uniprot sequences
+            fasta_fname, new_accs = _print_fasta_file(Uniprot_accs)
+            # replace accession numbers in list of SAVs
+            tmp_fname = filename + '.tmp'
+            _replace_strings(filename, tmp_fname, new_accs)
             # resubmit query by manually uploading fasta sequences
-            fasta_fname = _print_fasta_file(Uniprot_accs)
             output = queryPolyPhen2(
-                filename, dump=dump, prefix=prefix,
+                tmp_fname, dump=dump, prefix=prefix,
                 fasta_file=fasta_fname, fix_isoforms=False, **kwargs)
+            os.remove(tmp_fname)
+            # restore original accession numbers in output files
+            orig_accs = dict([[v, k] for k, v in new_accs.items()])
+            for k in ['short', 'full', 'log', 'snps']:
+                output_file = f'pph2-{k}.txt'
+                _replace_strings(output_file, output_file, orig_accs)
         else:
             LOGGER.error('Please check PolyPhen-2 log file')
 
