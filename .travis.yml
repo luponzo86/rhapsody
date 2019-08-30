@@ -46,4 +46,5 @@ install:
 script:
   # - pytest test1.py
   - cd test/test-1; python test-1.py
+  - cd ../test-2; python test-2.py
 
