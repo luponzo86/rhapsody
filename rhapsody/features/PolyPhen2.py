@@ -7,6 +7,7 @@ classifiers.
 from prody import LOGGER, queryUniprot
 import numpy as np
 import requests
+import datetime
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
@@ -63,9 +64,14 @@ def _check_log_errors(text):
 
 
 def _print_fasta_file(Uniprot_accs, filename='custom_sequences.fasta'):
+    date = datetime.date.today()
+    date = date.replace('-', '')
+    ### save new names to dict and return it
+    ### replace new names in input_SAV
+    ### restore original names in pph2-full
     with open(filename, 'w', 1) as f:
         for acc in Uniprot_accs:
-            f.write(f">{acc}")
+            f.write(f">{acc}-{date}")
             record = queryUniprot(acc)
             sequence = record['sequence   0']
             f.write(sequence)
