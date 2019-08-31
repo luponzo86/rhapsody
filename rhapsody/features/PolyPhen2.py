@@ -87,7 +87,13 @@ def _print_fasta_file(Uniprot_accs, filename='custom_sequences.fasta'):
     return filename, new_accs
 
 
-def _replace_strings(fname, new_fname, dict_substitutions):
+def _replace_strings_in_text(text, dict_substitutions):
+    for old_str, new_str in dict_substitutions.items():
+        text = text.replace(old_str, new_str)
+    return text
+
+
+def _replace_strings_in_file(fname, new_fname, dict_substitutions):
     with open(fname, 'r') as f:
         text = f.read()
     for old_str, new_str in dict_substitutions.items():
@@ -143,7 +149,8 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
     # keep checking if the job has started/completed and,
     # when done, fetch output files
     output = {}
-    for k in ['started', 'completed', 'short', 'full', 'log', 'snps']:
+    exts = ['started', 'completed', 'short', 'full', 'log', 'snps']
+    for k in exts:
         # delay = timeout + backoff_factor*[2^(total_retries - 1)]
         if k == 'started':
             LOGGER.timeit('_started')
@@ -158,7 +165,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
                           '_queryPP2')
         else:
             r = _requests_retry_session(retries=12).get(files[k])
-        output[k] = r
+        output[k] = r.text
         # print to file, if requested
         if dump:
             with open(prefix + '-' + k + '.txt', 'w', 1) as f:
@@ -176,17 +183,19 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
             fasta_fname, new_accs = _print_fasta_file(Uniprot_accs)
             # replace accession numbers in list of SAVs
             tmp_fname = filename + '.tmp'
-            _replace_strings(filename, tmp_fname, new_accs)
+            _replace_strings_in_file(filename, tmp_fname, new_accs)
             # resubmit query by manually uploading fasta sequences
             output = queryPolyPhen2(
                 tmp_fname, dump=dump, prefix=prefix,
                 fasta_file=fasta_fname, fix_isoforms=False, **kwargs)
             os.remove(tmp_fname)
-            # restore original accession numbers in output files
+            # restore original accession numbers in output
             orig_accs = dict([[v, k] for k, v in new_accs.items()])
-            for k in ['short', 'full', 'log', 'snps']:
-                output_file = f'pph2-{k}.txt'
-                _replace_strings(output_file, output_file, orig_accs)
+            for k in exts:
+                output[k] = _replace_strings_in_text(output[k], orig_accs)
+                if dump:
+                    outfile = f'pph2-{k}.txt'
+                    _replace_strings_in_file(outfile, outfile, orig_accs)
         else:
             LOGGER.error('Please check PolyPhen-2 log file')
 
@@ -199,7 +208,7 @@ def parsePolyPhen2output(pph2_output):
     '''
     assert type(pph2_output) in [dict, str]
     if type(pph2_output) is dict:
-        lines = pph2_output['full'].text.split('\n')
+        lines = pph2_output['full'].split('\n')
     else:
         with open(pph2_output, 'r') as file:
             lines = file.readlines()
