@@ -173,7 +173,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
 
     # check for conflicts between Uniprot sequences and isoforms used
     # by Polyhen-2 (which are sometimes outdated)
-    Uniprot_accs = _check_log_errors(output['log'].text)
+    Uniprot_accs = _check_log_errors(output['log'])
     if Uniprot_accs:
         if fix_isoforms:
             LOGGER.info('PolyPhen-2 may have picked the wrong isoforms.')
