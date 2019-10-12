@@ -5,6 +5,7 @@ implementing Rhapsody's classification schemes."""
 import pickle
 import numpy as np
 import numpy.lib.recfunctions as rfn
+from collections import Counter
 from prody import LOGGER
 from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
@@ -105,16 +106,39 @@ def _calcSmoothCurve(curve, smooth_window):
     return smooth_curve
 
 
-def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
-               ROC_fig='ROC.png', feature_names=None, **kwargs):
+def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
+               n_splits=10, ROC_fig='ROC.png', feature_names=None,
+               CVseed=666, protein_stratification=False, **kwargs):
 
     # set classifier
     classifier = RandomForestClassifier(
         n_estimators=n_estimators, max_features=max_features,
         oob_score=True, n_jobs=-1, class_weight='balanced')
 
-    # set cross-validation procedure
-    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=666)
+    # define folds
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=CVseed)
+    CV_folds = []
+    for train, test in cv.split(X, y):
+        CV_folds.append([train, test])
+
+    # protein-stratification: a same protein should not be found in
+    # both training and test sets
+    if protein_stratification:
+        # for each fold, count occurrences of each accession number
+        occurrences = {}
+        accs = np.array([s.split()[0] for s in sel_SAVs['SAV_coords']])
+        for k, (train, test) in enumerate(CV_folds):
+            counts = Counter(accs[test])
+            for acc, count in counts.items():
+                occurrences.setdefault(acc, np.zeros(n_splits, dtype=int))
+                occurrences[acc][k] = count
+        # for each acc. number, find fold with largest occurrences
+        best_fold = {a: np.argmax(c) for a, c in occurrences.items()}
+        new_folds = np.array([best_fold[a] for a in accs])
+        # update folds
+        for k in range(n_splits):
+            CV_folds[k][0] = np.where(new_folds != k)[0]
+            CV_folds[k][1] = np.where(new_folds == k)[0]
 
     # cross-validation loop
     CV_info = {
@@ -129,7 +153,7 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
     mean_tpr = 0.0
     mean_fpr = np.linspace(0, 1, 100)
     i = 0
-    for train, test in cv.split(X, y):
+    for train, test in CV_folds:
         # create training and test datasets
         X_train = X[train]
         X_test = X[test]
@@ -194,7 +218,9 @@ def _performCV(X, y, n_estimators=1000, max_features='auto', n_splits=10,
         'mean ROC': list(zip(mean_fpr, mean_tpr)),
         'optimal cutoff': (avg_Jopt, std_Jopt),
         'feat. importance': avg_feat_imp,
-        'path. probability': path_prob
+        'path. probability': path_prob,
+        'training dataset': sel_SAVs,
+        'folds': CV_folds
     }
 
     # plot average ROC
@@ -236,16 +262,17 @@ def _importFeatMatrix(fm):
     # split into feature array and true label array
     X = np.array([[np.float32(x) for x in v] for v in fms[featset]])
     y = fms['true_label']
+    sel_SAVs = fms[['SAV_coords', 'true_label']]
 
-    return X, y, featset
+    return X, y, sel_SAVs, featset
 
 
 def RandomForestCV(feat_matrix, n_estimators=1500, max_features=2, **kwargs):
 
-    X, y, featset = _importFeatMatrix(feat_matrix)
+    X, y, sel_SAVs, featset = _importFeatMatrix(feat_matrix)
     CV_summary = _performCV(
-        X, y, n_estimators=n_estimators, max_features=max_features,
-        feature_names=featset, **kwargs)
+        X, y, sel_SAVs, n_estimators=n_estimators,
+        max_features=max_features, feature_names=featset, **kwargs)
     return CV_summary
 
 
@@ -253,12 +280,12 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
                       pickle_name='trained_classifier.pkl',
                       feat_imp_fig='feat_importances.png', **kwargs):
 
-    X, y, featset = _importFeatMatrix(feat_matrix)
+    X, y, sel_SAVs, featset = _importFeatMatrix(feat_matrix)
 
     # calculate optimal Youden cutoff through CV
     CV_summary = _performCV(
-        X, y, n_estimators=n_estimators, max_features=max_features,
-        feature_names=featset, **kwargs)
+        X, y, sel_SAVs, n_estimators=n_estimators,
+        max_features=max_features, feature_names=featset, **kwargs)
 
     # train a classifier on the whole dataset
     clsf = RandomForestClassifier(
@@ -278,16 +305,10 @@ def trainRFclassifier(feat_matrix, n_estimators=1500, max_features=2,
     if feat_imp_fig is not None:
         print_feat_imp_figure(feat_imp_fig, fimp, featset)
 
-    train_info = {
-        'del. SAVs': feat_matrix[feat_matrix['true_label'] == 1]['SAV_coords'],
-        'neu. SAVs': feat_matrix[feat_matrix['true_label'] == 0]['SAV_coords']
-    }
-
     clsf_dict = {
         'trained RF': clsf,
         'features': featset,
         'CV summary': CV_summary,
-        'training dataset': train_info
     }
 
     # save pickle with trained classifier and other info

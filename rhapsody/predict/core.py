@@ -905,7 +905,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     classifier = clsf_dict['trained RF']
     opt_cutoff = clsf_dict['CV summary']['optimal cutoff']
     path_curve = clsf_dict['CV summary']['path. probability']
-    train_data = clsf_dict['training dataset']
+    train_data = clsf_dict['CV summary']['training dataset']
 
     LOGGER.timeit('_preds')
 
@@ -931,14 +931,16 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
     Jplus = J + err_bar
+    delSAVs = train_data['SAV_coords'][train_data['true_label'] == 1]
+    neuSAVs = train_data['SAV_coords'][train_data['true_label'] == 0]
     k = 0
     for i in range(len(feat_matrix)):
         # determine SAV status
         if SAV_coords is None:
             SAV_status = '?'
-        elif SAV_coords[i] in train_data['del. SAVs']:
+        elif SAV_coords[i] in delSAVs:
             SAV_status = 'known_del'
-        elif SAV_coords[i] in train_data['neu. SAVs']:
+        elif SAV_coords[i] in neuSAVs:
             SAV_status = 'known_neu'
         else:
             SAV_status = 'new'
