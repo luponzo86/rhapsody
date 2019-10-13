@@ -209,6 +209,9 @@ class PDBfeatures:
         LOGGER.info("Pickle '{}' saved.".format(filename))
         return pickle_path
 
+    def resetTimestamp(self):
+        self.timestamp = str(datetime.datetime.utcnow())
+
     def setNumModes(self, n_modes):
         """Sets the number of ENM modes to be computed. If different from
         the number provided at instantiation, any precomputed features will

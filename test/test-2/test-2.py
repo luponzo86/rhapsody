@@ -1,6 +1,6 @@
 import sys
 import os
-import shutil
+import pickle
 import prody as pd
 
 # check if rhapsody can be imported correctly
@@ -15,8 +15,12 @@ pd.SETTINGS['rhapsody_local_folder'] = os.path.abspath('./workspace')
 
 # train classifiers
 rd.initialSetup(download_EVmutation=False)
-shutil.copyfile('./data/UniprotMap-P01112.pkl',
-                './workspace/pickles/UniprotMap-P01112.pkl')
+
+# recover pickle and reset timestamp
+with open('./data/UniprotMap-P01112.pkl', 'rb') as f:
+    p = pickle.load(f)
+    p.resetTimestamp()
+    p.savePickle()
 
 # let's run a saturation mutagenesis test with a custom PDB structure
 os.chdir('workspace')

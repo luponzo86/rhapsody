@@ -28,7 +28,7 @@ class UniprotMapping:
         self.customPDBmappings = None
         self._align_algo_args = None
         self._align_algo_kwargs = None
-        self._timestamp = None
+        self.timestamp = None
         self.Pfam = None
         assert type(recover_pickle) is bool
         if recover_pickle:
@@ -58,7 +58,7 @@ class UniprotMapping:
         self.customPDBmappings = []
         self._align_algo_args = ['localxs', -0.5, -0.1]
         self._align_algo_kwargs = {'one_alignment_only': True}
-        self._timestamp = str(datetime.datetime.utcnow())
+        self.timestamp = str(datetime.datetime.utcnow())
         self.Pfam = None
         return
 
@@ -401,7 +401,7 @@ class UniprotMapping:
                              % recovered_self.uniq_acc + 'does not match.')
         # check timestamp and ignore pickles that are too old
         date_format = "%Y-%m-%d %H:%M:%S.%f"
-        t_old = datetime.datetime.strptime(recovered_self._timestamp,
+        t_old = datetime.datetime.strptime(recovered_self.timestamp,
                                            date_format)
         t_now = datetime.datetime.utcnow()
         Delta_t = datetime.timedelta(days=days)
@@ -416,10 +416,13 @@ class UniprotMapping:
         self.customPDBmappings = recovered_self.customPDBmappings
         self._align_algo_args = recovered_self._align_algo_args
         self._align_algo_kwargs = recovered_self._align_algo_kwargs
-        self._timestamp = recovered_self._timestamp
+        self.timestamp = recovered_self.timestamp
         self.Pfam = recovered_self.Pfam
         LOGGER.info("Pickle '{}' recovered.".format(filename))
         return
+
+    def resetTimestamp(self):
+        self.timestamp = str(datetime.datetime.utcnow())
 
     def _checkAccessionNumber(self, acc):
         if '-' in acc:
@@ -439,7 +442,7 @@ class UniprotMapping:
             resids = fields[1].split('-')
             try:
                 resids = tuple([int(s) for s in resids])
-            except:
+            except Exception:
                 # sometimes the interval is undefined,
                 # e.g. "A=-"
                 resids = None
