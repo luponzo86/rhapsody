@@ -155,7 +155,7 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             # NB: EVmutation score and pathogenicity are anti-correlated
             true_labels = training_dataset['true_label'][sel]
             EVmut_predictor = -training_dataset['EVmut-DeltaE_epist'][sel]
-            metrics = rd.calcMetrics(true_labels, EVmut_predictor)
+            metrics = rd.calcScoreMetrics(true_labels, EVmut_predictor)
             pd.SETTINGS['EVmutation_metrics'] = metrics
             pd.LOGGER.info(f'EVmutation metrics computed.')
 
