@@ -52,13 +52,15 @@ def calcClassMetrics(y_test, y_pred):
         y_test, y_pred, average='weighted')
     output = {
         'MCC': mcc,
-        'precision': pre,
-        'recall': rec,
-        'F1 score': f1s,
-        'support': sup,
-        'average precision': avg_pre,
-        'average recall': avg_rec,
-        'average F1 score': avg_f1s
+        'precision (0)': pre[0],
+        'recall (0)': rec[0],
+        'F1 score (0)': f1s[0],
+        'precision (1)': pre[1],
+        'recall (1)': rec[1],
+        'F1 score (1)': f1s[1],
+        'precision': avg_pre,
+        'recall': avg_rec,
+        'F1 score': avg_f1s
     }
     return output
 
@@ -71,7 +73,7 @@ def calcPathogenicityProbs(CV_info, num_bins=15,
     from predictions on CV test sets
     '''
 
-    mean_Jopt = np.mean(CV_info['Youden_cutoff'])
+    mean_Jopt = np.mean(CV_info['optimal cutoff'])
     preds = [np.array(CV_info['predictions_0']),
              np.array(CV_info['predictions_1'])]
 
@@ -104,9 +106,9 @@ def calcPathogenicityProbs(CV_info, num_bins=15,
 
     # print pathogenicity probability figure
     if path_prob_fig is not None:
-        print_path_prob_figure(path_prob_fig, bins, histo, dx, path_prob,
-                               smooth_plot=smooth_path_prob,
-                               cutoff=ppred_reliability_cutoff)
+        print_path_prob_figure(
+            path_prob_fig, bins, histo, dx, path_prob,
+            smooth_plot=smooth_path_prob, cutoff=ppred_reliability_cutoff)
 
     return np.array(smooth_path_prob)
 
@@ -135,7 +137,9 @@ def _calcSmoothCurve(curve, smooth_window):
 
 def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
                n_splits=10, ROC_fig='ROC.png', feature_names=None,
-               CVseed=666, protein_stratification=False, **kwargs):
+               CVseed=666, stratification=None, **kwargs):
+
+    assert stratification in [None, 'protein', 'residue']
 
     # set classifier
     classifier = RandomForestClassifier(
@@ -150,10 +154,16 @@ def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
 
     # protein-stratification: a same protein should not be found in
     # both training and test sets
-    if protein_stratification:
-        # for each fold, count occurrences of each accession number
+    if stratification is not None:
+        # for each fold, count occurrences of each protein/residue
         occurrences = {}
-        accs = np.array([s.split()[0] for s in sel_SAVs['SAV_coords']])
+        if stratification == 'protein':
+            # e.g. 'P01112'
+            accs = np.array([s.split()[0] for s in sel_SAVs['SAV_coords']])
+        else:
+            # e.g. P01112 99
+            accs = np.array([' '.join(s.split()[:2])
+                             for s in sel_SAVs['SAV_coords']])
         for k, (train, test) in enumerate(CV_folds):
             counts = Counter(accs[test])
             for acc, count in counts.items():
@@ -168,17 +178,14 @@ def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
             CV_folds[k][1] = np.where(new_folds == k)[0]
 
     # cross-validation loop
-    CV_info = {
-        'AUROC': [],
-        'AUPRC': [],
-        'feat_importance': [],
-        'OOB_score': [],
-        'Youden_cutoff': [],
-        'predictions_0': [],
-        'predictions_1': []
-    }
+    CV_info = {k: [] for k in [
+        'AUROC', 'AUPRC', 'OOB score', 'optimal cutoff', 'MCC',
+        'precision (0)', 'recall (0)', 'F1 score (0)',
+        'precision (1)', 'recall (1)', 'F1 score (1)',
+        'precision', 'recall', 'F1 score',
+        'feat. importances', 'predictions_0', 'predictions_1']}
     mean_tpr = 0.0
-    mean_fpr = np.linspace(0, 1, 100)
+    mean_fpr = np.linspace(0, 1, 20)
     i = 0
     for train, test in CV_folds:
         # create training and test datasets
@@ -189,26 +196,30 @@ def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
         # train Random Forest classifier
         classifier.fit(X_train, y_train)
         # calculate probabilities over decision trees
-        y_pred = classifier.predict_proba(X_test)
-        # compute ROC, AUROC, optimal cutoff (argmax of Youden's index), etc...
-        d = calcScoreMetrics(y_test, y_pred[:, 1])
-        auroc = d['AUROC']
-        auprc = d['AUPRC']
-        Jopt = d['optimal cutoff']
-        # store other info and metrics for each iteration
-        mean_tpr += np.interp(mean_fpr, d['ROC']['FPR'], d['ROC']['TPR'])
-        oob_score = classifier.oob_score_
-        CV_info['AUROC'].append(auroc)
-        CV_info['AUPRC'].append(auprc)
-        CV_info['feat_importance'].append(classifier.feature_importances_)
-        CV_info['OOB_score'].append(oob_score)
-        CV_info['Youden_cutoff'].append(Jopt)
-        CV_info['predictions_0'].extend(y_pred[np.where(y_test == 0), 1][0])
-        CV_info['predictions_1'].extend(y_pred[np.where(y_test == 1), 1][0])
+        y_pred = classifier.predict_proba(X_test)[:, 1]
+
+        # compute ROC, AUROC, optimal cutoff (argmax of Youden's index), etc.
+        sm = calcScoreMetrics(y_test, y_pred)
+        for stat in ['AUROC', 'AUPRC', 'optimal cutoff']:
+            CV_info[stat].append(sm[stat])
+        # compute Matthews corr. coeff., precision/recall, etc. on classes
+        y_pred_binary = np.where(y_pred > sm['optimal cutoff'], 1, 0)
+        cm = calcClassMetrics(y_test, y_pred_binary)
+        for stat in cm.keys():
+            CV_info[stat].append(cm[stat])
+        # other info
+        mean_tpr += np.interp(mean_fpr, sm['ROC']['FPR'], sm['ROC']['TPR'])
+        CV_info['OOB score'].append(classifier.oob_score_)
+        CV_info['feat. importances'].append(
+            np.array(classifier.feature_importances_))
+        CV_info['predictions_0'].extend(y_pred[y_test == 0])
+        CV_info['predictions_1'].extend(y_pred[y_test == 1])
         # print log
         i += 1
-        LOGGER.info(f'CV iteration #{i:2d}:   AUROC = {auroc:.3f}   '
-                    f'AUPRC = {auprc:.3f}   OOB score = {oob_score:.3f}')
+        LOGGER.info('CV iteration #{:2d}:   '.format(i) +
+                    'AUROC = {:.3f}   '.format(sm['AUROC']) +
+                    'AUPRC = {:.3f}   '.format(sm['AUPRC']) +
+                    'OOB score = {:.3f}'.format(classifier.oob_score_))
 
     # compute average ROC curves
     mean_tpr /= cv.get_n_splits(X, y)
@@ -216,34 +227,30 @@ def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
     mean_tpr[-1] = 1.0
     # compute average ROC, optimal cutoff and other stats
     stats = {}
-    for s in ['AUROC', 'AUPRC', 'OOB_score', 'Youden_cutoff']:
-        stats[s] = (np.mean(CV_info[s]), np.std(CV_info[s]))
-    stats['feat_importance'] = (
-        np.mean(np.array(CV_info['feat_importance']), axis=0),
-        np.std(np.array(CV_info['feat_importance']), axis=0)
-    )
+    for s in CV_info.keys():
+        if s in ['predictions_0', 'predictions_1']:
+            continue
+        stats[s] = (np.mean(CV_info[s], axis=0), np.std(CV_info[s], axis=0))
 
     LOGGER.info('-'*60)
     LOGGER.info('Cross-validation summary:')
     LOGGER.info(f'training dataset size:   {len(y):<d}')
     LOGGER.info(f'fraction of positives:   {sum(y)/len(y):.3f}')
-    LOGGER.info('mean AUROC:              {:.3f} +/- {:.3f}'
-                .format(*stats['AUROC']))
-    LOGGER.info('mean AUPRC:              {:.3f} +/- {:.3f}'
-                .format(*stats['AUPRC']))
-    LOGGER.info('mean OOB score:          {:.3f} +/- {:.3f}'
-                .format(*stats['OOB_score']))
-    LOGGER.info('optimal cutoff*:         {:.3f} +/- {:.3f}'
-                .format(*stats['Youden_cutoff']))
+    for s in ['AUROC', 'AUPRC', 'OOB score', 'optimal cutoff']:
+        if s == 'optimal cutoff':
+            fields = ('optimal cutoff*:', stats[s][0], stats[s][1])
+        else:
+            fields = (f'mean {s}:', stats[s][0], stats[s][1])
+        LOGGER.info('{:24} {:.3f} +/- {:.3f}'.format(*fields))
     LOGGER.info("(* argmax of Youden's index)")
-    LOGGER.info('feature importances:')
 
-    n_feats = len(stats['feat_importance'][0])
+    n_feats = len(stats['feat. importances'][0])
     if feature_names is None:
         feature_names = [f'feature {i}' for i in range(n_feats)]
+    LOGGER.info('feature importances:')
     for i, feat_name in enumerate(feature_names):
         LOGGER.info('{:>23s}: {:.3f}'.format(
-            feat_name, stats['feat_importance'][0][i]))
+            feat_name, stats['feat. importances'][0][i]))
     LOGGER.info('-'*60)
 
     path_prob = calcPathogenicityProbs(CV_info, **kwargs)
@@ -251,15 +258,17 @@ def _performCV(X, y, sel_SAVs, n_estimators=1000, max_features='auto',
         'dataset size': len(y),
         'dataset bias': sum(y)/len(y),
         'mean ROC': list(zip(mean_fpr, mean_tpr)),
-        'mean AUROC': stats['AUROC'],
-        'mean AUPRC': stats['AUPRC'],
-        'mean OOB score': stats['OOB_score'],
-        'optimal cutoff': stats['Youden_cutoff'],
-        'feat. importances': stats['feat_importance'],
+        'optimal cutoff': stats['optimal cutoff'],
+        'feat. importances': stats['feat. importances'],
         'path. probability': path_prob,
         'training dataset': sel_SAVs,
         'folds': CV_folds
     }
+    for s in ['AUROC', 'AUPRC', 'OOB score', 'MCC',
+              'precision (0)', 'recall (0)', 'F1 score (0)',
+              'precision (1)', 'recall (1)', 'F1 score (1)',
+              'precision', 'recall', 'F1 score']:
+        CV_summary['mean ' + s] = stats[s]
 
     # plot average ROC
     if ROC_fig is not None:

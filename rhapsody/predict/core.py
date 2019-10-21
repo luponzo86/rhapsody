@@ -569,9 +569,7 @@ class Rhapsody:
             return
         EVmut_feats = EVmutation.recoverEVmutFeatures(self.data['SAV coords'])
         EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
-        c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
-        EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
-        EVmut_class[np.isnan(EVmut_score)] = '?'
+        EVmut_class = EVmutation.calcEVmutPathClasses(EVmut_score)
         self.data['EVmutation score'] = EVmut_score
         self.data['EVmutation path. class'] = EVmut_class
 
