@@ -4,6 +4,7 @@ a function for the initial setup and training of Rhapsody."""
 
 import os
 import tarfile
+import pickle
 import urllib.request
 import shutil
 import sklearn
@@ -13,7 +14,7 @@ import rhapsody as rd
 
 __all__ = ['DEFAULT_FEATSETS', 'initialSetup',
            'getDefaultTrainingDataset', 'getDefaultClassifiers',
-           'delSettings', 'getSettings']
+           'importDefaultClassifier', 'delSettings', 'getSettings']
 
 USERHOME = os.getenv('USERPROFILE') or os.getenv('HOME') or './'
 DEFAULT_WORKING_DIR = os.path.join(USERHOME, 'rhapsody')
@@ -230,6 +231,18 @@ def getDefaultClassifiers():
                       'Please rerun setup with initialSetup(refresh=True)')
     else:
         return def_clsfs
+
+
+def importDefaultClassifier(version):
+    """Imports the specified classifier and its summary
+
+    :arg version: either 'full', 'reduced' or 'EVmut'
+    :type version: str
+    """
+    assert version in ['full', 'reduced', 'EVmut']
+    with open(getDefaultClassifiers()[version], 'rb') as p:
+        clsf = pickle.load(p)
+    return clsf
 
 
 def delSettings():
