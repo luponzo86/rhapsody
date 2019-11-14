@@ -17,8 +17,10 @@ setup(
     version=version,
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     python_requires='>=3.5, <4',
-    install_requires=['requests', 'numpy', 'scikit-learn', 'matplotlib',
-                      'biopython', 'pyparsing', 'prody'],
+    install_requires=[
+        'requests', 'tqdm',
+        'numpy',  'scikit-learn', 'matplotlib',
+        'biopython', 'pyparsing', 'prody'],
     extras_require={
         'docs': ['sphinx >= 1.4', 'sphinx_theme', 'sphinx_rtd_theme']
     },
