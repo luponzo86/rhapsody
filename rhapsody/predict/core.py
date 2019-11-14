@@ -22,7 +22,8 @@ class Rhapsody:
     EVmutation.
     """
 
-    def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True):
+    def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True,
+                 **kwargs):
         """ Initialize a Rhapsody object with a list of SAVs (optional).
 
         :arg query: Single Amino Acid Variants (SAVs) in Uniprot coordinates.
@@ -53,6 +54,14 @@ class Rhapsody:
 
         assert query_type in ('SAVs', 'PolyPhen2')
         assert isinstance(queryPolyPhen2, bool)
+        valid_kwargs = [
+            'status_file_Uniprot',
+            'status_file_PDB',
+            'status_file_Pfam',
+            'status_prefix_Uniprot',
+            'status_prefix_PDB',
+            'status_prefix_Pfam']
+        assert all([k in valid_kwargs for k in kwargs])
 
         # masked NumPy array that will contain all info abut SAVs
         self.data = None
@@ -103,6 +112,8 @@ class Rhapsody:
         self.classifier = None
         self.aux_classifier = None
         self.featSet = None
+        # options
+        self.options = kwargs
 
         if query is None:
             # a SAV list can be uploaded later with setSAVs()
@@ -283,6 +294,8 @@ class Rhapsody:
             # compute mapping
             m = Uniprot.mapSAVs2PDB(
                 self.data['SAV coords'], custom_PDB=self.customPDB,
+                status_file=self.options.get('status_file_Uniprot'),
+                status_prefix=self.options.get('status_prefix_Uniprot'),
                 refresh=refresh)
             self.data['unique SAV coords'] = m['unique SAV coords']
             self.data['PDB SAV coords'] = m['PDB SAV coords']
@@ -403,7 +416,9 @@ class Rhapsody:
             # compute structural and dynamical features from a PDB structure
             f = PDB.calcPDBfeatures(
                 Uniprot2PDBmap, sel_feats=sel_PDBfeats,
-                custom_PDB=self.customPDB, refresh=refresh)
+                custom_PDB=self.customPDB, refresh=refresh,
+                status_file=self.options.get('status_file_PDB'),
+                status_prefix=self.options.get('status_prefix_PDB'))
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
             # retrieve BLOSUM values
@@ -411,7 +426,10 @@ class Rhapsody:
             all_feats.append(f)
         if RHAPSODY_FEATS['Pfam'].intersection(self.featSet):
             # compute sequence properties from Pfam domains
-            f = Pfam.calcPfamFeatures(self.data['SAV coords'])
+            f = Pfam.calcPfamFeatures(
+                self.data['SAV coords'],
+                status_file=self.options.get('status_file_Pfam'),
+                status_prefix=self.options.get('status_prefix_Pfam'))
             all_feats.append(f)
         if RHAPSODY_FEATS['EVmut'].intersection(self.featSet):
             # recover EVmutation data
