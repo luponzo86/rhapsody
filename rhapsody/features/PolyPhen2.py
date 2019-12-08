@@ -104,7 +104,8 @@ def _replace_strings_in_file(fname, new_fname, dict_substitutions):
 
 
 def queryPolyPhen2(filename, dump=True, prefix='pph2',
-                   fasta_file=None, fix_isoforms=False, **kwargs):
+                   fasta_file=None, fix_isoforms=False,
+                   ignore_errors=False, **kwargs):
     # original PolyPhen-2 curl command (see:
     # http://genetics.bwh.harvard.edu/pph2/dokuwiki/faq ):
     #
@@ -196,6 +197,8 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
                 if dump:
                     outfile = f'pph2-{k}.txt'
                     _replace_strings_in_file(outfile, outfile, orig_accs)
+        elif not ignore_errors:
+            LOGGER.warn('Please check PolyPhen-2 log file')
         else:
             LOGGER.error('Please check PolyPhen-2 log file')
 

@@ -60,7 +60,8 @@ class Rhapsody:
             'status_file_Pfam',
             'status_prefix_Uniprot',
             'status_prefix_PDB',
-            'status_prefix_Pfam']
+            'status_prefix_Pfam',
+            'ignore_PolyPhen2_errors']
         assert all([k in valid_kwargs for k in kwargs])
 
         # masked NumPy array that will contain all info abut SAVs
@@ -218,7 +219,8 @@ class Rhapsody:
         # submit query to PolyPhen-2
         try:
             PolyPhen2_output = PolyPhen2.queryPolyPhen2(
-                SAV_file, fix_isoforms=fix_isoforms)
+                SAV_file, fix_isoforms=fix_isoforms,
+                ignore_errors=self.options.get('ignore_PolyPhen2_errors'))
         except Exception as e:
             err = (f'Unable to get a response from PolyPhen-2: {e} \n'
                    'Please click "Check Status" on the server homepage \n'
@@ -398,6 +400,14 @@ class Rhapsody:
             feat_matrix[:, j] = array[featname]
         return feat_matrix
 
+    def importFeatMatrix(self, struct_array):
+        assert self.featMatrix is None, 'Feature matrix already set.'
+        assert self.featSet is not None, 'Feature set not set.'
+        assert self.data is not None, 'SAVs not set.'
+        assert len(struct_array) == self.numSAVs, 'Wrong length.'
+        featm = self._buildFeatMatrix(self.featSet, [struct_array])
+        self.featMatrix = featm
+
     def _calcFeatMatrix(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
         assert self.featSet is not None, 'Feature set not set.'
@@ -460,7 +470,7 @@ class Rhapsody:
             trainData[f] = self.featMatrix[:, i]
         return trainData
 
-    def importPrecomputedFeatures(self, features_dict):
+    def importPrecomputedExtraFeatures(self, features_dict):
         assert isinstance(features_dict, dict)
         # import additional precomputed features
         default_feats = RHAPSODY_FEATS['all']
