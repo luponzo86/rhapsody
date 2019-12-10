@@ -151,7 +151,7 @@ class Rhapsody:
             self.saturation_mutagenesis = False
             try:
                 SAVs = self.getUniqueSAVcoords()
-                SAV_list = list(SAVs['SAV coords'])
+                SAV_list = list(SAVs['unique SAV coords'])
                 acc = SAVs[0]['Uniprot ID']
                 pos = list(set(SAVs['position']))
                 if len(pos) == 1:
