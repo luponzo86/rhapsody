@@ -12,6 +12,12 @@ import numpy as np
 import prody as pd
 import rhapsody as rd
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['DEFAULT_FEATSETS', 'initialSetup',
            'getDefaultTrainingDataset', 'getDefaultClassifiers',
            'importDefaultClassifier', 'delSettings', 'getSettings']

@@ -14,6 +14,12 @@ from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
 from Bio.SubsMat import MatrixInfo as matlist
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['UniprotMapping', 'mapSAVs2PDB', 'seqScanning', 'printSAVlist']
 
 

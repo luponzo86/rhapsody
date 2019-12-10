@@ -13,6 +13,12 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['PP2_FEATS', 'queryPolyPhen2', 'parsePolyPhen2output',
            'getSAVcoords', 'calcPolyPhen2features']
 

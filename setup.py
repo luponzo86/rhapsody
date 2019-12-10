@@ -6,6 +6,12 @@ from setuptools import setup, find_packages
 from os import path
 from io import open
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'VERSION'), encoding='utf-8') as f:
     version = f.read()

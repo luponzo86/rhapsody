@@ -6,6 +6,12 @@ import os
 import numpy as np
 from prody import LOGGER
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['print_pred_distrib_figure', 'print_path_prob_figure',
            'print_ROC_figure', 'print_feat_imp_figure']
 

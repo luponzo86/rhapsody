@@ -15,6 +15,11 @@ from prody import calcPerturbResponse, calcMechStiff
 from prody import reduceModel, sliceModel
 from prody import execDSSP, parseDSSP
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS',
            'PDBfeatures', 'calcPDBfeatures']

@@ -16,6 +16,11 @@ from ..utils.settings import DEFAULT_FEATSETS, getDefaultTrainingDataset
 from .figures import print_pred_distrib_figure, print_path_prob_figure
 from .figures import print_ROC_figure, print_feat_imp_figure
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['calcScoreMetrics', 'calcClassMetrics', 'calcPathogenicityProbs',
            'RandomForestCV', 'trainRFclassifier',

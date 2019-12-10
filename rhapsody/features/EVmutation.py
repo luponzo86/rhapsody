@@ -7,12 +7,11 @@ from glob import glob
 from os.path import splitext, join, basename
 from prody import SETTINGS, LOGGER
 
-# extract precomputed EVmutation scores for given mutants
-# NB:
-# negative DeltaE_epist --> deleterious effect
-# DeltaE_epist == 0     --> neutral effect (wild-type)
-# positive DeltaE_epist --> neutral/benign effect
-
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
@@ -34,6 +33,12 @@ def recoverEVmutFeatures(SAVs):
     """
     LOGGER.timeit('_EVmut')
     LOGGER.info('Recovering EVmutation data...')
+
+    # extracts precomputed EVmutation scores for given mutants
+    # NB:
+    # negative DeltaE_epist --> deleterious effect
+    # DeltaE_epist == 0     --> neutral effect (wild-type)
+    # positive DeltaE_epist --> neutral/benign effect
 
     def find_matching_files(file_list, acc, pos):
         match_files = []

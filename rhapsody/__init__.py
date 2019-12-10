@@ -11,6 +11,12 @@ with open(path.join(here, '../VERSION'), encoding='utf-8') as f:
 
 __release__ = __version__
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = []
 
 from . import utils

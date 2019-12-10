@@ -5,6 +5,12 @@ relative functions needed for obtaining predictions from trained classifiers.
 
 __all__ = []
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 from . import core
 from .core import *
 __all__.extend(core.__all__)

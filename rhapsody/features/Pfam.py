@@ -9,6 +9,12 @@ from tqdm import tqdm
 from prody import LOGGER
 from .Uniprot import UniprotMapping
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['PFAM_FEATS', 'calcPfamFeatures']
 
 PFAM_FEATS = ['entropy', 'ranked_MI']

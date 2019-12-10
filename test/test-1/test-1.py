@@ -8,6 +8,13 @@ import prody as pd
 sys.path.append('../../')
 import rhapsody as rd
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
+
 # temporarily switch to new set of folders
 if not os.path.isdir('workspace'):
     os.mkdir('workspace')
