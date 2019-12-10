@@ -14,6 +14,12 @@ from ..utils.settings import DEFAULT_FEATSETS
 
 __all__ = ['Rhapsody', 'calcPredictions']
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 
 class Rhapsody:
     """A class implementing the Rhapsody algorithm for pathogenicity
