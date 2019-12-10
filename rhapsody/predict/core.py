@@ -594,7 +594,8 @@ class Rhapsody:
             return
         PP2_score = [x if x != '?' else 'nan' for x in
                      self.PolyPhen2output['pph2_prob']]
-        PP2_class = self.PolyPhen2output['pph2_class']
+        PP2_class = [x if x not in ['none', '?'] else '?' for x in
+                     self.PolyPhen2output['pph2_class']
         self.data['PolyPhen-2 score'] = PP2_score
         self.data['PolyPhen-2 path. class'] = PP2_class
 
