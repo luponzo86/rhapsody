@@ -9,6 +9,14 @@ rhapsody.utils package
 Submodules
 ----------
 
+rhapsody.utils.misc module
+--------------------------
+
+.. automodule:: rhapsody.utils.misc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 rhapsody.utils.settings module
 ------------------------------
 

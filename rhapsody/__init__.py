@@ -6,7 +6,7 @@ variants based on sequence, structure and dynamics of proteins
 from os import path
 
 here = path.abspath(path.dirname(__file__))
-with open(path.join(here, '../VERSION'), encoding='utf-8') as f:
+with open(path.join(here, 'VERSION'), encoding='utf-8') as f:
     __version__ = f.read()
 
 __release__ = __version__
