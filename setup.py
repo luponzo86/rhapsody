@@ -36,7 +36,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/prody/rhapsody',
     author='Luca Ponzoni',
-    author_email='ponzoniluca@gmail.com',
+    author_email='lponzoni@pitt.edu',
     platforms=['Windows', 'MacOS X', 'POSIX'],
     license='GPL',
     classifiers=[
@@ -51,8 +51,6 @@ setup(
         'Operating System :: POSIX',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
 
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
