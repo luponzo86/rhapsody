@@ -22,7 +22,7 @@ setup(
     name='prody-rhapsody',
     version=version,
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    python_requires='>=3.5, <4',
+    python_requires='>=3.6, <4',
     install_requires=[
         'requests', 'tqdm',
         'numpy',  'scikit-learn', 'matplotlib',
