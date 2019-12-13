@@ -30,6 +30,7 @@ setup(
     extras_require={
         'docs': ['sphinx >= 1.4', 'sphinx_theme', 'sphinx_rtd_theme']
     },
+    include_package_data=True,
     description="""Python program, based on ProDy, for pathogenicity prediction
     of human missense variants.""",
     long_description=long_description,
