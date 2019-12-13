@@ -3,16 +3,23 @@
 PDB-based structural and dynamical features in a single place, and a
 function for using the latter on a list of PDB SAV coordinates."""
 
+import numpy as np
+import pickle
+import datetime
+import os
+from tqdm import tqdm
 from prody import Atomic, parsePDB, writePDB, LOGGER, SETTINGS
 from prody import GNM, ANM, calcSqFlucts
 from prody import calcPerturbResponse, calcMechStiff
 # from prody import calcMBS
 from prody import reduceModel, sliceModel
 from prody import execDSSP, parseDSSP
-import numpy as np
-import pickle
-import datetime
-import os
+
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['STR_FEATS', 'DYN_FEATS', 'PDB_FEATS',
            'PDBfeatures', 'calcPDBfeatures']
@@ -208,6 +215,9 @@ class PDBfeatures:
         self._pdb, self._gnm, self._anm = cache
         LOGGER.info("Pickle '{}' saved.".format(filename))
         return pickle_path
+
+    def resetTimestamp(self):
+        self.timestamp = str(datetime.datetime.utcnow())
 
     def setNumModes(self, n_modes):
         """Sets the number of ENM modes to be computed. If different from
@@ -643,7 +653,7 @@ class PDBfeatures:
 
 
 def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
-                    refresh=False):
+                    refresh=False, status_file=None, status_prefix=None):
     LOGGER.info('Computing structural and dynamical features '
                 'from PDB structures...')
     LOGGER.timeit('_calcPDBFeats')
@@ -662,24 +672,40 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
     else:
         # no need to sort when using a custom PDB or PDBID
         sorting_map = range(num_SAVs)
+    # define how to report progress
+    if status_prefix is None:
+        status_prefix = ''
+    bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
+    if status_file is not None:
+        status_file = open(status_file, 'w')
+        progress_bar = tqdm(
+            [(i, mapped_SAVs[i]) for i in sorting_map], file=status_file,
+            bar_format=bar_format+'\n')
+    else:
+        progress_bar = tqdm(
+            [(i, mapped_SAVs[i]) for i in sorting_map], bar_format=bar_format)
     cache = {'PDBID': None, 'chain': None, 'obj': None}
     count = 0
-    for indx, SAV in [(i, mapped_SAVs[i]) for i in sorting_map]:
+    for indx, SAV in progress_bar:
         count += 1
         if SAV['PDB size'] == 0:
             # SAV could not be mapped to PDB
             _features = np.nan
             SAV_coords = SAV['SAV coords']
-            LOGGER.info(f"[{count}/{num_SAVs}] SAV '{SAV_coords}' "
-                        "couldn't be mapped to PDB")
+            progress_msg = f"{status_prefix}No PDB for SAV '{SAV_coords}'"
         else:
             parsed_PDB_coords = SAV['PDB SAV coords'].split()
             PDBID, chID = parsed_PDB_coords[:2]
             resid = int(parsed_PDB_coords[2])
-            LOGGER.info("[{}/{}] Analizing mutation site {}:{} {}..."
-                        .format(count, num_SAVs, PDBID, chID, resid))
+            progress_msg = status_prefix + \
+                f'Analizing mutation site {PDBID}:{chID} {resid}'
             # chID == "?" stands for "empty space"
             chID = " " if chID == "?" else chID
+        # report progress
+        # LOGGER.info(f"[{count}/{num_SAVs}] {progress_msg}...")
+        progress_bar.set_description(progress_msg)
+        # compute PDB features, if possible
+        if SAV['PDB size'] != 0:
             if PDBID == cache['PDBID']:
                 # use PDBfeatures instance from previous iteration
                 obj = cache['obj']
@@ -725,4 +751,6 @@ def calcPDBfeatures(mapped_SAVs, sel_feats=None, custom_PDB=None,
            and custom_PDB is None:
             cache['obj'].savePickle()
     LOGGER.report('PDB features have been computed in %.1fs.', '_calcPDBFeats')
+    if status_file:
+        os.remove(status_file.name)
     return features

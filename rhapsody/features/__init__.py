@@ -4,6 +4,12 @@ sources, e.g. Uniprot sequences, PDB structures, Pfam domains and
 EVmutation precomputed data.
 """
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['RHAPSODY_FEATS']
 
 from . import Uniprot

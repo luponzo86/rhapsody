@@ -5,6 +5,12 @@ from a precomputed BLOSUM substitution matrix."""
 import numpy as np
 from Bio.SubsMat.MatrixInfo import blosum62
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['BLOSUM_FEATS', 'calcBLOSUMfeatures']
 
 BLOSUM_FEATS = ['BLOSUM']

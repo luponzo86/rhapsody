@@ -6,6 +6,12 @@ import os
 import numpy as np
 from prody import LOGGER
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 __all__ = ['print_pred_distrib_figure', 'print_path_prob_figure',
            'print_ROC_figure', 'print_feat_imp_figure']
 
@@ -76,7 +82,7 @@ def print_path_prob_figure(filename, bins, histo, dx, path_prob,
     LOGGER.info(f'Pathogenicity plot saved to {filename}')
 
 
-def print_ROC_figure(filename, fpr, tpr, mean_auc):
+def print_ROC_figure(filename, fpr, tpr, auc_stat):
     assert isinstance(filename, str), 'filename must be a string'
     filename = os.path.splitext(filename)[0] + '.png'
 
@@ -89,12 +95,12 @@ def print_ROC_figure(filename, fpr, tpr, mean_auc):
     fig = plt.figure(figsize=(7, 7))
     plt.plot([0, 1], [0, 1], linestyle='--', lw=1, color='k')
     plt.plot(fpr, tpr,       linestyle='-',  lw=2, color='r',
-             label=f'Mean AUROC = {mean_auc:.3f}')
+             label='AUROC = {:.3f} +/- {:.3f}'.format(*auc_stat))
     plt.xlim([-0.05, 1.05])
     plt.ylim([-0.05, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic')
+    plt.title('mean ROC curve from cross-validation')
     plt.legend(loc="lower right")
     fig.savefig(filename, format='png', bbox_inches='tight')
     plt.close()

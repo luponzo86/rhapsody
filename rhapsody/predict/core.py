@@ -14,6 +14,12 @@ from ..utils.settings import DEFAULT_FEATSETS
 
 __all__ = ['Rhapsody', 'calcPredictions']
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 
 class Rhapsody:
     """A class implementing the Rhapsody algorithm for pathogenicity
@@ -22,10 +28,47 @@ class Rhapsody:
     EVmutation.
     """
 
-    def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True):
+    def __init__(self, query=None, query_type='SAVs', queryPolyPhen2=True,
+                 **kwargs):
+        """ Initialize a Rhapsody object with a list of SAVs (optional).
+
+        :arg query: Single Amino Acid Variants (SAVs) in Uniprot coordinates.
+
+          - If **None**, the SAV list can be imported at a later moment, by
+            using ``.importPolyPhen2output()``, ``.queryPolyPhen2()`` or
+            ``.setSAVs()``
+
+          - if *query_type* = ``'SAVs'`` (default), *query* should be a
+            filename, a string or a list/tuple of strings, containing Uniprot
+            SAV coordinates, with the format ``'P17516 135 G E'``. The string
+            could also be just a single Uniprot sequence identifier (e.g.
+            ``'P17516'``), or the coordinate of a specific site in a sequence
+            (e.g. ``'P17516 135'``), in which case all possible 19 amino acid
+            substitutions at the specified positions will be analyzed.
+          - if *query_type* = ``'PolyPhen2'``, *query* should be a filename
+            containing the output from PolyPhen-2, usually named
+            :file:`pph2-full.txt`
+        :type query: str, list
+
+        :arg query_type: ``'SAVs'`` or ``'PolyPhen2'``
+        :type query_type: str
+
+        :arg queryPolyPhen2: if ``True``, the PolyPhen-2 online tool will be
+            queryied with the list of SAVs
+        :type queryPolyPhen2: bool
+        """
 
         assert query_type in ('SAVs', 'PolyPhen2')
         assert isinstance(queryPolyPhen2, bool)
+        valid_kwargs = [
+            'status_file_Uniprot',
+            'status_file_PDB',
+            'status_file_Pfam',
+            'status_prefix_Uniprot',
+            'status_prefix_PDB',
+            'status_prefix_Pfam',
+            'ignore_PolyPhen2_errors']
+        assert all([k in valid_kwargs for k in kwargs])
 
         # masked NumPy array that will contain all info abut SAVs
         self.data = None
@@ -76,6 +119,8 @@ class Rhapsody:
         self.classifier = None
         self.aux_classifier = None
         self.featSet = None
+        # options
+        self.options = kwargs
 
         if query is None:
             # a SAV list can be uploaded later with setSAVs()
@@ -106,7 +151,7 @@ class Rhapsody:
             self.saturation_mutagenesis = False
             try:
                 SAVs = self.getUniqueSAVcoords()
-                SAV_list = list(SAVs['SAV coords'])
+                SAV_list = list(SAVs['unique SAV coords'])
                 acc = SAVs[0]['Uniprot ID']
                 pos = list(set(SAVs['position']))
                 if len(pos) == 1:
@@ -116,6 +161,8 @@ class Rhapsody:
                 generated_SAV_list = Uniprot.seqScanning(query)
                 if SAV_list == generated_SAV_list:
                     self.saturation_mutagenesis = True
+                else:
+                    raise RuntimeError('Missing SAVs detected.')
             except Exception as e:
                 LOGGER.warn(f'Not a saturation mutagenesis list: {e}')
         return self.saturation_mutagenesis
@@ -161,6 +208,7 @@ class Rhapsody:
         assert self.data is None, 'SAV list already set.'
         assert self.PolyPhen2output is None, "PolyPhen-2 output " \
                                              "already imported."
+        fix_isoforms = False
         if isinstance(query, str) and isfile(query):
             # 'query' is a filename
             SAV_file = query
@@ -168,12 +216,17 @@ class Rhapsody:
             # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
             SAV_list = Uniprot.seqScanning(query)
             SAV_file = Uniprot.printSAVlist(SAV_list, filename)
+            # only when submitting a saturation mutagenesis list, try and
+            # fix possible wrong isoforms used by PolyPhen-2
+            fix_isoforms = True
         else:
             # 'query' is a list, tuple or single string of SAV coordinates
             SAV_file = Uniprot.printSAVlist(query, filename)
         # submit query to PolyPhen-2
         try:
-            PolyPhen2_output = PolyPhen2.queryPolyPhen2(SAV_file)
+            PolyPhen2_output = PolyPhen2.queryPolyPhen2(
+                SAV_file, fix_isoforms=fix_isoforms,
+                ignore_errors=self.options.get('ignore_PolyPhen2_errors'))
         except Exception as e:
             err = (f'Unable to get a response from PolyPhen-2: {e} \n'
                    'Please click "Check Status" on the server homepage \n'
@@ -249,6 +302,8 @@ class Rhapsody:
             # compute mapping
             m = Uniprot.mapSAVs2PDB(
                 self.data['SAV coords'], custom_PDB=self.customPDB,
+                status_file=self.options.get('status_file_Uniprot'),
+                status_prefix=self.options.get('status_prefix_Uniprot'),
                 refresh=refresh)
             self.data['unique SAV coords'] = m['unique SAV coords']
             self.data['PDB SAV coords'] = m['PDB SAV coords']
@@ -351,6 +406,14 @@ class Rhapsody:
             feat_matrix[:, j] = array[featname]
         return feat_matrix
 
+    def importFeatMatrix(self, struct_array):
+        assert self.featMatrix is None, 'Feature matrix already set.'
+        assert self.featSet is not None, 'Feature set not set.'
+        assert self.data is not None, 'SAVs not set.'
+        assert len(struct_array) == self.numSAVs, 'Wrong length.'
+        featm = self._buildFeatMatrix(self.featSet, [struct_array])
+        self.featMatrix = featm
+
     def _calcFeatMatrix(self, refresh=False):
         assert self.data is not None, 'SAVs not set.'
         assert self.featSet is not None, 'Feature set not set.'
@@ -369,7 +432,9 @@ class Rhapsody:
             # compute structural and dynamical features from a PDB structure
             f = PDB.calcPDBfeatures(
                 Uniprot2PDBmap, sel_feats=sel_PDBfeats,
-                custom_PDB=self.customPDB, refresh=refresh)
+                custom_PDB=self.customPDB, refresh=refresh,
+                status_file=self.options.get('status_file_PDB'),
+                status_prefix=self.options.get('status_prefix_PDB'))
             all_feats.append(f)
         if RHAPSODY_FEATS['BLOSUM'].intersection(self.featSet):
             # retrieve BLOSUM values
@@ -377,7 +442,10 @@ class Rhapsody:
             all_feats.append(f)
         if RHAPSODY_FEATS['Pfam'].intersection(self.featSet):
             # compute sequence properties from Pfam domains
-            f = Pfam.calcPfamFeatures(self.data['SAV coords'])
+            f = Pfam.calcPfamFeatures(
+                self.data['SAV coords'],
+                status_file=self.options.get('status_file_Pfam'),
+                status_prefix=self.options.get('status_prefix_Pfam'))
             all_feats.append(f)
         if RHAPSODY_FEATS['EVmut'].intersection(self.featSet):
             # recover EVmutation data
@@ -408,7 +476,7 @@ class Rhapsody:
             trainData[f] = self.featMatrix[:, i]
         return trainData
 
-    def importPrecomputedFeatures(self, features_dict):
+    def importPrecomputedExtraFeatures(self, features_dict):
         assert isinstance(features_dict, dict)
         # import additional precomputed features
         default_feats = RHAPSODY_FEATS['all']
@@ -526,7 +594,8 @@ class Rhapsody:
             return
         PP2_score = [x if x != '?' else 'nan' for x in
                      self.PolyPhen2output['pph2_prob']]
-        PP2_class = self.PolyPhen2output['pph2_class']
+        PP2_class = [x if x not in ['none', '?'] else '?' for x in
+                     self.PolyPhen2output['pph2_class']]
         self.data['PolyPhen-2 score'] = PP2_score
         self.data['PolyPhen-2 path. class'] = PP2_class
 
@@ -535,9 +604,7 @@ class Rhapsody:
             return
         EVmut_feats = EVmutation.recoverEVmutFeatures(self.data['SAV coords'])
         EVmut_score = EVmut_feats['EVmut-DeltaE_epist']
-        c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
-        EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
-        EVmut_class[np.isnan(EVmut_score)] = '?'
+        EVmut_class = EVmutation.calcEVmutPathClasses(EVmut_score)
         self.data['EVmutation score'] = EVmut_score
         self.data['EVmutation path. class'] = EVmut_class
 
@@ -778,7 +845,7 @@ class Rhapsody:
         assert predictions in ['best', 'main', 'aux',
                                'PolyPhen-2', 'EVmutation']
         if not self._isSaturationMutagenesis():
-            LOGGER.warn('This function is available only when performing ',
+            LOGGER.warn('This function is available only when performing '
                         'saturation mutagenesis analysis')
             return None
         # select prediction set to be printed on PDB file
@@ -871,7 +938,7 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     classifier = clsf_dict['trained RF']
     opt_cutoff = clsf_dict['CV summary']['optimal cutoff']
     path_curve = clsf_dict['CV summary']['path. probability']
-    train_data = clsf_dict['training dataset']
+    train_data = clsf_dict['CV summary']['training dataset']
 
     LOGGER.timeit('_preds')
 
@@ -897,14 +964,16 @@ def calcPredictions(feat_matrix, clsf, SAV_coords=None):
     J, err_bar = opt_cutoff
     Jminus = J - err_bar
     Jplus = J + err_bar
+    delSAVs = train_data['SAV_coords'][train_data['true_label'] == 1]
+    neuSAVs = train_data['SAV_coords'][train_data['true_label'] == 0]
     k = 0
     for i in range(len(feat_matrix)):
         # determine SAV status
         if SAV_coords is None:
             SAV_status = '?'
-        elif SAV_coords[i] in train_data['del. SAVs']:
+        elif SAV_coords[i] in delSAVs:
             SAV_status = 'known_del'
-        elif SAV_coords[i] in train_data['neu. SAVs']:
+        elif SAV_coords[i] in neuSAVs:
             SAV_status = 'known_neu'
         else:
             SAV_status = 'new'

@@ -38,6 +38,7 @@ before_install:
   # install dependencies for rhapsody
   - conda install requests numpy scikit-learn
   - conda install matplotlib
+  - pip install tqdm
 
 install:
   # - python setup.py install
@@ -46,4 +47,5 @@ install:
 script:
   # - pytest test1.py
   - cd test/test-1; python test-1.py
+  - cd ../test-2; python test-2.py
 

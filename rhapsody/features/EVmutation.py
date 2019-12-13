@@ -7,12 +7,11 @@ from glob import glob
 from os.path import splitext, join, basename
 from prody import SETTINGS, LOGGER
 
-# extract precomputed EVmutation scores for given mutants
-# NB:
-# negative DeltaE_epist --> deleterious effect
-# DeltaE_epist == 0     --> neutral effect (wild-type)
-# positive DeltaE_epist --> neutral/benign effect
-
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['EVMUT_FEATS', 'recoverEVmutFeatures']
 
@@ -34,6 +33,12 @@ def recoverEVmutFeatures(SAVs):
     """
     LOGGER.timeit('_EVmut')
     LOGGER.info('Recovering EVmutation data...')
+
+    # extracts precomputed EVmutation scores for given mutants
+    # NB:
+    # negative DeltaE_epist --> deleterious effect
+    # DeltaE_epist == 0     --> neutral effect (wild-type)
+    # positive DeltaE_epist --> neutral/benign effect
 
     def find_matching_files(file_list, acc, pos):
         match_files = []
@@ -70,8 +75,8 @@ def recoverEVmutFeatures(SAVs):
             with open(join(EVmut_dir, fname), 'r') as f:
                 for line in f:
                     if line.startswith(mutant):
-                        l = line.strip().split(';')[4:8]
-                        data.append(l)
+                        ll = line.strip().split(';')[4:8]
+                        data.append(ll)
                         break
         data = np.array(data, dtype=float)
         if len(data) == 0:
@@ -82,3 +87,10 @@ def recoverEVmutFeatures(SAVs):
 
     LOGGER.report('EVmutation scores recovered in %.1fs.', '_EVmut')
     return features
+
+
+def calcEVmutPathClasses(EVmut_score):
+    c = -SETTINGS.get('EVmutation_metrics')['optimal cutoff']
+    EVmut_class = np.where(EVmut_score < c, 'deleterious', 'neutral')
+    EVmut_class[np.isnan(EVmut_score)] = '?'
+    return EVmut_class

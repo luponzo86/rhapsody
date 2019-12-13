@@ -8,11 +8,17 @@ from .core import Rhapsody
 
 __all__ = ['rhapsody']
 
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
+
 
 def rhapsody(query, query_type='SAVs',
              main_classifier=None, aux_classifier=None,
              custom_PDB=None, force_env=None,
-             refresh=False, log=True):
+             refresh=False, log=True, **kwargs):
     """Obtain Rhapsody pathogenicity predictions on a list of human missense
     variants ([ref]_)
 
@@ -77,7 +83,7 @@ def rhapsody(query, query_type='SAVs',
             aux_classifier = getDefaultClassifiers()['reduced']
 
     # initialize object that will contain all results and predictions
-    r = Rhapsody()
+    r = Rhapsody(**kwargs)
 
     # import classifiers and feature set from pickle
     r.importClassifiers(main_classifier, aux_classifier, force_env=force_env)
@@ -99,9 +105,9 @@ def rhapsody(query, query_type='SAVs',
     r.printPredictions()
     if aux_classifier is not None:
         # print both 'full' and 'reduced' predictions in a more detailed format
-        r.printPredictions(classifier="both",
-                           PolyPhen2=False, EVmutation=False,
-                           filename='rhapsody-predictions-full_vs_reduced.txt')
+        r.printPredictions(
+            classifier="both", PolyPhen2=False, EVmutation=False,
+            filename='rhapsody-predictions-full_vs_reduced.txt')
 
     # save pickle
     r.savePickle()

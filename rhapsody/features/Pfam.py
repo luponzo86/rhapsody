@@ -3,9 +3,17 @@
 coevolution properties of an amino acid substitution from a Pfam
 multiple sequence alignment."""
 
+import os
 import numpy as np
+from tqdm import tqdm
 from prody import LOGGER
 from .Uniprot import UniprotMapping
+
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['PFAM_FEATS', 'calcPfamFeatures']
 
@@ -38,7 +46,7 @@ def _calcEvolFeatures(PF_dict, pos):
         return feats
 
 
-def calcPfamFeatures(SAVs):
+def calcPfamFeatures(SAVs, status_file=None, status_prefix=None):
     LOGGER.info('Computing sequence properties from Pfam domains...')
     LOGGER.timeit('_calcPfamFeats')
     # sort SAVs, so to group together those
@@ -49,14 +57,29 @@ def calcPfamFeatures(SAVs):
     num_SAVs = len(SAVs)
     feat_dtype = np.dtype([('entropy', 'f'), ('ranked_MI', 'f')])
     features = np.zeros(num_SAVs, dtype=feat_dtype)
+    # define how to report progress
+    if status_prefix is None:
+        status_prefix = ''
+    bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
+    if status_file is not None:
+        status_file = open(status_file, 'w')
+        progress_bar = tqdm(
+            [(i, SAVs[i]) for i in sorting_map], file=status_file,
+            bar_format=bar_format+'\n')
+    else:
+        progress_bar = tqdm(
+            [(i, SAVs[i]) for i in sorting_map], bar_format=bar_format)
     # map to Pfam domains using UniprotMapping class
     cache = {'acc': None, 'obj': None, 'warn': ''}
     count = 0
-    for indx, SAV in [(i, SAVs[i]) for i in sorting_map]:
+    for indx, SAV in progress_bar:
         count += 1
         acc, pos, aa1, aa2 = SAV.split()
         pos = int(pos)
-        LOGGER.info(f"[{count}/{num_SAVs}] Mapping SAV '{SAV}' to Pfam...")
+        # report progress
+        progress_msg = f"{status_prefix}Mapping SAV '{SAV}' to Pfam"
+        # LOGGER.info(f"[{count}/{num_SAVs}] {progress_msg}...")
+        progress_bar.set_description(progress_msg)
         # map to Pfam domains using 'UniprotMapping' class
         if acc == cache['acc']:
             # use object from previous iteration
@@ -102,4 +125,6 @@ def calcPfamFeatures(SAVs):
             cache['obj'].savePickle()
     LOGGER.report('SAVs have been mapped on Pfam domains and sequence '
                   'properties have been computed in %.1fs.', '_calcPfamFeats')
+    if status_file:
+        os.remove(status_file.name)
     return features

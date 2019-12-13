@@ -9,9 +9,16 @@ import datetime
 import numpy as np
 import prody as pd
 from prody import LOGGER, SETTINGS
+from tqdm import tqdm
 from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
 from Bio.SubsMat import MatrixInfo as matlist
+
+__author__ = "Luca Ponzoni"
+__date__ = "December 2019"
+__maintainer__ = "Luca Ponzoni"
+__email__ = "lponzoni@pitt.edu"
+__status__ = "Production"
 
 __all__ = ['UniprotMapping', 'mapSAVs2PDB', 'seqScanning', 'printSAVlist']
 
@@ -28,7 +35,7 @@ class UniprotMapping:
         self.customPDBmappings = None
         self._align_algo_args = None
         self._align_algo_kwargs = None
-        self._timestamp = None
+        self.timestamp = None
         self.Pfam = None
         assert type(recover_pickle) is bool
         if recover_pickle:
@@ -58,7 +65,7 @@ class UniprotMapping:
         self.customPDBmappings = []
         self._align_algo_args = ['localxs', -0.5, -0.1]
         self._align_algo_kwargs = {'one_alignment_only': True}
-        self._timestamp = str(datetime.datetime.utcnow())
+        self.timestamp = str(datetime.datetime.utcnow())
         self.Pfam = None
         return
 
@@ -401,7 +408,7 @@ class UniprotMapping:
                              % recovered_self.uniq_acc + 'does not match.')
         # check timestamp and ignore pickles that are too old
         date_format = "%Y-%m-%d %H:%M:%S.%f"
-        t_old = datetime.datetime.strptime(recovered_self._timestamp,
+        t_old = datetime.datetime.strptime(recovered_self.timestamp,
                                            date_format)
         t_now = datetime.datetime.utcnow()
         Delta_t = datetime.timedelta(days=days)
@@ -416,10 +423,13 @@ class UniprotMapping:
         self.customPDBmappings = recovered_self.customPDBmappings
         self._align_algo_args = recovered_self._align_algo_args
         self._align_algo_kwargs = recovered_self._align_algo_kwargs
-        self._timestamp = recovered_self._timestamp
+        self.timestamp = recovered_self.timestamp
         self.Pfam = recovered_self.Pfam
         LOGGER.info("Pickle '{}' recovered.".format(filename))
         return
+
+    def resetTimestamp(self):
+        self.timestamp = str(datetime.datetime.utcnow())
 
     def _checkAccessionNumber(self, acc):
         if '-' in acc:
@@ -439,7 +449,7 @@ class UniprotMapping:
             resids = fields[1].split('-')
             try:
                 resids = tuple([int(s) for s in resids])
-            except:
+            except Exception:
                 # sometimes the interval is undefined,
                 # e.g. "A=-"
                 resids = None
@@ -755,7 +765,8 @@ class UniprotMapping:
         return {k: self.Pfam[k] for k in PF_list}
 
 
-def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
+def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False,
+                status_file=None, status_prefix=None):
     LOGGER.info('Mapping SAVs to PDB structures...')
     LOGGER.timeit('_map2PDB')
     # sort SAVs, so to group together those
@@ -763,20 +774,36 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
     accs = [s.split()[0] for s in SAV_coords]
     sorting_map = np.argsort(accs)
     # define a structured array
-    PDBmap_dtype = np.dtype([('orig. SAV coords', 'U25'),
-                             ('unique SAV coords', 'U25'),
-                             ('PDB SAV coords', 'U100'),
-                             ('PDB size', 'i')])
+    PDBmap_dtype = np.dtype([
+        ('orig. SAV coords', 'U25'),
+        ('unique SAV coords', 'U25'),
+        ('PDB SAV coords', 'U100'),
+        ('PDB size', 'i')])
     nSAVs = len(SAV_coords)
     mapped_SAVs = np.zeros(nSAVs, dtype=PDBmap_dtype)
+    # define how to report progress
+    if status_prefix is None:
+        status_prefix = ''
+    bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
+    if status_file is not None:
+        status_file = open(status_file, 'w')
+        progress_bar = tqdm(
+            [(i, SAV_coords[i]) for i in sorting_map], file=status_file,
+            bar_format=bar_format+'\n')
+    else:
+        progress_bar = tqdm(
+            [(i, SAV_coords[i]) for i in sorting_map], bar_format=bar_format)
     # map to PDB using Uniprot class
     cache = {'acc': None, 'obj': None}
     count = 0
-    for indx, SAV in [(i, SAV_coords[i]) for i in sorting_map]:
+    for indx, SAV in progress_bar:
         count += 1
         acc, pos, aa1, aa2 = SAV.split()
         pos = int(pos)
-        LOGGER.info(f"[{count}/{nSAVs}] Mapping SAV '{SAV}' to PDB...")
+        # report progress
+        progress_msg = f"{status_prefix}Mapping SAV '{SAV}' to PDB"
+        # LOGGER.info(f"[{count}/{nSAVs}] {progress_msg}...")
+        progress_bar.set_description(progress_msg)
         # map Uniprot to PDB chains
         if acc == cache['acc']:
             # use mapping from previous iteration
@@ -833,6 +860,8 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False):
     n = sum(mapped_SAVs['PDB size'] != 0)
     LOGGER.report(f'{n} out of {nSAVs} SAVs have been mapped to PDB in %.1fs.',
                   '_map2PDB')
+    if status_file:
+        os.remove(status_file.name)
     return mapped_SAVs
 
 
