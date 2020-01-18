@@ -79,8 +79,11 @@ def initialSetup(working_dir=None, refresh=False, download_EVmutation=True):
             working_dir = DEFAULT_WORKING_DIR
             if os.path.isdir(working_dir):
                 raise EnvironmentError(
-                    f"A folder named '{working_dir}' already exists. "
-                    "Please specify another name.")
+                    f"A folder at default path '{working_dir}' already "
+                    "exists. If it contains configuration files from a "
+                    "previous installation that you wish to recover, please "
+                    f"run: initialSetup('{working_dir}') \n"
+                    "Otherwise, please specify another location.")
             else:
                 os.mkdir(working_dir)
                 pd.LOGGER.info(f'Default working directory set: {working_dir}')
