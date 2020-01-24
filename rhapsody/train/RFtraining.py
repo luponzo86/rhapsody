@@ -12,6 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn.metrics import matthews_corrcoef, precision_recall_fscore_support
+from sklearn.utils import resample
 from ..utils.settings import DEFAULT_FEATSETS, getDefaultTrainingDataset
 from .figures import print_pred_distrib_figure, print_path_prob_figure
 from .figures import print_ROC_figure, print_feat_imp_figure
@@ -27,46 +28,93 @@ __all__ = ['calcScoreMetrics', 'calcClassMetrics', 'calcPathogenicityProbs',
            'extendDefaultTrainingDataset']
 
 
-def calcScoreMetrics(y_test, y_pred):
-    # compute ROC and AUROC
-    fpr, tpr, roc_thr = roc_curve(y_test, y_pred)
-    roc = {'FPR': fpr, 'TPR': tpr, 'thresholds': roc_thr}
-    auroc = roc_auc_score(y_test, y_pred)
-    # compute optimal cutoff J (argmax of Youden's index)
-    diff = np.array([y-x for x, y in zip(fpr, tpr)])
-    Jopt = roc_thr[(-diff).argsort()][0]
-    # compute Precision-Recall curve and AUPRC
-    pre, rec, prc_thr = precision_recall_curve(y_test, y_pred)
-    prc = {'precision': pre, 'recall': rec, 'thresholds': prc_thr}
-    auprc = average_precision_score(y_test, y_pred)
-    output = {
-        'ROC': roc,
-        'AUROC': auroc,
-        'optimal cutoff': Jopt,
-        'PRC': prc,
-        'AUPRC': auprc
-    }
+def calcScoreMetrics(y_test, y_pred, bootstrap=0, **resample_kwargs):
+    '''Compute accuracy metrics of continuous values (optionally bootstrapped)
+    '''
+    def _calcScoreMetrics(y_test, y_pred):
+        # compute ROC and AUROC
+        fpr, tpr, roc_thr = roc_curve(y_test, y_pred)
+        roc = {'FPR': fpr, 'TPR': tpr, 'thresholds': roc_thr}
+        auroc = roc_auc_score(y_test, y_pred)
+        # compute optimal cutoff J (argmax of Youden's index)
+        diff = np.array([y-x for x, y in zip(fpr, tpr)])
+        Jopt = roc_thr[(-diff).argsort()][0]
+        # compute Precision-Recall curve and AUPRC
+        pre, rec, prc_thr = precision_recall_curve(y_test, y_pred)
+        prc = {'precision': pre, 'recall': rec, 'thresholds': prc_thr}
+        auprc = average_precision_score(y_test, y_pred)
+        return {
+            'ROC': roc,
+            'AUROC': auroc,
+            'optimal cutoff': Jopt,
+            'PRC': prc,
+            'AUPRC': auprc
+        }
+
+    if bootstrap < 2:
+        output = _calcScoreMetrics(y_test, y_pred)
+    else:
+        # apply bootstrap
+        outputs = []
+        for i in range(bootstrap):
+            yy_test, yy_pred = resample(y_test, y_pred, **resample_kwargs)
+            outputs.append(_calcScoreMetrics(yy_test, yy_pred))
+        # compute mean and standard deviation of metrics
+        output = {}
+        for metric in ['AUROC', 'optimal cutoff', 'AUPRC']:
+            v = [d[metric] for d in outputs]
+            output[f'mean {metric}'] = np.mean(v)
+            output[f'{metric} std'] = np.std(v)
+        # compute average ROC
+        mean_fpr = np.linspace(0, 1, len(y_pred))
+        mean_tpr = 0.0
+        for d in outputs:
+            mean_tpr += np.interp(mean_fpr, d['ROC']['FPR'], d['ROC']['TPR'])
+        mean_tpr /= bootstrap
+        mean_tpr[0] = 0.0
+        mean_tpr[-1] = 1.0
+        output['mean ROC'] = {'FPR': mean_fpr, 'TPR': mean_tpr}
+
     return output
 
 
-def calcClassMetrics(y_test, y_pred):
-    mcc = matthews_corrcoef(y_test, y_pred)
-    pre, rec, f1s, sup = precision_recall_fscore_support(
-        y_test, y_pred, labels=[0, 1])
-    avg_pre, avg_rec, avg_f1s, _ = precision_recall_fscore_support(
-        y_test, y_pred, average='weighted')
-    output = {
-        'MCC': mcc,
-        'precision (0)': pre[0],
-        'recall (0)': rec[0],
-        'F1 score (0)': f1s[0],
-        'precision (1)': pre[1],
-        'recall (1)': rec[1],
-        'F1 score (1)': f1s[1],
-        'precision': avg_pre,
-        'recall': avg_rec,
-        'F1 score': avg_f1s
-    }
+def calcClassMetrics(y_test, y_pred, bootstrap=0, **resample_kwargs):
+    '''Compute accuracy metrics of binary labels (optionally bootstrapped)
+    '''
+    def _calcClassMetrics(y_test, y_pred):
+        mcc = matthews_corrcoef(y_test, y_pred)
+        pre, rec, f1s, sup = precision_recall_fscore_support(
+            y_test, y_pred, labels=[0, 1])
+        avg_pre, avg_rec, avg_f1s, _ = precision_recall_fscore_support(
+            y_test, y_pred, average='weighted')
+        return {
+            'MCC': mcc,
+            'precision (0)': pre[0],
+            'recall (0)': rec[0],
+            'F1 score (0)': f1s[0],
+            'precision (1)': pre[1],
+            'recall (1)': rec[1],
+            'F1 score (1)': f1s[1],
+            'precision': avg_pre,
+            'recall': avg_rec,
+            'F1 score': avg_f1s
+        }
+
+    if bootstrap < 2:
+        output = _calcClassMetrics(y_test, y_pred)
+    else:
+        # apply bootstrap
+        outputs = []
+        for i in range(bootstrap):
+            yy_test, yy_pred = resample(y_test, y_pred, **resample_kwargs)
+            outputs.append(_calcClassMetrics(yy_test, yy_pred))
+        # compute mean and standard deviation of metrics
+        output = {}
+        for metric in outputs[0].keys():
+            v = [d[metric] for d in outputs]
+            output[f'mean {metric}'] = np.mean(v)
+            output[f'{metric} std'] = np.std(v)
+
     return output
 
 
