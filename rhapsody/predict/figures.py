@@ -203,7 +203,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     ax0.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # mutagenesis table (heatmap)
-    matplotlib.cm.coolwarm.set_bad(color='antiquewhite')
+    matplotlib.cm.coolwarm.set_bad(color='#F9E79F')
     im = ax1.imshow(table_best[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
