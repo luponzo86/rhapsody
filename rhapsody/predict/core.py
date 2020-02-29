@@ -145,21 +145,32 @@ class Rhapsody:
         assert self.data is not None, 'Data array not initialized.'
         return self.data[column].count() != 0
 
-    def _isSaturationMutagenesis(self):
+    def _isSaturationMutagenesis(self, queryUniprot=False):
         assert self._isColSet('SAV coords'), 'SAV list not set.'
         if self.saturation_mutagenesis is None:
             self.saturation_mutagenesis = False
             try:
                 SAVs = self.getUniqueSAVcoords()
                 SAV_list = list(SAVs['unique SAV coords'])
-                acc = SAVs[0]['Uniprot ID']
+                acc = list(set(SAVs['Uniprot ID']))
+                if len(acc) != 1:
+                    raise RuntimeError('Multiple accession numbers found')
+                else:
+                    acc = acc[0]
                 pos = list(set(SAVs['position']))
                 if len(pos) == 1:
                     query = f'{acc} {pos[0]}'
                 else:
                     query = acc
-                generated_SAV_list = Uniprot.seqScanning(query)
-                if SAV_list == generated_SAV_list:
+                # generate target scanning list
+                if queryUniprot:
+                    print(1)
+                    target_SAV_list = Uniprot.seqScanning(query)
+                else:
+                    print(2)
+                    seq = ''.join(SAVs['wt. aa'][range(0, len(SAVs), 19)])
+                    target_SAV_list = Uniprot.seqScanning(query, sequence=seq)
+                if SAV_list == target_SAV_list:
                     self.saturation_mutagenesis = True
                 else:
                     raise RuntimeError('Missing SAVs detected.')
