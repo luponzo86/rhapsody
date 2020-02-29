@@ -9,6 +9,7 @@ import datetime
 import numpy as np
 import prody as pd
 from prody import LOGGER, SETTINGS
+from prody.utilities import openURL
 from tqdm import tqdm
 from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
@@ -20,7 +21,16 @@ __maintainer__ = "Luca Ponzoni"
 __email__ = "lponzoni@pitt.edu"
 __status__ = "Production"
 
-__all__ = ['UniprotMapping', 'mapSAVs2PDB', 'seqScanning', 'printSAVlist']
+__all__ = ['queryUniprot', 'UniprotMapping', 'mapSAVs2PDB',
+           'seqScanning', 'printSAVlist']
+
+
+def queryUniprot(*args, **kwargs):
+    """
+    Redefine prody function to check for no internet connection
+    """
+    _ = openURL('http://www.uniprot.org/')
+    return pd.queryUniprot(*args, **kwargs)
 
 
 class UniprotMapping:
@@ -52,7 +62,7 @@ class UniprotMapping:
         delete precomputed alignments.
         """
         # import Uniprot record and official accession number
-        self.fullRecord = pd.queryUniprot(self.acc)
+        self.fullRecord = queryUniprot(self.acc)
         self.uniq_acc = self.fullRecord['accession   0']
         # import main sequence and PDB records
         rec = self.fullRecord
@@ -393,7 +403,7 @@ class UniprotMapping:
             pickle_path = os.path.join(folder, filename)
             if not os.path.isfile(pickle_path):
                 # import unique accession number
-                acc = pd.queryUniprot(self.acc)['accession   0']
+                acc = queryUniprot(self.acc)['accession   0']
                 filename = 'UniprotMap-' + acc + '.pkl'
                 pickle_path = os.path.join(folder, filename)
         else:
@@ -878,7 +888,7 @@ def seqScanning(Uniprot_coord, sequence=None):
     assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
     aa_list = 'ACDEFGHIKLMNPQRSTVWY'
     if sequence is None:
-        Uniprot_record = pd.queryUniprot(coord[0])
+        Uniprot_record = queryUniprot(coord[0])
         sequence = Uniprot_record['sequence   0'].replace("\n", "")
     else:
         assert isinstance(sequence, str), "Must be a string."

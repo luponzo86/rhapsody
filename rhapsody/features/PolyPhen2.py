@@ -8,10 +8,11 @@ import os
 import requests
 import datetime
 import numpy as np
-from prody import LOGGER, queryUniprot
+from prody import LOGGER
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from math import log
+from .Uniprot import queryUniprot
 
 __author__ = "Luca Ponzoni"
 __date__ = "December 2019"
