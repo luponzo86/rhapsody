@@ -164,10 +164,8 @@ class Rhapsody:
                     query = acc
                 # generate target scanning list
                 if queryUniprot:
-                    print(1)
                     target_SAV_list = Uniprot.seqScanning(query)
                 else:
-                    print(2)
                     seq = ''.join(SAVs['wt. aa'][range(0, len(SAVs), 19)])
                     target_SAV_list = Uniprot.seqScanning(query, sequence=seq)
                 if SAV_list == target_SAV_list:
