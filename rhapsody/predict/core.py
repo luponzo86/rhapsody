@@ -193,18 +193,19 @@ class Rhapsody:
             if isfile(query):
                 # 'query' is a filename, with line format 'P17516 135 G E'
                 SAVs = np.loadtxt(query, dtype=SAV_dtype)
-                SAV_list = ['{} {} {} {}'.format(*s) for s in SAVs]
+                SAV_list = ['{} {} {} {}'.format(*s).upper() for s in SAVs]
             elif len(query.split()) < 3:
                 # single Uniprot acc (+ pos), e.g. 'P17516' or 'P17516 135'
                 SAV_list = Uniprot.seqScanning(query)
                 self.saturation_mutagenesis = True
             else:
                 # single SAV
-                SAV = np.array(query.split(), dtype=SAV_dtype)
+                SAV = np.array(query.upper().split(), dtype=SAV_dtype)
                 SAV_list = ['{} {} {} {}'.format(*SAV)]
         else:
             # 'query' is a list or tuple of SAV coordinates
-            SAVs = np.array([tuple(s.split()) for s in query], dtype=SAV_dtype)
+            SAVs = np.array([tuple(s.upper().split()) for s in query],
+                            dtype=SAV_dtype)
             SAV_list = ['{} {} {} {}'.format(*s) for s in SAVs]
         # store SAV coordinates
         numSAVs = len(SAV_list)

@@ -884,7 +884,7 @@ def seqScanning(Uniprot_coord, sequence=None):
     sequence will be downloaded from Uniprot.
     '''
     assert isinstance(Uniprot_coord, str), "Must be a string."
-    coord = Uniprot_coord.strip().split()
+    coord = Uniprot_coord.upper().strip().split()
     assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
     aa_list = 'ACDEFGHIKLMNPQRSTVWY'
     if sequence is None:
@@ -928,5 +928,5 @@ def printSAVlist(input_SAVs, filename):
             m = f'error in SAV {i}: '
             assert isinstance(line, str), f'{m} not a string'
             assert len(line) < 25, f'{m} too many characters'
-            print(line, file=f)
+            print(line.upper(), file=f)
     return filename
