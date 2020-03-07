@@ -63,7 +63,7 @@ setup(
 )
 
 '''
-Publish to PyPI with:
+After updating VERSION, publish to PyPI with:
 
 $ rm -rf prody_rhapsody.egg-info/ build/ dist/
 $ python setup.py sdist bdist_wheel
