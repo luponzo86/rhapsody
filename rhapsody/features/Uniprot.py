@@ -9,6 +9,7 @@ import datetime
 import numpy as np
 import prody as pd
 from prody import LOGGER, SETTINGS
+from prody.utilities import openURL
 from tqdm import tqdm
 from Bio.pairwise2 import align as bioalign
 from Bio.pairwise2 import format_alignment
@@ -20,7 +21,16 @@ __maintainer__ = "Luca Ponzoni"
 __email__ = "lponzoni@pitt.edu"
 __status__ = "Production"
 
-__all__ = ['UniprotMapping', 'mapSAVs2PDB', 'seqScanning', 'printSAVlist']
+__all__ = ['queryUniprot', 'UniprotMapping', 'mapSAVs2PDB',
+           'seqScanning', 'printSAVlist']
+
+
+def queryUniprot(*args, **kwargs):
+    """
+    Redefine prody function to check for no internet connection
+    """
+    _ = openURL('http://www.uniprot.org/')
+    return pd.queryUniprot(*args, **kwargs)
 
 
 class UniprotMapping:
@@ -52,7 +62,7 @@ class UniprotMapping:
         delete precomputed alignments.
         """
         # import Uniprot record and official accession number
-        self.fullRecord = pd.queryUniprot(self.acc)
+        self.fullRecord = queryUniprot(self.acc)
         self.uniq_acc = self.fullRecord['accession   0']
         # import main sequence and PDB records
         rec = self.fullRecord
@@ -393,7 +403,7 @@ class UniprotMapping:
             pickle_path = os.path.join(folder, filename)
             if not os.path.isfile(pickle_path):
                 # import unique accession number
-                acc = pd.queryUniprot(self.acc)['accession   0']
+                acc = queryUniprot(self.acc)['accession   0']
                 filename = 'UniprotMap-' + acc + '.pkl'
                 pickle_path = os.path.join(folder, filename)
         else:
@@ -865,26 +875,44 @@ def mapSAVs2PDB(SAV_coords, custom_PDB=None, refresh=False,
     return mapped_SAVs
 
 
-def seqScanning(Uniprot_coord):
-    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a Uniprot ID,
-    the list will contain all possible amino acid substitutions at all positions
-    in the sequence. If 'Uniprot_coord' also includes a specific position, the list
-    will only contain all possible amino acid variants at that position.
+def seqScanning(Uniprot_coord, sequence=None):
+    '''Returns a list of SAVs. If the string 'Uniprot_coord' is just a
+    Uniprot ID, the list will contain all possible amino acid substitutions
+    at all positions in the sequence. If 'Uniprot_coord' also includes a
+    specific position, the list will only contain all possible amino acid
+    variants at that position. If 'sequence' is 'None' (default), the
+    sequence will be downloaded from Uniprot.
     '''
     assert isinstance(Uniprot_coord, str), "Must be a string."
-    coord = Uniprot_coord.strip().split()
+    coord = Uniprot_coord.upper().strip().split()
     assert len(coord) < 3, "Invalid format. Examples: 'Q9BW27' or 'Q9BW27 10'."
-    Uniprot_record = pd.queryUniprot(coord[0])
-    sequence = Uniprot_record['sequence   0'].replace("\n", "")
+    aa_list = 'ACDEFGHIKLMNPQRSTVWY'
+    if sequence is None:
+        Uniprot_record = queryUniprot(coord[0])
+        sequence = Uniprot_record['sequence   0'].replace("\n", "")
+    else:
+        assert isinstance(sequence, str), "Must be a string."
+        sequence = sequence.upper()
+        assert set(sequence).issubset(aa_list), "Invalid list of amino acids."
     if len(coord) == 1:
+        # user asks for full-sequence scanning
         positions = range(len(sequence))
     else:
-        positions = [int(coord[1]) - 1]
+        # user asks for single-site scanning
+        site = int(coord[1])
+        positions = [site - 1]
+        # if user provides only one amino acid as 'sequence', interpret it
+        # as the amino acid at the specified position
+        if len(sequence) == 1:
+            sequence = sequence*site
+        else:
+            assert len(sequence) >= site, ("Requested position is not found "
+                                           "in input sequence.")
     SAV_list = []
     acc = coord[0]
     for i in positions:
         wt_aa = sequence[i]
-        for aa in 'ACDEFGHIKLMNPQRSTVWY':
+        for aa in aa_list:
             if aa == wt_aa:
                 continue
             s = ' '.join([acc, str(i+1), wt_aa, aa])
@@ -900,5 +928,5 @@ def printSAVlist(input_SAVs, filename):
             m = f'error in SAV {i}: '
             assert isinstance(line, str), f'{m} not a string'
             assert len(line) < 25, f'{m} too many characters'
-            print(line, file=f)
+            print(line.upper(), file=f)
     return filename

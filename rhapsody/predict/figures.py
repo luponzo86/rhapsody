@@ -203,7 +203,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     ax0.grid(which='minor', color='w', linestyle='-', linewidth=.5)
 
     # mutagenesis table (heatmap)
-    matplotlib.cm.coolwarm.set_bad(color='antiquewhite')
+    matplotlib.cm.coolwarm.set_bad(color='#F9E79F')
     im = ax1.imshow(table_best[:, res_i-1:res_f], aspect='auto',
                     cmap='coolwarm', vmin=0, vmax=1)
     axcb.figure.colorbar(im, cax=axcb)
@@ -221,7 +221,12 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # average pathogenicity profile
     x_resids = np.arange(1, upper_lim+1)
     # shading showing range of values
-    ax2.fill_between(x_resids, min_p, max_p, alpha=0.5,
+    # NB: a bug in pyplot.fill_between() arises when selecting a region with
+    # set_xlim() in a large plot (e.g. > 1000), causing the shaded area to
+    # be plotted even though it's outside the selected region. As a workaround,
+    # here I slice the plot to fit the selected region.
+    sl = slice(max(1, res_i-2), min(res_f+2, upper_lim+1))
+    ax2.fill_between(x_resids[sl], min_p[sl], max_p[sl], alpha=0.5,
                      edgecolor='salmon', facecolor='salmon')
     # plot average profile for other predictions, if available
     if extra_plot is not None:
