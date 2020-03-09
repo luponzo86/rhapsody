@@ -225,7 +225,7 @@ def print_sat_mutagen_figure(filename, rhapsody_obj, res_interval=None,
     # set_xlim() in a large plot (e.g. > 1000), causing the shaded area to
     # be plotted even though it's outside the selected region. As a workaround,
     # here I slice the plot to fit the selected region.
-    sl = slice(max(1, res_i-2), min(res_f+2, upper_lim+1))
+    sl = slice(max(0, res_i-2), min(res_f+2, upper_lim+1))
     ax2.fill_between(x_resids[sl], min_p[sl], max_p[sl], alpha=0.5,
                      edgecolor='salmon', facecolor='salmon')
     # plot average profile for other predictions, if available
