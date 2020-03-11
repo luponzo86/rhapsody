@@ -6,6 +6,7 @@ import os
 import re
 import pickle
 import datetime
+import time
 import numpy as np
 import prody as pd
 from prody import LOGGER, SETTINGS
@@ -25,11 +26,21 @@ __all__ = ['queryUniprot', 'UniprotMapping', 'mapSAVs2PDB',
            'seqScanning', 'printSAVlist']
 
 
-def queryUniprot(*args, **kwargs):
+def queryUniprot(*args, n_attempts=3, dt=1, **kwargs):
     """
     Redefine prody function to check for no internet connection
     """
-    _ = openURL('http://www.uniprot.org/')
+    attempt = 0
+    while attempt < n_attempts:
+        try:
+            print(f'attempt {attempt}')
+            _ = openURL('http://www.uniprot.org/')
+            break
+        except:
+            attempt += 1
+            time.sleep((attempt+1)*dt)
+    else:
+        _ = openURL('http://www.uniprot.org/')
     return pd.queryUniprot(*args, **kwargs)
 
 

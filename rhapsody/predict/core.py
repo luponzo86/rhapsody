@@ -380,9 +380,11 @@ class Rhapsody:
                     [SAV['SAV coords'], SAV['unique SAV coords']] +
                     SAV['unique SAV coords'].split()
                 )
-            except Exception as e:
-                LOGGER.warn(f'Invalid Uniprot coordinates at line {i}: {e}')
-                uSAVcoords[i] = tuple(['?', -999, '?', '?'])
+            except Exception:
+                LOGGER.warn(
+                    'Invalid Uniprot coordinates at line {}: {}'.format(
+                    i, SAV['unique SAV coords']))
+                uSAVcoords[i] = tuple(['?', '?', '?', -999, '?', '?'])
         return uSAVcoords
 
     def calcFeatures(self, filename='rhapsody-features.txt', refresh=False):
