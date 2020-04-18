@@ -33,10 +33,11 @@ def queryUniprot(*args, n_attempts=3, dt=1, **kwargs):
     attempt = 0
     while attempt < n_attempts:
         try:
-            print(f'attempt {attempt}')
             _ = openURL('http://www.uniprot.org/')
             break
         except:
+            LOGGER.info(
+                f'Attempt {attempt} to contact www.uniprot.org failed')
             attempt += 1
             time.sleep((attempt+1)*dt)
     else:
@@ -172,7 +173,12 @@ class UniprotMapping:
         assert isinstance(title, str) or title is None
         # parse/import pdb and assign title
         if isinstance(PDB, str):
-            pdb = pd.parsePDB(PDB, subset='calpha')
+            try:
+                pdb = pd.parsePDB(PDB, subset='calpha')
+            except Exception as e:
+                msg = ('Invalid PDB structure: the file might be '
+                       f'corrupted or contain errors. Error message: {e}')
+                raise LOGGER.error(msg)
             if title is None:
                 title = os.path.basename(PDB.strip())
                 title = title.replace(' ', '_')

@@ -383,7 +383,7 @@ class Rhapsody:
             except Exception:
                 LOGGER.warn(
                     'Invalid Uniprot coordinates at line {}: {}'.format(
-                    i, SAV['unique SAV coords']))
+                        i, SAV['unique SAV coords']))
                 uSAVcoords[i] = tuple(['?', '?', '?', -999, '?', '?'])
         return uSAVcoords
 
