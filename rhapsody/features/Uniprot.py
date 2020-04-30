@@ -177,9 +177,9 @@ class UniprotMapping:
                 pdb = pd.parsePDB(PDB, subset='calpha')
             except Exception as e:
                 msg = (
-                    'Unable to import PDB: PDB ID might be invalid or ',
+                    'Unable to import PDB: PDB ID might be invalid or '
                     f'PDB file might be corrupted. Error message: {e}')
-                raise LOGGER.error(msg)
+                LOGGER.error(msg)
             if title is None:
                 title = os.path.basename(PDB.strip())
                 title = title.replace(' ', '_')
