@@ -176,8 +176,7 @@ class UniprotMapping:
             try:
                 pdb = pd.parsePDB(PDB, subset='calpha')
             except Exception as e:
-                msg = ('Invalid PDB structure: the file might be '
-                       f'corrupted or contain errors. Error message: {e}')
+                msg = (f'Invalid PDB ID or PDB file: {e}')
                 raise LOGGER.error(msg)
             if title is None:
                 title = os.path.basename(PDB.strip())
