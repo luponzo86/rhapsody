@@ -53,7 +53,7 @@ def rhapsody(query, query_type='SAVs',
     :type custom_PDB: str, :class:`AtomGroup`
 
     :arg force_env: force a specific environment model for GNM/ANM
-      calculations, among ``'chain'``, ``'reduced'`` and ``'PolyPhen2'``.
+      calculations, among ``'chain'``, ``'reduced'`` and ``'sliced'``.
       If **None** (default), the model of individual dynamical features will
       match that found in the classifier's feature set
     :type force_env: str
