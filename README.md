@@ -5,7 +5,9 @@
 
 # Rhapsody
 Python program, based on ProDy, for pathogenicity prediction of human
-missense variants.
+missense variants. 
+
+The code of conduct is the same as for ProDy (https://github.com/prody/ProDy/blob/master/CODE_OF_CONDUCT.md).
 
 ## Install latest published version using pip
 Rhapsody is published on [PyPI](https://pypi.org/). To install Rhapsody,
