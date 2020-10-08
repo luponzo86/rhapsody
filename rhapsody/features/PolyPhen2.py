@@ -225,10 +225,17 @@ def parsePolyPhen2output(pph2_output):
     # discard invalid lines
     lines = [l for l in lines if l.strip() and l[0] != '#']
     if not lines:
-        msg = ("PolyPhen-2's output is empty. Please make sure that: \n"
-               "1) variants' format is correct "
-               '(\"UniprotID pos wt_aa mut_aa\") \n'
-               "2) query contains *human* variants \n")
+        msg = (
+            "PolyPhen-2's output is empty. Please check file 'pph2-log.txt' "
+            "in the output folder for error messages from PolyPhen-2. \n"
+            "Typical errors include: \n"
+            "1) query contains *non-human* variants \n"
+            "2) variants' format is incorrect (e.g. "
+            '"UniprotID pos wt_aa mut_aa") \n'
+            "3) wild-type amino acids are in the wrong position on the "
+            "sequence (please refer to Uniprot's canonical isoform) \n"
+            "4) Uniprot accession number is not recognized by PolyPhen-2. \n"
+        )
         raise RuntimeError(msg)
     # define a structured array
     pl_dtype = np.dtype([(col, 'U25') for col in pph2_columns])
