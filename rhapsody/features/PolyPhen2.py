@@ -129,7 +129,7 @@ def queryPolyPhen2(filename, dump=True, prefix='pph2',
     num_lines = sum(1 for line in open(filename, 'rb') if line[0] != '#')
     input_file = open(filename, 'rb')
     # submit query
-    address = 'http://genetics.bwh.harvard.edu/cgi-bin/ggi/ggi2.cgi'
+    address = 'http://genetics.bwh.harvard.edu/ggi/cgi-bin/ggi2.cgi'
     files = {
         '_ggi_project': (None, 'PPHWeb2'),
         '_ggi_origin': (None, 'query'),
