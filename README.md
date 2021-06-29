@@ -27,7 +27,7 @@ Rhapsody is written in pure Python so no local compilation is needed.
 To install all needed dependencies, we strongly suggest to use Conda and create
 a new environment with:
 ```console
-$ conda create -n rhapsody python=3 numpy scikit-learn requests pyparsing matplotlib biopython
+$ conda create -n rhapsody python=3 numpy scikit-learn requests pyparsing matplotlib biopython tqdm
 $ conda activate rhapsody
 $ pip install prody
 $ conda install -c salilab dssp
